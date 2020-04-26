@@ -2,7 +2,7 @@ use anyhow::{format_err, Error};
 use log::debug;
 use std::env;
 
-use crate::{errors::ServiceError, models::Invitation, ses_client::SesInstance};
+use crate::{errors::ServiceError, invitation::Invitation, ses_client::SesInstance};
 
 pub async fn send_invitation(
     invitation: &Invitation,
@@ -41,11 +41,11 @@ pub async fn send_invitation(
 
 #[cfg(test)]
 mod tests {
-    use chrono::{Duration, Local};
+    use chrono::{Duration, Utc};
     use std::{env, path::Path};
     use uuid::Uuid;
 
-    use crate::{email_service::send_invitation, errors::ServiceError, models::Invitation};
+    use crate::{email_service::send_invitation, errors::ServiceError, invitation::Invitation};
 
     #[tokio::test]
     #[ignore]
@@ -64,7 +64,7 @@ mod tests {
         let new_invitation = Invitation {
             id: Uuid::new_v4(),
             email: "ddboline.im@gmail.com".to_string(),
-            expires_at: Local::now().naive_local() + Duration::hours(24),
+            expires_at: Utc::now() + Duration::hours(24),
         };
 
         send_invitation(&new_invitation, "test_url").await?;
