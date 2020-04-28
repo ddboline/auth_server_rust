@@ -28,6 +28,7 @@ tokio-postgres = {version = "0.5", features = ["with-chrono-0_4"]}
 postgres-types = "0.1"
 postgres_query = "0.3"
 jsonwebtoken = "7.1"
+warp = "0.2"
 
 [[bin]]
 name = "auth-server-rust"

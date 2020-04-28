@@ -14,6 +14,7 @@ pub mod invitation;
 pub mod logged_user;
 pub mod pgpool;
 pub mod ses_client;
+pub mod static_files;
 pub mod token;
 pub mod user;
 
