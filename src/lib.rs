@@ -7,6 +7,8 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::cognitive_complexity)]
 
+pub mod app;
+pub mod auth;
 pub mod claim;
 pub mod email_service;
 pub mod errors;

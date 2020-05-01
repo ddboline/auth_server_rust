@@ -29,6 +29,7 @@ postgres-types = "0.1"
 postgres_query = "0.3"
 jsonwebtoken = "7.1"
 warp = "0.2"
+bcrypt = "0.7"
 
 [[bin]]
 name = "auth-server-rust"
