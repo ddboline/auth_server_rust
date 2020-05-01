@@ -19,6 +19,8 @@ pub mod ses_client;
 pub mod static_files;
 pub mod token;
 pub mod user;
+pub mod stack_string;
+pub mod config;
 
 #[cfg(test)]
 mod tests {
