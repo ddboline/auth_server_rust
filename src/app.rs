@@ -1,11 +1,16 @@
 use anyhow::Error;
-use warp::Filter;
+use actix_identity::{CookieIdentityPolicy, IdentityService};
+use actix_web::{middleware::Logger, web, App, HttpServer};
 
+use crate::pgpool::PgPool;
+use crate::config::Config;
 use crate::static_files::{
     change_password, index_html, login_html, main_css, main_js, register_html,
 };
 
 pub async fn start_app() -> Result<(), Error> {
+
+
     let index = warp::path!("auth" / "index.html").map(index_html);
     let main_css = warp::path!("auth" / "main.css").map(main_css);
     let main_js = warp::path!("auth" / "main.js").map(main_js);

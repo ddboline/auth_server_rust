@@ -1,45 +1,42 @@
-use warp::{
-    http::{header::CONTENT_TYPE, Error as HttpError, Response as HttpResponse},
-    reply::Response,
-};
+use actix_web::HttpResponse;
 
-pub fn index_html() -> Result<Response, HttpError> {
-    HttpResponse::builder()
-        .header(CONTENT_TYPE, "text/html; charset=utf-8")
-        .body(include_str!("../templates/index.html").into())
+pub fn index_html() -> HttpResponse {
+    HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(include_str!("../templates/index.html"))
 }
 
-pub fn main_css() -> Result<Response, HttpError> {
-    HttpResponse::builder()
+pub fn main_css() -> HttpResponse {
+    HttpResponse::Ok()
         .header(CONTENT_TYPE, "text/css; charset=utf-8")
-        .body(include_str!("../templates/main.css").into())
+        .body(include_str!("../templates/main.css"))
         .map_err(Into::into)
 }
 
-pub fn register_html() -> Result<Response, HttpError> {
-    HttpResponse::builder()
-        .header(CONTENT_TYPE, "text/html; charset=utf-8")
-        .body(include_str!("../templates/register.html").into())
+pub fn register_html() -> HttpResponse {
+    HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(include_str!("../templates/register.html"))
         .map_err(Into::into)
 }
 
-pub fn main_js() -> Result<Response, HttpError> {
-    HttpResponse::builder()
+pub fn main_js() -> HttpResponse {
+    HttpResponse::Ok()
         .header(CONTENT_TYPE, "text/javascript; charset=utf-8")
-        .body(include_str!("../templates/main.js").into())
+        .body(include_str!("../templates/main.js"))
         .map_err(Into::into)
 }
 
-pub fn login_html() -> Result<Response, HttpError> {
-    HttpResponse::builder()
-        .header(CONTENT_TYPE, "text/html; charset=utf-8")
-        .body(include_str!("../templates/login.html").into())
+pub fn login_html() -> HttpResponse {
+    HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(include_str!("../templates/login.html"))
         .map_err(Into::into)
 }
 
-pub fn change_password() -> Result<Response, HttpError> {
-    HttpResponse::builder()
-        .header(CONTENT_TYPE, "text/html; charset=utf-8")
-        .body(include_str!("../templates/change_password.html").into())
+pub fn change_password() -> HttpResponse {
+    HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(include_str!("../templates/change_password.html"))
         .map_err(Into::into)
 }
