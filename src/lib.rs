@@ -10,17 +10,17 @@
 pub mod app;
 pub mod auth;
 pub mod claim;
-pub mod email_service;
+pub mod config;
 pub mod errors;
+pub mod google_openid;
 pub mod invitation;
 pub mod logged_user;
 pub mod pgpool;
+pub mod routes;
 pub mod ses_client;
 pub mod static_files;
 pub mod token;
 pub mod user;
-pub mod stack_string;
-pub mod config;
 
 #[cfg(test)]
 mod tests {

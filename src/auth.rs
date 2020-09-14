@@ -1,9 +1,6 @@
-use anyhow::Error;
-use bcrypt::verify;
-use postgres_query::query;
 use serde::Deserialize;
 
-use crate::pgpool::PgPool;
+use crate::{errors::ServiceError as Error, pgpool::PgPool, user::User};
 
 #[derive(Debug, Deserialize)]
 pub struct AuthRequest {
@@ -12,17 +9,12 @@ pub struct AuthRequest {
 }
 
 impl AuthRequest {
-    pub async fn authenticate(&self, pool: &PgPool) -> Result<bool, Error> {
-        let query = query!(
-            "SELECT password FROM users WHERE email = $email",
-            email = self.email
-        );
-        let password: String = pool
-            .get()
-            .await?
-            .query_one(query.sql(), query.parameters())
-            .await?
-            .try_get("password")?;
-        verify(&password, &self.password).map_err(Into::into)
+    pub async fn authenticate(&self, pool: &PgPool) -> Result<Option<User>, Error> {
+        if let Some(user) = User::get_by_email(&self.email, pool).await? {
+            if user.verify_password(&self.password)? {
+                return Ok(Some(user));
+            }
+        }
+        Err(Error::BadRequest("Invalid username or password".into()))
     }
 }
