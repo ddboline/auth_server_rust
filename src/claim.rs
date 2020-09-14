@@ -1,37 +1,36 @@
-use chrono::{Duration, Utc};
+use chrono::{Duration, Local};
 use serde::{Deserialize, Serialize};
-use stack_string::StackString;
-
-use crate::app::CONFIG;
+use std::env;
 
 // JWT claim
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claim {
     // issuer
-    iss: StackString,
+    iss: String,
     // subject
-    sub: StackString,
+    sub: String,
     // issued at
     iat: i64,
     // expiry
     exp: i64,
     // user email
-    email: StackString,
+    email: String,
 }
 
 // struct to get converted to token and back
 impl Claim {
     pub fn with_email(email: &str) -> Self {
+        let domain = env::var("DOMAIN").unwrap_or_else(|_| "localhost".to_string());
         Self {
-            iss: CONFIG.domain.clone(),
+            iss: domain,
             sub: "auth".into(),
-            email: email.into(),
-            iat: Utc::now().timestamp(),
-            exp: (Utc::now() + Duration::seconds(CONFIG.expiration_seconds)).timestamp(),
+            email: email.to_owned(),
+            iat: Local::now().timestamp(),
+            exp: (Local::now() + Duration::hours(24)).timestamp(),
         }
     }
 
-    pub fn get_email(&self) -> &str {
-        self.email.as_str()
+    pub fn get_email(self) -> String {
+        self.email
     }
 }

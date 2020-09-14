@@ -1,52 +1,31 @@
 use anyhow::{format_err, Error};
-use bcrypt::DEFAULT_COST;
-use serde::{Deserialize, Serialize};
-use std::{
-    ops::Deref,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
-use url::Url;
+use std::{env::var, ops::Deref, path::Path, sync::Arc};
 
-use stack_string::StackString;
+use crate::stack_string::StackString;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Default, Debug)]
 pub struct ConfigInner {
     pub database_url: StackString,
     pub sending_email_address: StackString,
-    pub secret_path: PathBuf,
-    pub jwt_secret_path: PathBuf,
-    #[serde(default = "default_callback")]
-    pub callback_url: Url,
-    #[serde(default = "default_domain")]
+    pub secret_key: StackString,
     pub domain: StackString,
-    #[serde(default = "default_port")]
-    pub port: u32,
-    #[serde(default = "default_cost")]
-    pub hash_rounds: u32,
-    #[serde(default = "default_expiration_seconds")]
-    pub expiration_seconds: i64,
 }
 
-fn default_domain() -> StackString {
-    "localhost".into()
-}
-fn default_port() -> u32 {
-    3000
-}
-fn default_callback() -> Url {
-    "http://localhost:3000/register.html"
-        .parse()
-        .expect("Failed to parse")
-}
-fn default_cost() -> u32 {
-    DEFAULT_COST
-}
-fn default_expiration_seconds() -> i64 {
-    24 * 3600
+macro_rules! set_config_must {
+    ($s:ident, $id:ident) => {
+        $s.$id = var(&stringify!($id).to_uppercase())
+            .map(Into::into)
+            .map_err(|e| format_err!("{} must be set: {}", stringify!($id).to_uppercase(), e))?;
+    };
 }
 
-#[derive(Debug, Clone)]
+macro_rules! set_config_default {
+    ($s:ident, $id:ident, $d:expr) => {
+        $s.$id = var(&stringify!($id).to_uppercase()).map_or_else(|_| $d, Into::into);
+    };
+}
+
+#[derive(Default, Debug, Clone)]
 pub struct Config(Arc<ConfigInner>);
 
 impl Deref for Config {
@@ -58,6 +37,10 @@ impl Deref for Config {
 }
 
 impl Config {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     pub fn from_inner(inner: ConfigInner) -> Self {
         Self(Arc::new(inner))
     }
@@ -65,7 +48,7 @@ impl Config {
     pub fn init_config() -> Result<Self, Error> {
         let fname = Path::new("config.env");
         let config_dir = dirs::config_dir().ok_or_else(|| format_err!("No CONFIG directory"))?;
-        let default_fname = config_dir.join("auth_server_rust").join("config.env");
+        let default_fname = config_dir.join("aws_app_rust").join("config.env");
 
         let env_file = if fname.exists() {
             fname
@@ -79,7 +62,12 @@ impl Config {
             dotenv::from_path(env_file).ok();
         }
 
-        let conf: ConfigInner = envy::from_env()?;
+        let mut conf = ConfigInner::default();
+
+        set_config_must!(conf, database_url);
+        set_config_must!(conf, sending_email_address);
+        set_config_must!(conf, secret_key);
+        set_config_default!(conf, domain, "localhost".into());
 
         Ok(Self(Arc::new(conf)))
     }
