@@ -27,7 +27,7 @@ impl Claim {
             sub: "auth".into(),
             email: email.into(),
             iat: Utc::now().timestamp(),
-            exp: (Utc::now() + Duration::hours(24)).timestamp(),
+            exp: (Utc::now() + Duration::seconds(CONFIG.expiration_seconds)).timestamp(),
         }
     }
 

@@ -3,19 +3,19 @@ use actix_web::{web, App, HttpServer};
 use anyhow::Error;
 use lazy_static::lazy_static;
 use rand::{thread_rng, Rng};
-use std::path::Path;
-use std::time::Duration;
-use tokio::task::spawn;
-use tokio::time::interval;
+use std::{path::Path, time::Duration};
+use tokio::{task::spawn, time::interval};
 
-use crate::config::Config;
-use crate::logged_user::fill_auth_from_db;
-use crate::pgpool::PgPool;
-use crate::routes::{
-    auth_url, callback, change_password_user, get_me, login, logout, register_email, register_user,
-};
-use crate::static_files::{
-    change_password, index_html, login_html, main_css, main_js, register_html,
+use crate::{
+    config::Config,
+    google_openid::GoogleClient,
+    logged_user::fill_auth_from_db,
+    pgpool::PgPool,
+    routes::{
+        auth_url, callback, change_password_user, get_me, login, logout, register_email,
+        register_user,
+    },
+    static_files::{change_password, index_html, login_html, main_css, main_js, register_html},
 };
 
 lazy_static! {
@@ -35,6 +35,19 @@ fn get_secret(p: &Path) -> Result<Vec<u8>, Error> {
     read(p).map_err(Into::into)
 }
 
+pub fn get_random_string(n: usize) -> String {
+    (0..)
+        .filter_map(|_| {
+            let c: char = thread_rng().gen::<u8>().into();
+            match c {
+                'a'..='z' | 'A'..='Z' | '0'..='9' => Some(c),
+                _ => None,
+            }
+        })
+        .take(n)
+        .collect()
+}
+
 pub struct AppState {
     pub pool: PgPool,
 }
@@ -48,20 +61,21 @@ pub async fn start_app() -> Result<(), Error> {
             fill_auth_from_db(&p).await.unwrap_or(());
         }
     }
-
+    let google_client = GoogleClient::new().await?;
     let pool = PgPool::new(&CONFIG.database_url);
 
     spawn(_update_db(pool.clone()));
 
     HttpServer::new(move || {
         App::new()
+            .data(google_client.clone())
             .data(AppState { pool: pool.clone() })
             .wrap(IdentityService::new(
                 CookieIdentityPolicy::new(&SECRET_KEY)
                     .name("auth")
                     .path("/")
                     .domain(CONFIG.domain.as_str())
-                    .max_age(24 * 3600)
+                    .max_age(CONFIG.expiration_seconds)
                     .secure(false),
             ))
             .service(
@@ -101,4 +115,19 @@ pub async fn start_app() -> Result<(), Error> {
     .run()
     .await
     .map_err(Into::into)
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Error;
+
+    use crate::app::get_random_string;
+
+    #[test]
+    fn test_get_random_string() -> Result<(), Error> {
+        let rs = get_random_string(32);
+        println!("{}", rs);
+        assert_eq!(rs.len(), 32);
+        Ok(())
+    }
 }

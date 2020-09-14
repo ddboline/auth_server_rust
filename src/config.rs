@@ -24,6 +24,8 @@ pub struct ConfigInner {
     pub port: u32,
     #[serde(default = "default_cost")]
     pub hash_rounds: u32,
+    #[serde(default = "default_expiration_seconds")]
+    pub expiration_seconds: i64,
 }
 
 fn default_domain() -> StackString {
@@ -39,6 +41,9 @@ fn default_callback() -> Url {
 }
 fn default_cost() -> u32 {
     DEFAULT_COST
+}
+fn default_expiration_seconds() -> i64 {
+    24 * 3600
 }
 
 #[derive(Debug, Clone)]

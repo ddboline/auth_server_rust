@@ -11,7 +11,6 @@ pub mod app;
 pub mod auth;
 pub mod claim;
 pub mod config;
-pub mod email_service;
 pub mod errors;
 pub mod google_openid;
 pub mod invitation;

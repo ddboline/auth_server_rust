@@ -1,8 +1,7 @@
 use derive_more::{From, Into};
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 
-use crate::app::JWT_SECRET;
-use crate::{claim::Claim, errors::ServiceError, logged_user::LoggedUser};
+use crate::{app::JWT_SECRET, claim::Claim, errors::ServiceError, logged_user::LoggedUser};
 
 const DEFAULT_ALGORITHM: Algorithm = Algorithm::HS256;
 

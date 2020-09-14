@@ -7,6 +7,7 @@ use std::{convert::From, fmt::Debug};
 use thiserror::Error;
 use tokio::task::JoinError;
 use tokio_postgres::error::Error as PostgresError;
+use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
 
 use crate::logged_user::TRIGGER_DB_UPDATE;
@@ -31,6 +32,8 @@ pub enum ServiceError {
     QueryError(#[from] QueryError),
     #[error("BcryptError {0}")]
     BcryptError(#[from] BcryptError),
+    #[error("UrlParseError {0}")]
+    UrlParseError(#[from] UrlParseError),
 }
 
 // we can return early in our handlers if UUID provided by the user is not valid
