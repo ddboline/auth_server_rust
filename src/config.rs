@@ -26,6 +26,8 @@ pub struct ConfigInner {
     pub hash_rounds: u32,
     #[serde(default = "default_expiration_seconds")]
     pub expiration_seconds: i64,
+    pub google_client_id: StackString,
+    pub google_client_secret: StackString,
 }
 
 fn default_domain() -> StackString {

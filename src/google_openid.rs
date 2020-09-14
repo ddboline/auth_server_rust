@@ -7,10 +7,11 @@ use openid::{DiscoveredClient, Options, Userinfo};
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
-use std::{collections::HashMap, env::var, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 use url::Url;
 
+use crate::app::CONFIG;
 use crate::{logged_user::LoggedUser, pgpool::PgPool, token::Token, user::User};
 
 lazy_static! {
@@ -129,14 +130,10 @@ pub async fn cleanup_token_map() {
 }
 
 pub async fn get_google_client() -> Result<DiscoveredClient, Error> {
-    let google_client_id =
-        var("GOOGLE_CLIENT_ID").expect("Missing the GOOGLE_CLIENT_ID environment variable.");
-    let google_client_secret = var("GOOGLE_CLIENT_SECRET")
-        .expect("Missing the GOOGLE_CLIENT_SECRET environment variable.");
+    let google_client_id = CONFIG.google_client_id.clone().into();
+    let google_client_secret = CONFIG.google_client_secret.clone().into();
     let issuer_url = Url::parse("https://accounts.google.com").expect("Invalid issuer URL");
-
-    let domain = var("DOMAIN").unwrap_or_else(|_| "localhost".to_string());
-    let redirect_url = format!("https://{}/api/callback", domain);
+    let redirect_url = format!("https://{}/api/callback", CONFIG.domain);
 
     DiscoveredClient::discover(
         google_client_id,
