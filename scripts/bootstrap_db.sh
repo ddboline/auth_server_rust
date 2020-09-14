@@ -13,15 +13,17 @@ sudo -u postgres psql -c "CREATE ROLE $USER PASSWORD '$PASSWORD' NOSUPERUSER NOC
 sudo -u postgres psql -c "ALTER ROLE $USER PASSWORD '$PASSWORD' NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT LOGIN;"
 sudo -u postgres createdb $DB
 
-mkdir -p ${HOME}/.config/aws_app_rust
-cat > ${HOME}/.config/sync_app_rust/config.env <<EOL
+mkdir -p ${HOME}/.config/auth_server_rust
+cat > ${HOME}/.config/auth_server_rust/config.env <<EOL
 DATABASE_URL=postgresql://$USER:$PASSWORD@localhost:5432/$DB
-MY_OWNER_ID=8675309
-DEFAULT_SECURITY_GROUP=sg-0
-SPOT_SECURITY_GROUP=sg-0
-DEFAULT_KEY_NAME=default-key
-SCRIPT_DIRECTORY=~/
-DOMAIN=localhost
-JWT_SECRET=$JWT_SECRET
-SECRET_KEY=$SECRET_KEY
+SENDING_EMAIL_ADDRESS=user@localhost
+SECRET_PATH=${HOME}/.config/auth_server_rust/secret.bin
+JWT_SECRET_PATH=${HOME}/.config/auth_server_rust/jwt_secret.bin
+CALLBACK_URL=https://localhost/callback
+DOMAIN=localhot
+PORT=3000
+HASH_ROUNDS=12
 EOL
+
+psql $DB < ./scripts/invitations.sql
+psql $DB < ./scripts/users.sql
