@@ -1,8 +1,7 @@
 use anyhow::Error;
-use chrono::{DateTime, Duration, Utc};
 use rusoto_core::Region;
 use rusoto_ses::{Body, Content, Destination, Message, SendEmailRequest, Ses, SesClient};
-use std::{collections::HashMap, fmt, fs::File, io::Read, path::Path, thread::sleep, time};
+use std::fmt;
 use sts_profile_auth::get_client_sts;
 
 #[derive(Clone)]

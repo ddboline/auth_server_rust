@@ -27,14 +27,20 @@ serde = { version="1.0", features=["derive"] }
 serde_json="1.0"
 deadpool = "0.5"
 deadpool-postgres = "0.5"
-tokio-postgres = {version = "0.5", features = ["with-chrono-0_4"]}
+tokio-postgres = {version = "0.5", features = ["with-chrono-0_4", "with-uuid-0_8"]}
 postgres-types = "0.1"
 postgres_query = "0.3"
 jsonwebtoken = "7.2"
 bcrypt = "0.8"
 bytes = "0.5"
-stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.6", features=["diesel_types"] }
+stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.6", features=["postgres_types"] }
 envy = "0.4"
+base64 = "0.12"
+openid = "0.4"
+rand = "0.7"
+url = "2.1"
+futures = "0.3"
+parking_lot = "0.11"
 
 [[bin]]
 name = "auth-server-rust"

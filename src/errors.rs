@@ -1,14 +1,13 @@
-use derive_more::Display;
+use actix_web::{error::ResponseError, HttpResponse};
+use anyhow::Error as AnyhowError;
+use bcrypt::BcryptError;
+use openid::error::Error as OpenidError;
+use postgres_query::extract::Error as QueryError;
 use std::{convert::From, fmt::Debug};
 use thiserror::Error;
 use tokio::task::JoinError;
+use tokio_postgres::error::Error as PostgresError;
 use uuid::Error as ParseError;
-use warp::{
-    http::{
-        header::CONTENT_TYPE, status::StatusCode, Error as HttpError, Response as HttpResponse,
-    },
-    reply::{html, json, with_status, Reply, Response},
-};
 
 use crate::logged_user::TRIGGER_DB_UPDATE;
 
@@ -24,8 +23,14 @@ pub enum ServiceError {
     BlockingError(String),
     #[error("JoinError {0}")]
     JoinError(#[from] JoinError),
-    #[error("HttpError {0}")]
-    HttpError(#[from] HttpError),
+    #[error("AnyhowError {0}")]
+    AnyhowError(#[from] AnyhowError),
+    #[error("PostgresError {0}")]
+    PostgresError(#[from] PostgresError),
+    #[error("QueryError {0}")]
+    QueryError(#[from] QueryError),
+    #[error("BcryptError {0}")]
+    BcryptError(#[from] BcryptError),
 }
 
 // we can return early in our handlers if UUID provided by the user is not valid
@@ -36,32 +41,29 @@ impl From<ParseError> for ServiceError {
     }
 }
 
-impl ServiceError {
-    pub fn handle_error(self) -> Result<Response, HttpError> {
-        match self {
-            Self::BadRequest(ref message) => HttpResponse::builder()
-                .status(StatusCode::BAD_REQUEST)
-                .header(CONTENT_TYPE, "application/json; charset=utf-8")
-                .body(serde_json::to_string(message).unwrap().into()),
-            Self::Unauthorized => {
-                TRIGGER_DB_UPDATE.set();
-                HttpResponse::builder().status(StatusCode::OK).body(
-                    include_str!("../templates/login.html")
-                        .replace("main.css", "../auth/main.css")
-                        .replace("main.js", "../auth/main.js")
-                        .into(),
-                )
-            }
-            _ => HttpResponse::builder()
-                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .header(CONTENT_TYPE, "application/json; charset=utf-8")
-                .body("Internal Server Error, Please try later".into()),
-        }
+impl From<OpenidError> for ServiceError {
+    fn from(e: OpenidError) -> Self {
+        Self::BadRequest(format!("Openid Error {:?}", e))
     }
 }
 
-impl Reply for ServiceError {
-    fn into_response(self) -> Response {
-        self.handle_error().unwrap()
+impl ResponseError for ServiceError {
+    fn error_response(&self) -> HttpResponse {
+        match *self {
+            Self::BadRequest(ref message) => HttpResponse::BadRequest().json(message),
+            Self::Unauthorized => {
+                TRIGGER_DB_UPDATE.set();
+                HttpResponse::Ok()
+                    .content_type("text/html; charset=utf-8")
+                    .body(
+                        include_str!("../templates/login.html")
+                            .replace("main.css", "../auth/main.css")
+                            .replace("main.js", "../auth/main.js"),
+                    )
+            }
+            _ => {
+                HttpResponse::InternalServerError().json("Internal Server Error, Please try later")
+            }
+        }
     }
 }

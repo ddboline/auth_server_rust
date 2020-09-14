@@ -1,4 +1,3 @@
-use anyhow::{format_err, Error};
 use log::debug;
 use std::env;
 
@@ -42,7 +41,7 @@ pub async fn send_invitation(
 #[cfg(test)]
 mod tests {
     use chrono::{Duration, Utc};
-    use std::{env, path::Path};
+    use std::path::Path;
     use uuid::Uuid;
 
     use crate::{email_service::send_invitation, errors::ServiceError, invitation::Invitation};
