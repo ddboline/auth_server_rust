@@ -176,13 +176,19 @@ impl Deref for AuthSecret {
     }
 }
 
+impl Default for AuthSecret {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AuthSecret {
     pub fn new() -> Self {
-        Self(AtomicCell::new([0u8; KEY_LENGTH]))
+        Self(AtomicCell::new([0_u8; KEY_LENGTH]))
     }
 
     pub async fn read_from_file(&self, p: &Path) -> Result<(), anyhow::Error> {
-        let mut secret = [0u8; KEY_LENGTH];
+        let mut secret = [0_u8; KEY_LENGTH];
         let mut f = File::open(p).await?;
         f.read_exact(&mut secret).await?;
         self.store(secret);
