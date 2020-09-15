@@ -1,7 +1,11 @@
 use derive_more::{From, Into};
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 
-use crate::{app::JWT_SECRET, claim::Claim, errors::ServiceError, logged_user::LoggedUser};
+use crate::{
+    claim::Claim,
+    errors::ServiceError,
+    logged_user::{LoggedUser, JWT_SECRET},
+};
 
 const DEFAULT_ALGORITHM: Algorithm = Algorithm::HS256;
 
@@ -14,7 +18,7 @@ impl Token {
         encode(
             &Header::new(DEFAULT_ALGORITHM),
             &claims,
-            &EncodingKey::from_secret(&JWT_SECRET),
+            &EncodingKey::from_secret(&JWT_SECRET.load()),
         )
         .map(Into::into)
         .map_err(|_err| ServiceError::InternalServerError)
@@ -23,7 +27,7 @@ impl Token {
     pub fn decode_token(token: &Self) -> Result<Claim, ServiceError> {
         decode::<Claim>(
             &token.0,
-            &DecodingKey::from_secret(&JWT_SECRET),
+            &DecodingKey::from_secret(&JWT_SECRET.load()),
             &Validation::new(DEFAULT_ALGORITHM),
         )
         .map(|data| Ok(data.claims))

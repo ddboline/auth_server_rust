@@ -1,6 +1,7 @@
 use actix_identity::Identity;
 use actix_web::{dev::Payload, FromRequest, HttpRequest};
 use chrono::{DateTime, Utc};
+use crossbeam::atomic::AtomicCell;
 use futures::{
     executor::block_on,
     future::{ready, Ready},
@@ -8,19 +9,31 @@ use futures::{
 use lazy_static::lazy_static;
 use log::debug;
 use parking_lot::RwLock;
+use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use stack_string::StackString;
+use std::ops::Deref;
+use std::path::Path;
 use std::{
     collections::HashMap,
     env,
     sync::atomic::{AtomicBool, Ordering},
 };
+use tokio::fs::{self, File};
+use tokio::io::AsyncReadExt;
 
-use crate::{claim::Claim, errors::ServiceError, pgpool::PgPool, token::Token, user::User};
+use crate::{
+    claim::Claim, errors::ServiceError as Error, pgpool::PgPool, token::Token, user::User,
+};
+
+pub const KEY_LENGTH: usize = 32;
 
 lazy_static! {
     pub static ref AUTHORIZED_USERS: AuthorizedUsers = AuthorizedUsers::new();
     pub static ref TRIGGER_DB_UPDATE: AuthTrigger = AuthTrigger::new();
+    pub static ref SECRET_KEY: AuthSecret = AuthSecret::new();
+    pub static ref JWT_SECRET: AuthSecret = AuthSecret::new();
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
@@ -56,7 +69,7 @@ fn _from_request(req: &HttpRequest, pl: &mut Payload) -> Result<LoggedUser, acti
             return Ok(user);
         }
     }
-    Err(ServiceError::Unauthorized.into())
+    Err(Error::Unauthorized.into())
 }
 
 impl FromRequest for LoggedUser {
@@ -151,5 +164,56 @@ pub async fn fill_auth_from_db(pool: &PgPool) -> Result<(), anyhow::Error> {
     };
     AUTHORIZED_USERS.merge_users(&users)?;
     debug!("{:?}", *AUTHORIZED_USERS);
+    Ok(())
+}
+
+pub struct AuthSecret(AtomicCell<[u8; KEY_LENGTH]>);
+
+impl Deref for AuthSecret {
+    type Target = AtomicCell<[u8; KEY_LENGTH]>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl AuthSecret {
+    pub fn new() -> Self {
+        Self(AtomicCell::new([0u8; KEY_LENGTH]))
+    }
+
+    pub async fn read_from_file(&self, p: &Path) -> Result<(), anyhow::Error> {
+        let mut secret = [0u8; KEY_LENGTH];
+        let mut f = File::open(p).await?;
+        f.read_exact(&mut secret).await?;
+        self.store(secret);
+        Ok(())
+    }
+}
+
+pub async fn update_secret(p: &Path, max_age: Option<u64>) -> Result<(), anyhow::Error> {
+    if p.exists() {
+        if let Some(max_age) = max_age {
+            if File::open(p)
+                .await?
+                .metadata()
+                .await?
+                .created()?
+                .elapsed()?
+                .as_secs()
+                > max_age
+            {
+                return Ok(());
+            }
+        } else {
+            return Ok(());
+        }
+    }
+    create_secret(p).await
+}
+
+pub async fn create_secret(p: &Path) -> Result<(), anyhow::Error> {
+    let random_bytes: SmallVec<[u8; KEY_LENGTH]> =
+        (0..KEY_LENGTH).map(|_| thread_rng().gen::<u8>()).collect();
+    fs::write(p, &random_bytes).await?;
     Ok(())
 }

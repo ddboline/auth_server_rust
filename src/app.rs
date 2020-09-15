@@ -3,13 +3,13 @@ use actix_web::{web, App, HttpServer};
 use anyhow::Error;
 use lazy_static::lazy_static;
 use rand::{thread_rng, Rng};
-use std::{path::Path, time::Duration};
+use std::time::Duration;
 use tokio::{task::spawn, time::interval};
 
 use crate::{
     config::Config,
     google_openid::GoogleClient,
-    logged_user::fill_auth_from_db,
+    logged_user::{create_secret, fill_auth_from_db, update_secret, JWT_SECRET, SECRET_KEY},
     pgpool::PgPool,
     routes::{
         auth_url, callback, change_password_user, get_me, login, logout, register_email,
@@ -20,19 +20,6 @@ use crate::{
 
 lazy_static! {
     pub static ref CONFIG: Config = Config::init_config().expect("Failed to init config");
-    pub static ref SECRET_KEY: Vec<u8> =
-        get_secret(&CONFIG.secret_path).expect("Failure reading secret file");
-    pub static ref JWT_SECRET: Vec<u8> =
-        get_secret(&CONFIG.jwt_secret_path).expect("Failure reading jwt secret file");
-}
-
-fn get_secret(p: &Path) -> Result<Vec<u8>, Error> {
-    use std::fs::{read, write, File};
-    if !p.exists() || File::open(p)?.metadata()?.created()?.elapsed()?.as_secs() > 7 * 24 * 3600 {
-        let random_bytes: Vec<u8> = (0..32).map(|_| thread_rng().gen::<u8>()).collect();
-        write(p, &random_bytes)?;
-    }
-    read(p).map_err(Into::into)
 }
 
 pub fn get_random_string(n: usize) -> String {
@@ -48,6 +35,15 @@ pub fn get_random_string(n: usize) -> String {
         .collect()
 }
 
+async fn get_secrets() -> Result<(), Error> {
+    SECRET_KEY.read_from_file(&CONFIG.secret_path).await?;
+    JWT_SECRET.read_from_file(&CONFIG.jwt_secret_path).await
+}
+
+async fn update_secrets() -> Result<(), Error> {
+    update_secret(&CONFIG.jwt_secret_path, Some(24 * 3600)).await
+}
+
 pub struct AppState {
     pub pool: PgPool,
 }
@@ -56,10 +52,15 @@ pub async fn start_app() -> Result<(), Error> {
     async fn _update_db(pool: PgPool) {
         let mut i = interval(Duration::from_secs(60));
         loop {
-            i.tick().await;
             let p = pool.clone();
             fill_auth_from_db(&p).await.unwrap_or(());
+            update_secrets().await.unwrap_or(());
+            get_secrets().await.unwrap_or(());
+            i.tick().await;
         }
+    }
+    if !CONFIG.secret_path.exists() {
+        create_secret(&CONFIG.secret_path).await?;
     }
     let google_client = GoogleClient::new().await?;
     let pool = PgPool::new(&CONFIG.database_url);
@@ -71,7 +72,7 @@ pub async fn start_app() -> Result<(), Error> {
             .data(google_client.clone())
             .data(AppState { pool: pool.clone() })
             .wrap(IdentityService::new(
-                CookieIdentityPolicy::new(&SECRET_KEY)
+                CookieIdentityPolicy::new(&SECRET_KEY.load())
                     .name("auth")
                     .path("/")
                     .domain(CONFIG.domain.as_str())
