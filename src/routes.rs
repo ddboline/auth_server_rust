@@ -15,7 +15,7 @@ use crate::{
     errors::ServiceError as Error,
     google_openid::{CallbackQuery, GetAuthUrlData, GoogleClient},
     invitation::Invitation,
-    logged_user::LoggedUser,
+    logged_user::{LoggedUser, AUTHORIZED_USERS},
     token::Token,
     user::User,
 };
@@ -94,6 +94,8 @@ pub async fn register_user(
             let user = User::from_details(&invitation.email, &user_data.password);
             user.upsert(&data.pool).await?;
             invitation.delete(&data.pool).await?;
+            let user: LoggedUser = user.into();
+            AUTHORIZED_USERS.store_auth(user.clone(), true)?;
             return to_json(user);
         } else {
             invitation.delete(&data.pool).await?;
