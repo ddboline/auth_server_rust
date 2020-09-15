@@ -67,6 +67,7 @@ async fn run_app(port: u32, cookie_secret: [u8; KEY_LENGTH], domain: StackString
     if !CONFIG.secret_path.exists() {
         create_secret(&CONFIG.secret_path).await?;
     }
+    get_secrets().await?;
     let google_client = GoogleClient::new().await?;
     let pool = PgPool::new(&CONFIG.database_url);
 
