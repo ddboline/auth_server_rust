@@ -33,7 +33,6 @@ postgres_query = "0.3"
 jsonwebtoken = "7.2"
 bcrypt = "0.8"
 bytes = "0.5"
-stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.6", features=["postgres_types"] }
 envy = "0.4"
 base64 = "0.12"
 openid = "0.4"
@@ -41,6 +40,7 @@ rand = "0.7"
 url = "2.1"
 futures = "0.3"
 parking_lot = "0.11"
+stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.6", features=["postgres_types"] }
 
 [[bin]]
 name = "auth-server-rust"
