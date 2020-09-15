@@ -6,10 +6,10 @@ build_type := release
 
 all:
 	mkdir -p build/ && \
-	cp Dockerfile.ubuntu18.04 build/Dockerfile && \
+	cp Dockerfile.ubuntu20.04 build/Dockerfile && \
 	cp -a Cargo.toml src scripts Makefile templates build/ && \
 	cd build && \
-	docker build -t auth_server_rust/build_rust:ubuntu18.04 . && \
+	docker build -t auth_server_rust/build_rust:ubuntu20.04 . && \
 	cd ../ && \
 	rm -rf build/
 
@@ -19,7 +19,7 @@ cleanup:
 	rm Dockerfile
 
 package:
-	docker run --cidfile $(cidfile) -v `pwd`/target:/auth_server_rust/target auth_server_rust/build_rust:ubuntu18.04 /auth_server_rust/scripts/build_deb_docker.sh $(version) $(release)
+	docker run --cidfile $(cidfile) -v `pwd`/target:/auth_server_rust/target auth_server_rust/build_rust:ubuntu20.04 /auth_server_rust/scripts/build_deb_docker.sh $(version) $(release)
 	docker cp `cat $(cidfile)`:/auth_server_rust/auth-server-rust_$(version)-$(release)_amd64.deb .
 	docker rm `cat $(cidfile)`
 	rm $(cidfile)
