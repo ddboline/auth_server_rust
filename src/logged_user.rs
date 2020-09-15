@@ -212,8 +212,11 @@ pub async fn update_secret(p: &Path, max_age: Option<u64>) -> Result<(), anyhow:
 }
 
 pub async fn create_secret(p: &Path) -> Result<(), anyhow::Error> {
-    let random_bytes: SmallVec<[u8; KEY_LENGTH]> =
-        (0..KEY_LENGTH).map(|_| thread_rng().gen::<u8>()).collect();
-    fs::write(p, &random_bytes).await?;
+    fs::write(p, &get_random_key()).await?;
     Ok(())
+}
+
+
+pub fn get_random_key() -> SmallVec<[u8; KEY_LENGTH]> {
+    (0..KEY_LENGTH).map(|_| thread_rng().gen::<u8>()).collect()
 }
