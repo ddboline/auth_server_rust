@@ -10,6 +10,7 @@ use tokio_postgres::error::Error as PostgresError;
 use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
 
+use crate::static_files;
 use crate::logged_user::TRIGGER_DB_UPDATE;
 
 #[derive(Debug, Error)]
@@ -56,13 +57,7 @@ impl ResponseError for ServiceError {
             Self::BadRequest(ref message) => HttpResponse::BadRequest().json(message),
             Self::Unauthorized => {
                 TRIGGER_DB_UPDATE.set();
-                HttpResponse::Ok()
-                    .content_type("text/html; charset=utf-8")
-                    .body(
-                        include_str!("../templates/login.html")
-                            .replace("main.css", "../auth/main.css")
-                            .replace("main.js", "../auth/main.js"),
-                    )
+                static_files::login_html()
             }
             _ => {
                 HttpResponse::InternalServerError().json("Internal Server Error, Please try later")

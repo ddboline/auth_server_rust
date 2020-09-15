@@ -12,10 +12,10 @@ use stack_string::StackString;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConfigInner {
+    #[serde(default = "default_database_url")]
     pub database_url: StackString,
+    #[serde(default = "default_sending_email_address")]
     pub sending_email_address: StackString,
-    pub secret_path: PathBuf,
-    pub jwt_secret_path: PathBuf,
     #[serde(default = "default_callback")]
     pub callback_url: Url,
     #[serde(default = "default_domain")]
@@ -26,10 +26,20 @@ pub struct ConfigInner {
     pub hash_rounds: u32,
     #[serde(default = "default_expiration_seconds")]
     pub expiration_seconds: i64,
+    #[serde(default = "default_key")]
     pub google_client_id: StackString,
+    #[serde(default = "default_key")]
     pub google_client_secret: StackString,
+    pub secret_path: PathBuf,
+    pub jwt_secret_path: PathBuf,
 }
 
+fn default_database_url() -> StackString {
+    "postgresql://user:password@host:1234/test_db".into()
+}
+fn default_sending_email_address() -> StackString {
+    "test@localhost".into()
+}
 fn default_domain() -> StackString {
     "localhost".into()
 }
@@ -47,7 +57,9 @@ fn default_cost() -> u32 {
 fn default_expiration_seconds() -> i64 {
     24 * 3600
 }
-
+fn default_key() -> StackString {
+    "0123".repeat(8).into()
+}
 #[derive(Debug, Clone)]
 pub struct Config(Arc<ConfigInner>);
 
