@@ -3,14 +3,16 @@ use actix_web::{web, App, HttpServer};
 use anyhow::Error;
 use lazy_static::lazy_static;
 use rand::{thread_rng, Rng};
+use stack_string::StackString;
 use std::time::Duration;
 use tokio::{task::spawn, time::interval};
-use stack_string::StackString;
 
 use crate::{
     config::Config,
     google_openid::GoogleClient,
-    logged_user::{create_secret, fill_auth_from_db, update_secret, JWT_SECRET, SECRET_KEY, KEY_LENGTH},
+    logged_user::{
+        create_secret, fill_auth_from_db, update_secret, JWT_SECRET, KEY_LENGTH, SECRET_KEY,
+    },
     pgpool::PgPool,
     routes::{
         auth_url, callback, change_password_user, get_me, login, logout, register_email,
@@ -53,7 +55,11 @@ pub async fn start_app() -> Result<(), Error> {
     run_app(CONFIG.port, SECRET_KEY.load(), CONFIG.domain.clone()).await
 }
 
-async fn run_app(port: u32, cookie_secret: [u8; KEY_LENGTH], domain: StackString) -> Result<(), Error> {
+async fn run_app(
+    port: u32,
+    cookie_secret: [u8; KEY_LENGTH],
+    domain: StackString,
+) -> Result<(), Error> {
     async fn _update_db(pool: PgPool) {
         let mut i = interval(Duration::from_secs(60));
         loop {
@@ -129,11 +135,13 @@ mod tests {
     use anyhow::Error;
     use maplit::hashmap;
 
-    use crate::logged_user::{get_random_key, KEY_LENGTH, LoggedUser};
-    use crate::app::{get_random_string, run_app, CONFIG};
-    use crate::pgpool::PgPool;
-    use crate::invitation::Invitation;
-    use crate::user::User;
+    use crate::{
+        app::{get_random_string, run_app, CONFIG},
+        invitation::Invitation,
+        logged_user::{get_random_key, LoggedUser, KEY_LENGTH},
+        pgpool::PgPool,
+        user::User,
+    };
 
     #[test]
     fn test_get_random_string() -> Result<(), Error> {
@@ -156,7 +164,11 @@ mod tests {
         let mut secret_key = [0u8; KEY_LENGTH];
         secret_key.copy_from_slice(&get_random_key());
         let test_port = 12345;
-        actix_rt::spawn(async move {run_app(test_port, secret_key, "localhost".into()).await.unwrap()});
+        actix_rt::spawn(async move {
+            run_app(test_port, secret_key, "localhost".into())
+                .await
+                .unwrap()
+        });
 
         tokio::time::delay_for(tokio::time::Duration::from_secs(10)).await;
 
@@ -167,7 +179,14 @@ mod tests {
 
         let client = reqwest::Client::builder().cookie_store(true).build()?;
         println!("register");
-        let resp: LoggedUser = client.post(&url).json(&data).send().await?.error_for_status()?.json().await?;
+        let resp: LoggedUser = client
+            .post(&url)
+            .json(&data)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?;
         println!("registered {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
@@ -179,12 +198,25 @@ mod tests {
             "password" => &password,
         };
         println!("login");
-        let resp: LoggedUser = client.post(&url).json(&data).send().await?.error_for_status()?.json().await?;
+        let resp: LoggedUser = client
+            .post(&url)
+            .json(&data)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?;
         println!("logged in {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
         println!("get me");
-        let resp: LoggedUser = client.get(&url).send().await?.error_for_status()?.json().await?;
+        let resp: LoggedUser = client
+            .get(&url)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?;
         println!("I am: {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
@@ -195,7 +227,14 @@ mod tests {
             "password" => &new_password,
         };
         println!("change password");
-        let text = client.post(&url).json(&data).send().await?.error_for_status()?.text().await?;
+        let text = client
+            .post(&url)
+            .json(&data)
+            .send()
+            .await?
+            .error_for_status()?
+            .text()
+            .await?;
         println!("password changed {:?}", text);
         assert_eq!(text.as_str(), "password updated");
 

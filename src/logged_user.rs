@@ -13,15 +13,17 @@ use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use stack_string::StackString;
-use std::ops::Deref;
-use std::path::Path;
 use std::{
     collections::HashMap,
     env,
+    ops::Deref,
+    path::Path,
     sync::atomic::{AtomicBool, Ordering},
 };
-use tokio::fs::{self, File};
-use tokio::io::AsyncReadExt;
+use tokio::{
+    fs::{self, File},
+    io::AsyncReadExt,
+};
 
 use crate::{
     claim::Claim, errors::ServiceError as Error, pgpool::PgPool, token::Token, user::User,
@@ -221,7 +223,6 @@ pub async fn create_secret(p: &Path) -> Result<(), anyhow::Error> {
     fs::write(p, &get_random_key()).await?;
     Ok(())
 }
-
 
 pub fn get_random_key() -> SmallVec<[u8; KEY_LENGTH]> {
     (0..KEY_LENGTH).map(|_| thread_rng().gen::<u8>()).collect()

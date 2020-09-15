@@ -30,7 +30,9 @@ pub struct ConfigInner {
     pub google_client_id: StackString,
     #[serde(default = "default_key")]
     pub google_client_secret: StackString,
+    #[serde(default = "default_secret_path")]
     pub secret_path: PathBuf,
+    #[serde(default = "default_secret_path")]
     pub jwt_secret_path: PathBuf,
 }
 
@@ -60,6 +62,13 @@ fn default_expiration_seconds() -> i64 {
 fn default_key() -> StackString {
     "0123".repeat(8).into()
 }
+fn default_secret_path() -> PathBuf {
+    dirs::config_dir()
+        .unwrap()
+        .join("aws_app_rust")
+        .join("secret.bin")
+}
+
 #[derive(Debug, Clone)]
 pub struct Config(Arc<ConfigInner>);
 

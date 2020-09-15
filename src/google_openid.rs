@@ -11,8 +11,7 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 use url::Url;
 
-use crate::app::CONFIG;
-use crate::{logged_user::LoggedUser, pgpool::PgPool, token::Token, user::User};
+use crate::{app::CONFIG, logged_user::LoggedUser, pgpool::PgPool, token::Token, user::User};
 
 lazy_static! {
     pub static ref CSRF_TOKENS: RwLock<HashMap<StackString, CrsfTokenCache>> =
