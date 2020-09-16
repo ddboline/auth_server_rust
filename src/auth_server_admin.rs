@@ -8,25 +8,28 @@ use auth_server_rust::user::User;
 
 #[derive(StructOpt, Debug)]
 enum AuthServerOptions {
+    /// List user email addresses
     List,
+    /// Add new user
     Add {
         #[structopt(short="u", long)]
         email: StackString,
         #[structopt(short, long)]
         password: StackString
     },
+    /// Remove user
     Rm {
         #[structopt(short="u", long)]
         email: StackString
     },
+    /// Change password
     Change {
         #[structopt(short="u", long)]
         email: StackString,
         #[structopt(short, long)]
         password: StackString,
-        #[structopt(short, long)]
-        new_password: StackString,
     },
+    /// Verify password
     Verify {
         #[structopt(short="u", long)]
         email: StackString,
@@ -63,15 +66,11 @@ async fn main() -> Result<(), Error> {
                 println!("User {} does not exist", email);
             }
         }
-        AuthServerOptions::Change {email, password, new_password} => {
+        AuthServerOptions::Change {email, password} => {
             if let Some(mut user) = User::get_by_email(&email, &pool).await? {
-                if user.verify_password(&password)? {
-                    user.set_password(&new_password);
-                    user.update(&pool).await?;
-                    println!("Password updated for {}", email);
-                } else {
-                    println!("Incorrect password");
-                }
+                user.set_password(&password);
+                user.update(&pool).await?;
+                println!("Password updated for {}", email);
             } else {
                 println!("User {} does not exist", email);
             }
