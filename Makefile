@@ -26,6 +26,7 @@ package:
 
 install:
 	cp target/$(build_type)/auth-server-rust /usr/bin/auth-server-rust
+	cp target/$(build_type)/auth-server-admin /usr/bin/auth-server-admin
 
 pull:
 	`aws ecr --region us-east-1 get-login --no-include-email`
