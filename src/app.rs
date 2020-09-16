@@ -51,6 +51,7 @@ pub async fn start_app() -> Result<(), Error> {
         create_secret(&CONFIG.secret_path).await?;
     }
     update_secrets().await?;
+    get_secrets(&CONFIG.secret_path, &CONFIG.jwt_secret_path).await?;
     run_app(CONFIG.port, SECRET_KEY.load(), CONFIG.domain.clone()).await
 }
 
@@ -68,7 +69,6 @@ async fn run_app(
         }
     }
 
-    get_secrets(&CONFIG.secret_path, &CONFIG.jwt_secret_path).await?;
     let google_client = GoogleClient::new().await?;
     let pool = PgPool::new(&CONFIG.database_url);
 
