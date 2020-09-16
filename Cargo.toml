@@ -42,6 +42,7 @@ futures = "0.3"
 parking_lot = "0.11"
 smallvec = "1.4"
 crossbeam = "0.7"
+structopt = "0.3"
 stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.6", features=["postgres_types"] }
 
 [dev-dependencies]
@@ -51,4 +52,9 @@ maplit = "1.0"
 [[bin]]
 name = "auth-server-rust"
 path = "src/main.rs"
+doc = false
+
+[[bin]]
+name = "auth-server-admin"
+path = "src/auth_server_admin.rs"
 doc = false
