@@ -67,16 +67,16 @@ impl Invitation {
 
         let email_body = format!(
             "Please click on the link below to complete registration. <br/>
-             <a href=\"{}?id={}&email={}\">
-             {}</a> <br>
-             your Invitation expires on <strong>{}</strong>",
-            callback_url,
-            self.id,
-            self.email,
-            self.expires_at
+             <a href=\"{url}?id={id}&email={email}\">
+             {url}</a> <br>
+             your Invitation expires on <strong>{exp}</strong>",
+            url = callback_url,
+            id = self.id,
+            email = self.email,
+            exp = self
+                .expires_at
                 .format("%I:%M %p %A, %-d %B, %C%y")
                 .to_string(),
-            callback_url,
         );
 
         ses.send_email(
