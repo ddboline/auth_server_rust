@@ -69,6 +69,8 @@ fn _from_request(req: &HttpRequest, pl: &mut Payload) -> Result<LoggedUser, acti
         let user: LoggedUser = Token::decode_token(&identity.into())?.into();
         if AUTHORIZED_USERS.is_authorized(&user) {
             return Ok(user);
+        } else {
+            debug!("not authorized {:?}", user);
         }
     }
     Err(Error::Unauthorized.into())
