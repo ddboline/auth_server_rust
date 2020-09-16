@@ -200,25 +200,12 @@ impl AuthSecret {
     }
 }
 
-pub async fn update_secret(p: &Path, max_age: Option<u64>) -> Result<(), anyhow::Error> {
+pub async fn update_secret(p: &Path) -> Result<(), anyhow::Error> {
     if p.exists() {
-        if let Some(max_age) = max_age {
-            if File::open(p)
-                .await?
-                .metadata()
-                .await?
-                .created()?
-                .elapsed()?
-                .as_secs()
-                > max_age
-            {
-                return Ok(());
-            }
-        } else {
-            return Ok(());
-        }
+        Ok(())
+    } else {
+        create_secret(p).await
     }
-    create_secret(p).await
 }
 
 pub async fn create_secret(p: &Path) -> Result<(), anyhow::Error> {

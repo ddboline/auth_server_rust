@@ -39,7 +39,8 @@ pub fn get_random_string(n: usize) -> String {
 }
 
 async fn update_secrets() -> Result<(), Error> {
-    update_secret(&CONFIG.jwt_secret_path, Some(24 * 3600)).await
+    update_secret(&CONFIG.secret_path).await?;
+    update_secret(&CONFIG.jwt_secret_path).await
 }
 
 pub struct AppState {
@@ -47,9 +48,6 @@ pub struct AppState {
 }
 
 pub async fn start_app() -> Result<(), Error> {
-    if !CONFIG.secret_path.exists() {
-        create_secret(&CONFIG.secret_path).await?;
-    }
     update_secrets().await?;
     get_secrets(&CONFIG.secret_path, &CONFIG.jwt_secret_path).await?;
     run_app(CONFIG.port, SECRET_KEY.load(), CONFIG.domain.clone()).await
