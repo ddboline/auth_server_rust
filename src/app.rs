@@ -47,6 +47,10 @@ pub struct AppState {
 }
 
 pub async fn start_app() -> Result<(), Error> {
+    if !CONFIG.secret_path.exists() {
+        create_secret(&CONFIG.secret_path).await?;
+    }
+    update_secrets().await?;
     run_app(CONFIG.port, SECRET_KEY.load(), CONFIG.domain.clone()).await
 }
 
@@ -63,10 +67,7 @@ async fn run_app(
             i.tick().await;
         }
     }
-    if !CONFIG.secret_path.exists() {
-        create_secret(&CONFIG.secret_path).await?;
-    }
-    update_secrets().await?;
+
     get_secrets(&CONFIG.secret_path, &CONFIG.jwt_secret_path).await?;
     let google_client = GoogleClient::new().await?;
     let pool = PgPool::new(&CONFIG.database_url);
