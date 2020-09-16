@@ -43,6 +43,7 @@ parking_lot = "0.11"
 smallvec = "1.4"
 crossbeam = "0.7"
 structopt = "0.3"
+env_logger = "0.7"
 stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.6", features=["postgres_types"] }
 
 [dev-dependencies]
