@@ -11,7 +11,7 @@ use crate::{
     config::Config,
     google_openid::GoogleClient,
     logged_user::{
-        create_secret, fill_auth_from_db, get_secrets, update_secret, KEY_LENGTH, SECRET_KEY,
+        fill_auth_from_db, get_secrets, update_secret, KEY_LENGTH, SECRET_KEY,
     },
     pgpool::PgPool,
     routes::{
