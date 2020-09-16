@@ -227,3 +227,11 @@ pub async fn create_secret(p: &Path) -> Result<(), anyhow::Error> {
 pub fn get_random_key() -> SmallVec<[u8; KEY_LENGTH]> {
     (0..KEY_LENGTH).map(|_| thread_rng().gen::<u8>()).collect()
 }
+
+pub async fn get_secrets<T: AsRef<Path>>(
+    secret_path: T,
+    jwt_secret_path: T,
+) -> Result<(), anyhow::Error> {
+    SECRET_KEY.read_from_file(secret_path.as_ref()).await?;
+    JWT_SECRET.read_from_file(jwt_secret_path.as_ref()).await
+}

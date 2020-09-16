@@ -11,7 +11,7 @@ use crate::{
     config::Config,
     google_openid::GoogleClient,
     logged_user::{
-        create_secret, fill_auth_from_db, update_secret, JWT_SECRET, KEY_LENGTH, SECRET_KEY,
+        create_secret, fill_auth_from_db, get_secrets, update_secret, KEY_LENGTH, SECRET_KEY,
     },
     pgpool::PgPool,
     routes::{
@@ -38,11 +38,6 @@ pub fn get_random_string(n: usize) -> String {
         .collect()
 }
 
-async fn get_secrets() -> Result<(), Error> {
-    SECRET_KEY.read_from_file(&CONFIG.secret_path).await?;
-    JWT_SECRET.read_from_file(&CONFIG.jwt_secret_path).await
-}
-
 async fn update_secrets() -> Result<(), Error> {
     update_secret(&CONFIG.jwt_secret_path, Some(24 * 3600)).await
 }
@@ -65,7 +60,9 @@ async fn run_app(
         loop {
             let p = pool.clone();
             fill_auth_from_db(&p).await.unwrap_or(());
-            get_secrets().await.unwrap_or(());
+            get_secrets(&CONFIG.secret_path, &CONFIG.jwt_secret_path)
+                .await
+                .unwrap_or(());
             i.tick().await;
         }
     }
@@ -73,7 +70,7 @@ async fn run_app(
         create_secret(&CONFIG.secret_path).await?;
     }
     update_secrets().await?;
-    get_secrets().await?;
+    get_secrets(&CONFIG.secret_path, &CONFIG.jwt_secret_path).await?;
     let google_client = GoogleClient::new().await?;
     let pool = PgPool::new(&CONFIG.database_url);
 
