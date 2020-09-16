@@ -60,9 +60,6 @@ async fn run_app(
         loop {
             let p = pool.clone();
             fill_auth_from_db(&p).await.unwrap_or(());
-            get_secrets(&CONFIG.secret_path, &CONFIG.jwt_secret_path)
-                .await
-                .unwrap_or(());
             i.tick().await;
         }
     }
