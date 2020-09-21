@@ -129,7 +129,7 @@ mod tests {
     use crate::{
         app::{get_random_string, run_app, CONFIG},
         invitation::Invitation,
-        logged_user::{get_random_key, LoggedUser, KEY_LENGTH},
+        logged_user::{get_random_key, LoggedUser, JWT_SECRET, KEY_LENGTH, SECRET_KEY},
         pgpool::PgPool,
         user::User,
     };
@@ -153,6 +153,10 @@ mod tests {
 
         let mut secret_key = [0u8; KEY_LENGTH];
         secret_key.copy_from_slice(&get_random_key());
+
+        SECRET_KEY.set(secret_key);
+        JWT_SECRET.read_from_file(&CONFIG.jwt_secret_path).await?;
+
         let test_port = 12345;
         actix_rt::spawn(async move {
             run_app(test_port, secret_key, "localhost".into())

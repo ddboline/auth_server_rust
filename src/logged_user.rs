@@ -200,6 +200,10 @@ impl AuthSecret {
         }
     }
 
+    pub fn set(&self, key: SecretKey) {
+        self.0.store(Some(key));
+    }
+
     pub async fn read_from_file(&self, p: &Path) -> Result<(), anyhow::Error> {
         let mut secret = [0_u8; KEY_LENGTH];
         let mut f = File::open(p).await?;
