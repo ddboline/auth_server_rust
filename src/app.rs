@@ -48,7 +48,7 @@ pub struct AppState {
 pub async fn start_app() -> Result<(), Error> {
     update_secrets().await?;
     get_secrets(&CONFIG.secret_path, &CONFIG.jwt_secret_path).await?;
-    run_app(CONFIG.port, SECRET_KEY.load(), CONFIG.domain.clone()).await
+    run_app(CONFIG.port, SECRET_KEY.get(), CONFIG.domain.clone()).await
 }
 
 async fn run_app(

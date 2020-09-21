@@ -18,7 +18,7 @@ impl Token {
         encode(
             &Header::new(DEFAULT_ALGORITHM),
             &claims,
-            &EncodingKey::from_secret(&JWT_SECRET.load()),
+            &EncodingKey::from_secret(&JWT_SECRET.get()),
         )
         .map(Into::into)
         .map_err(|_err| ServiceError::InternalServerError)
@@ -27,7 +27,7 @@ impl Token {
     pub fn decode_token(token: &Self) -> Result<Claim, ServiceError> {
         decode::<Claim>(
             &token.0,
-            &DecodingKey::from_secret(&JWT_SECRET.load()),
+            &DecodingKey::from_secret(&JWT_SECRET.get()),
             &Validation::new(DEFAULT_ALGORITHM),
         )
         .map(|data| Ok(data.claims))
