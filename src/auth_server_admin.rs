@@ -3,10 +3,7 @@ use stack_string::StackString;
 use structopt::StructOpt;
 use uuid::Uuid;
 
-use auth_server_rust::app::CONFIG;
-use auth_server_rust::pgpool::PgPool;
-use auth_server_rust::user::User;
-use auth_server_rust::invitation::Invitation;
+use auth_server_rust::{app::CONFIG, invitation::Invitation, pgpool::PgPool, user::User};
 
 #[derive(StructOpt, Debug)]
 enum AuthServerOptions {
@@ -15,7 +12,7 @@ enum AuthServerOptions {
     /// List invitations
     ListInvites,
     SendInvite {
-        #[structopt(short="u", long)]
+        #[structopt(short = "u", long)]
         email: StackString,
     },
     RmInvite {
@@ -24,26 +21,26 @@ enum AuthServerOptions {
     },
     /// Add new user
     Add {
-        #[structopt(short="u", long)]
+        #[structopt(short = "u", long)]
         email: StackString,
         #[structopt(short, long)]
-        password: StackString
+        password: StackString,
     },
     /// Remove user
     Rm {
-        #[structopt(short="u", long)]
-        email: StackString
+        #[structopt(short = "u", long)]
+        email: StackString,
     },
     /// Change password
     Change {
-        #[structopt(short="u", long)]
+        #[structopt(short = "u", long)]
         email: StackString,
         #[structopt(short, long)]
         password: StackString,
     },
     /// Verify password
     Verify {
-        #[structopt(short="u", long)]
+        #[structopt(short = "u", long)]
         email: StackString,
         #[structopt(short, long)]
         password: StackString,
@@ -70,18 +67,20 @@ async fn main() -> Result<(), Error> {
                 println!("{:?}", invite);
             }
         }
-        AuthServerOptions::SendInvite {email} => {
+        AuthServerOptions::SendInvite { email } => {
             let invitation = Invitation::from_email(&email);
             invitation.insert(&pool).await?;
-            invitation.send_invitation(&CONFIG.callback_url.as_str()).await?;
+            invitation
+                .send_invitation(&CONFIG.callback_url.as_str())
+                .await?;
             println!("Invitation sent to {}", email);
         }
-        AuthServerOptions::RmInvite {id} => {
+        AuthServerOptions::RmInvite { id } => {
             if let Some(invitation) = Invitation::get_by_uuid(&id, &pool).await? {
                 invitation.delete(&pool).await?;
             }
         }
-        AuthServerOptions::Add {email, password} => {
+        AuthServerOptions::Add { email, password } => {
             if User::get_by_email(&email, &pool).await?.is_none() {
                 let user = User::from_details(&email, &password);
                 user.insert(&pool).await?;
@@ -90,7 +89,7 @@ async fn main() -> Result<(), Error> {
                 println!("User {} exists", email);
             }
         }
-        AuthServerOptions::Rm {email} => {
+        AuthServerOptions::Rm { email } => {
             if let Some(user) = User::get_by_email(&email, &pool).await? {
                 user.delete(&pool).await?;
                 println!("Deleted user {}", user.email);
@@ -98,7 +97,7 @@ async fn main() -> Result<(), Error> {
                 println!("User {} does not exist", email);
             }
         }
-        AuthServerOptions::Change {email, password} => {
+        AuthServerOptions::Change { email, password } => {
             if let Some(mut user) = User::get_by_email(&email, &pool).await? {
                 user.set_password(&password);
                 user.update(&pool).await?;
@@ -107,7 +106,7 @@ async fn main() -> Result<(), Error> {
                 println!("User {} does not exist", email);
             }
         }
-        AuthServerOptions::Verify {email, password} => {
+        AuthServerOptions::Verify { email, password } => {
             if let Some(user) = User::get_by_email(&email, &pool).await? {
                 if user.verify_password(&password)? {
                     println!("Password correct");

@@ -10,9 +10,7 @@ use tokio::{task::spawn, time::interval};
 use crate::{
     config::Config,
     google_openid::GoogleClient,
-    logged_user::{
-        fill_auth_from_db, get_secrets, update_secret, KEY_LENGTH, SECRET_KEY,
-    },
+    logged_user::{fill_auth_from_db, get_secrets, update_secret, KEY_LENGTH, SECRET_KEY},
     pgpool::PgPool,
     routes::{
         auth_url, callback, change_password_user, get_me, login, logout, register_email,
@@ -164,7 +162,10 @@ mod tests {
 
         tokio::time::delay_for(tokio::time::Duration::from_secs(10)).await;
 
-        let url = format!("http://localhost:{}/api/register/{}", test_port, &invitation.id);
+        let url = format!(
+            "http://localhost:{}/api/register/{}",
+            test_port, &invitation.id
+        );
         let data = hashmap! {
             "password" => &password,
         };
@@ -182,7 +183,9 @@ mod tests {
         println!("registered {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
-        assert!(Invitation::get_by_uuid(&invitation.id, &pool).await?.is_none());
+        assert!(Invitation::get_by_uuid(&invitation.id, &pool)
+            .await?
+            .is_none());
 
         let url = format!("http://localhost:{}/api/auth", test_port);
         let data = hashmap! {

@@ -25,7 +25,13 @@ impl Invitation {
 
     pub async fn get_all(pool: &PgPool) -> Result<Vec<Self>, Error> {
         let query = postgres_query::query!("SELECT * FROM invitations");
-        pool.get().await?.query(query.sql(), query.parameters()).await?.into_iter().map(|row| Self::from_row(&row).map_err(Into::into)).collect()
+        pool.get()
+            .await?
+            .query(query.sql(), query.parameters())
+            .await?
+            .into_iter()
+            .map(|row| Self::from_row(&row).map_err(Into::into))
+            .collect()
     }
 
     pub async fn get_by_uuid(uuid: &Uuid, pool: &PgPool) -> Result<Option<Self>, Error> {

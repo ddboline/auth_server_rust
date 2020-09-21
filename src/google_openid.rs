@@ -6,11 +6,11 @@ use log::debug;
 use openid::{DiscoveredClient, Options, Userinfo};
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use stack_string::StackString;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 use url::Url;
-use smallvec::SmallVec;
 
 use crate::{app::CONFIG, logged_user::LoggedUser, pgpool::PgPool, token::Token, user::User};
 
