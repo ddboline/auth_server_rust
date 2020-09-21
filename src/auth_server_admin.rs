@@ -1,15 +1,27 @@
 use anyhow::Error;
 use stack_string::StackString;
 use structopt::StructOpt;
+use uuid::Uuid;
 
 use auth_server_rust::app::CONFIG;
 use auth_server_rust::pgpool::PgPool;
 use auth_server_rust::user::User;
+use auth_server_rust::invitation::Invitation;
 
 #[derive(StructOpt, Debug)]
 enum AuthServerOptions {
     /// List user email addresses
     List,
+    /// List invitations
+    ListInvites,
+    SendInvite {
+        #[structopt(short="u", long)]
+        email: StackString,
+    },
+    RmInvite {
+        #[structopt(short="u", long, parse(try_from_str=parse_uuid))]
+        id: Uuid,
+    },
     /// Add new user
     Add {
         #[structopt(short="u", long)]
@@ -38,6 +50,10 @@ enum AuthServerOptions {
     },
 }
 
+fn parse_uuid(s: &str) -> Result<Uuid, Error> {
+    Uuid::parse_str(s).map_err(Into::into)
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let opts = AuthServerOptions::from_args();
@@ -47,6 +63,22 @@ async fn main() -> Result<(), Error> {
         AuthServerOptions::List => {
             for user in User::get_authorized_users(&pool).await? {
                 println!("{}", user.email);
+            }
+        }
+        AuthServerOptions::ListInvites => {
+            for invite in Invitation::get_all(&pool).await? {
+                println!("{:?}", invite);
+            }
+        }
+        AuthServerOptions::SendInvite {email} => {
+            let invitation = Invitation::from_email(&email);
+            invitation.insert(&pool).await?;
+            invitation.send_invitation(&CONFIG.callback_url.as_str()).await?;
+            println!("Invitation sent to {}", email);
+        }
+        AuthServerOptions::RmInvite {id} => {
+            if let Some(invitation) = Invitation::get_by_uuid(&id, &pool).await? {
+                invitation.delete(&pool).await?;
             }
         }
         AuthServerOptions::Add {email, password} => {

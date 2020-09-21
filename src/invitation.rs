@@ -23,8 +23,12 @@ impl Invitation {
         }
     }
 
-    pub async fn get_by_uuid(uuid: &str, pool: &PgPool) -> Result<Option<Self>, Error> {
-        let uuid = Uuid::parse_str(uuid)?;
+    pub async fn get_all(pool: &PgPool) -> Result<Vec<Self>, Error> {
+        let query = postgres_query::query!("SELECT * FROM invitations");
+        pool.get().await?.query(query.sql(), query.parameters()).await?.into_iter().map(|row| Self::from_row(&row).map_err(Into::into)).collect()
+    }
+
+    pub async fn get_by_uuid(uuid: &Uuid, pool: &PgPool) -> Result<Option<Self>, Error> {
         let query = postgres_query::query!("SELECT * FROM invitations WHERE id = $id", id = uuid);
         pool.get()
             .await?
@@ -115,15 +119,15 @@ mod tests {
         let pool = PgPool::new(&CONFIG.database_url);
         let email = format!("{}@localhost", get_random_string(32));
         let invitation = Invitation::from_email(&email);
-        let uuid = invitation.id.clone().to_string();
+        let uuid = &invitation.id;
         invitation.insert(&pool).await?;
 
-        let invitation = Invitation::get_by_uuid(&uuid, &pool).await?.unwrap();
+        let invitation = Invitation::get_by_uuid(uuid, &pool).await?.unwrap();
         println!("{:?}", invitation);
 
         invitation.delete(&pool).await?;
 
-        assert!(Invitation::get_by_uuid(&uuid, &pool).await?.is_none());
+        assert!(Invitation::get_by_uuid(uuid, &pool).await?.is_none());
         Ok(())
     }
 }

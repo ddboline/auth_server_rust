@@ -8,6 +8,7 @@ use chrono::Utc;
 use log::debug;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
+use uuid::Uuid;
 
 use crate::{
     app::{AppState, CONFIG},
@@ -89,7 +90,8 @@ pub async fn register_user(
     user_data: Json<UserData>,
     data: Data<AppState>,
 ) -> HttpResult {
-    if let Some(invitation) = Invitation::get_by_uuid(&invitation_id, &data.pool).await? {
+    let uuid = Uuid::parse_str(&invitation_id)?;
+    if let Some(invitation) = Invitation::get_by_uuid(&uuid, &data.pool).await? {
         if invitation.expires_at > Utc::now() {
             let user = User::from_details(&invitation.email, &user_data.password);
             user.upsert(&data.pool).await?;

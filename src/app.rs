@@ -151,7 +151,6 @@ mod tests {
         let email = format!("{}@localhost", get_random_string(32));
         let password = get_random_string(32);
         let invitation = Invitation::from_email(&email);
-        let uuid = invitation.id.clone().to_string();
         invitation.insert(&pool).await?;
 
         let mut secret_key = [0u8; KEY_LENGTH];
@@ -165,7 +164,7 @@ mod tests {
 
         tokio::time::delay_for(tokio::time::Duration::from_secs(10)).await;
 
-        let url = format!("http://localhost:{}/api/register/{}", test_port, uuid);
+        let url = format!("http://localhost:{}/api/register/{}", test_port, &invitation.id);
         let data = hashmap! {
             "password" => &password,
         };
@@ -183,7 +182,7 @@ mod tests {
         println!("registered {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
-        assert!(Invitation::get_by_uuid(&uuid, &pool).await?.is_none());
+        assert!(Invitation::get_by_uuid(&invitation.id, &pool).await?.is_none());
 
         let url = format!("http://localhost:{}/api/auth", test_port);
         let data = hashmap! {
