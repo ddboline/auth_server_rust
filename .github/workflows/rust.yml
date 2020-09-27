@@ -21,6 +21,6 @@ jobs:
     - name: Build
       run: cargo build --verbose
     - name: Start Postgres
-      run: sh ./scripts/boostrap_github.sh
+      run: sh ./scripts/bootstrap_github.sh
     - name: Run tests
       run: cargo test --verbose
