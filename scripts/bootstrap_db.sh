@@ -20,7 +20,7 @@ SENDING_EMAIL_ADDRESS=user@localhost
 SECRET_PATH=${HOME}/.config/auth_server_rust/secret.bin
 JWT_SECRET_PATH=${HOME}/.config/auth_server_rust/jwt_secret.bin
 CALLBACK_URL=https://localhost/callback
-DOMAIN=localhot
+DOMAIN=localhost
 PORT=3000
 HASH_ROUNDS=12
 EOL
