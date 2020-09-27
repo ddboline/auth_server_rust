@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Initialize DB
+      run: sh ./scripts/bootstrap_db.sh
     - name: Clippy
       run: cargo clippy -- -W clippy::pedantic
     - name: Build
