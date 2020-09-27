@@ -16,13 +16,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Initialize DB
-      run: sh ./scripts/bootstrap_db.sh
     - name: Clippy
       run: cargo clippy -- -W clippy::pedantic
     - name: Build
       run: cargo build --verbose
+    - name: Start Postgres
+      run: sh ./scripts/boostrap_github.sh
     - name: Run tests
       run: cargo test --verbose
-      env:
-        DATABASE_URL: postgresql://user:password@host:1234/test_db
