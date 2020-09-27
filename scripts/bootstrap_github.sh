@@ -3,13 +3,13 @@
 DB=auth_server_rust
 
 docker run -d --rm --name auth_server_postgres \
-    -p 12345:5432 -e POSTGRES_PASSWORD=$PASSWORD postgres
+    -p 12346:5432 -e POSTGRES_PASSWORD=$PASSWORD postgres
 sleep 10
-DATABASE_URL="postgresql://postgres:$PASSWORD@localhost:12345/postgres"
+DATABASE_URL="postgresql://postgres:$PASSWORD@localhost:12346/postgres"
 
 psql $DATABASE_URL -c "CREATE DATABASE $DB"
 
-DATABASE_URL="postgresql://postgres:$PASSWORD@localhost:12345/$DB"
+DATABASE_URL="postgresql://postgres:$PASSWORD@localhost:12346/$DB"
 
 mkdir -p ${HOME}/.config/auth_server_rust
 cat > ${HOME}/.config/auth_server_rust/config.env <<EOL

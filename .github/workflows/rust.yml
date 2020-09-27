@@ -27,4 +27,4 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
       env:
-        DATABASE_URL: postgresql://postgres:807bXYSp7ynpPeIJ@localhost:12345/auth_server_rust
+        DATABASE_URL: postgresql://postgres:807bXYSp7ynpPeIJ@localhost:12346/auth_server_rust
