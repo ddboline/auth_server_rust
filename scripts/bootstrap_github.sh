@@ -2,9 +2,8 @@
 
 DB=auth_server_rust
 
-docker run --name auth_server_postgres \
-    -p 12345:5432 -e POSTGRES_PASSWORD=$PASSWORD \
-            -d postgres
+docker run -d --rm --name auth_server_postgres \
+    -p 12345:5432 -e POSTGRES_PASSWORD=$PASSWORD postgres
 sleep 10
 DATABASE_URL="postgresql://postgres:$PASSWORD@localhost:12345/postgres"
 
