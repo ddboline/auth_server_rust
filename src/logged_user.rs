@@ -190,7 +190,7 @@ impl AuthSecret {
     }
 
     pub fn get(&'static self) -> SecretKey {
-        if let Some(key) = self.1.with(|cache| cache.get()) {
+        if let Some(key) = self.1.with(Cell::get) {
             key
         } else if let Some(key) = self.0.load() {
             self.1.with(|cache| cache.set(Some(key)));
