@@ -121,6 +121,7 @@ mod tests {
     };
 
     #[tokio::test]
+    #[ignore]
     async fn test_create_delete_user() -> Result<(), Error> {
         let pool = PgPool::new(&CONFIG.database_url);
 
