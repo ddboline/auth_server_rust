@@ -15,8 +15,6 @@ psql $DATABASE_URL -c "CREATE DATABASE $DB"
 
 DATABASE_URL="postgresql://postgres:$PASSWORD@localhost:12345/$DB"
 
-sudo apt-get install -y postgresql
-
 mkdir -p ${HOME}/.config/auth_server_rust
 cat > ${HOME}/.config/auth_server_rust/config.env <<EOL
 DATABASE_URL=$DATABASE_URL
