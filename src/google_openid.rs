@@ -20,6 +20,23 @@ lazy_static! {
 }
 
 #[derive(Clone)]
+pub struct CrsfTokenCache {
+    pub nonce: StackString,
+    pub final_url: Url,
+    pub timestamp: DateTime<Utc>,
+}
+
+impl CrsfTokenCache {
+    fn new(nonce: &str, final_url: Url) -> Self {
+        Self {
+            nonce: nonce.into(),
+            final_url,
+            timestamp: Utc::now(),
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct GoogleClient(Arc<RwLock<DiscoveredClient>>);
 
 impl GoogleClient {
@@ -44,16 +61,12 @@ impl GoogleClient {
         let authorize_url = self.0.read().await.auth_url(&options);
         let Options { state, nonce, .. } = options;
         let csrf_state = state.expect("No CSRF state").into();
-        let nonce = nonce.expect("No nonce").into();
+        let nonce = nonce.expect("No nonce");
 
-        CSRF_TOKENS.write().await.insert(
-            csrf_state,
-            CrsfTokenCache {
-                nonce,
-                final_url,
-                timestamp: Utc::now(),
-            },
-        );
+        CSRF_TOKENS
+            .write()
+            .await
+            .insert(csrf_state, CrsfTokenCache::new(&nonce, final_url));
         Ok(authorize_url)
     }
 
@@ -98,12 +111,6 @@ impl GoogleClient {
             Err(Error::BadRequest("Csrf Token invalid".into()))
         }
     }
-}
-
-pub struct CrsfTokenCache {
-    pub nonce: StackString,
-    pub final_url: Url,
-    pub timestamp: DateTime<Utc>,
 }
 
 fn get_random_string() -> StackString {

@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_rust"
-version = "0.1.14"
+version = "0.1.15"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -44,6 +44,7 @@ smallvec = "1.4"
 crossbeam = "0.7"
 structopt = "0.3"
 env_logger = "0.7"
+arc-swap = "0.4"
 stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.6", features=["postgres_types"] }
 
 [dev-dependencies]
