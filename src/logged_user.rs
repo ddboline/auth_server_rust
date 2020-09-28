@@ -136,7 +136,11 @@ impl AuthorizedUsers {
 
     pub fn merge_users(&self, users: &[LoggedUser]) -> Result<(), anyhow::Error> {
         let mut auth_map = self.0.load().clone();
-        let not_auth_users: Vec<_> = auth_map.keys().cloned().filter(|user| !users.contains(user)).collect();
+        let not_auth_users: Vec<_> = auth_map
+            .keys()
+            .cloned()
+            .filter(|user| !users.contains(user))
+            .collect();
         for user in not_auth_users {
             if !users.contains(&user) {
                 Arc::make_mut(&mut auth_map).insert(user.clone(), AuthStatus::NotAuthorized);
