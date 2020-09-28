@@ -28,7 +28,7 @@ pub fn get_random_string(n: usize) -> String {
         .filter_map(|_| {
             let c: char = thread_rng().gen::<u8>().into();
             match c {
-                ' '..='~'  => Some(c),
+                ' '..='~' => Some(c),
                 _ => None,
             }
         })

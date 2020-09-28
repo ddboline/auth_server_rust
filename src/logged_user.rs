@@ -1,5 +1,6 @@
 use actix_identity::Identity;
 use actix_web::{dev::Payload, FromRequest, HttpRequest};
+use arc_swap::ArcSwap;
 use chrono::{DateTime, Utc};
 use crossbeam::atomic::AtomicCell;
 use futures::{
@@ -8,7 +9,6 @@ use futures::{
 };
 use lazy_static::lazy_static;
 use log::debug;
-use parking_lot::RwLock;
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -18,7 +18,10 @@ use std::{
     collections::HashMap,
     env,
     path::Path,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     thread::LocalKey,
 };
 use tokio::{
@@ -101,15 +104,15 @@ enum AuthStatus {
 }
 
 #[derive(Debug, Default)]
-pub struct AuthorizedUsers(RwLock<HashMap<LoggedUser, AuthStatus>>);
+pub struct AuthorizedUsers(ArcSwap<HashMap<LoggedUser, AuthStatus>>);
 
 impl AuthorizedUsers {
     pub fn new() -> Self {
-        Self(RwLock::new(HashMap::new()))
+        Self(ArcSwap::new(Arc::new(HashMap::new())))
     }
 
     pub fn is_authorized(&self, user: &LoggedUser) -> bool {
-        if let Some(AuthStatus::Authorized(last_time)) = self.0.read().get(user) {
+        if let Some(AuthStatus::Authorized(last_time)) = self.0.load().get(user) {
             let current_time = Utc::now();
             if (current_time - *last_time).num_minutes() < 15 {
                 return true;
@@ -125,24 +128,29 @@ impl AuthorizedUsers {
         } else {
             AuthStatus::NotAuthorized
         };
-        self.0.write().insert(user, status);
+        let mut auth_map = self.0.load().clone();
+        Arc::make_mut(&mut auth_map).insert(user, status);
+        self.0.store(auth_map);
         Ok(())
     }
 
     pub fn merge_users(&self, users: &[LoggedUser]) -> Result<(), anyhow::Error> {
-        for user in self.0.read().keys() {
+        let mut auth_map = self.0.load().clone();
+        let not_auth_users: Vec<_> = auth_map.keys().cloned().filter(|user| !users.contains(user)).collect();
+        for user in not_auth_users {
             if !users.contains(&user) {
-                self.store_auth(user.clone(), false)?;
+                Arc::make_mut(&mut auth_map).insert(user.clone(), AuthStatus::NotAuthorized);
             }
         }
         for user in users {
-            self.store_auth(user.clone(), true)?;
+            Arc::make_mut(&mut auth_map).insert(user.clone(), AuthStatus::Authorized(Utc::now()));
         }
+        self.0.store(auth_map);
         Ok(())
     }
 
     pub fn get_users(&self) -> Vec<LoggedUser> {
-        self.0.read().keys().cloned().collect()
+        self.0.load().keys().cloned().collect()
     }
 }
 
