@@ -34,6 +34,17 @@ impl Invitation {
             .collect()
     }
 
+    pub async fn get_number_invitations(pool: &PgPool) -> Result<i64, Error> {
+        let query = postgres_query::query!("SELECT count(*) FROM invitations");
+        let count = pool
+            .get()
+            .await?
+            .query_one(query.sql(), query.parameters())
+            .await?
+            .try_get(0)?;
+        Ok(count)
+    }
+
     pub async fn get_by_uuid(uuid: &Uuid, pool: &PgPool) -> Result<Option<Self>, Error> {
         let query = postgres_query::query!("SELECT * FROM invitations WHERE id = $id", id = uuid);
         pool.get()
@@ -134,6 +145,16 @@ mod tests {
         invitation.delete(&pool).await?;
 
         assert!(Invitation::get_by_uuid(uuid, &pool).await?.is_none());
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_get_all_get_number_invitations() -> Result<(), Error> {
+        let pool = PgPool::new(&CONFIG.database_url);
+        let invitations = Invitation::get_all(&pool).await?;
+        let count = Invitation::get_number_invitations(&pool).await? as usize;
+        assert_eq!(invitations.len(), count);
         Ok(())
     }
 }

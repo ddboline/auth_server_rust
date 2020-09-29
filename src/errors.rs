@@ -9,6 +9,8 @@ use tokio::task::JoinError;
 use tokio_postgres::error::Error as PostgresError;
 use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
+use rusoto_core::{RusotoError};
+use rusoto_ses::{GetSendQuotaError, SendEmailError, GetSendStatisticsError};
 
 use crate::{logged_user::TRIGGER_DB_UPDATE, static_files};
 
@@ -34,6 +36,12 @@ pub enum ServiceError {
     BcryptError(#[from] BcryptError),
     #[error("UrlParseError {0}")]
     UrlParseError(#[from] UrlParseError),
+    #[error("GetSendQuotaError {0}")]
+    GetSendQuotaError(#[from] RusotoError<GetSendQuotaError>),
+    #[error("GetSendStatisticsError {0}")]
+    GetSendStatisticsError(#[from] RusotoError<GetSendStatisticsError>),
+    #[error("SendEmailError {0}")]
+    SendEmailError(#[from] RusotoError<SendEmailError>),
 }
 
 // we can return early in our handlers if UUID provided by the user is not valid

@@ -50,6 +50,17 @@ impl User {
             .collect()
     }
 
+    pub async fn get_number_users(pool: &PgPool) -> Result<i64, Error> {
+        let query = postgres_query::query!("SELECT count(*) FROM users");
+        let count = pool
+            .get()
+            .await?
+            .query_one(query.sql(), query.parameters())
+            .await?
+            .try_get(0)?;
+        Ok(count)
+    }
+
     pub async fn get_by_email(email: &str, pool: &PgPool) -> Result<Option<Self>, Error> {
         let query =
             postgres_query::query!("SELECT * FROM users WHERE email = $email", email = email);
@@ -147,6 +158,17 @@ mod tests {
 
         db_user.delete(&pool).await?;
         assert_eq!(User::get_by_email(&email, &pool).await?, None);
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_get_authorized_users_get_number_users() -> Result<(), Error> {
+        let pool = PgPool::new(&CONFIG.database_url);
+        let count = User::get_number_users(&pool).await? as usize;
+        let users = User::get_authorized_users(&pool).await?;
+        println!("{:?}", users);
+        assert_eq!(count, users.len());
         Ok(())
     }
 }

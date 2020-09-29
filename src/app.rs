@@ -14,7 +14,7 @@ use crate::{
     pgpool::PgPool,
     routes::{
         auth_url, callback, change_password_user, get_me, login, logout, register_email,
-        register_user,
+        register_user, status,
     },
     static_files::{change_password, index_html, login_html, main_css, main_js, register_html},
 };
@@ -100,7 +100,8 @@ async fn run_app(
                             .route(web::post().to(change_password_user)),
                     )
                     .service(web::resource("/auth_url").route(web::post().to(auth_url)))
-                    .service(web::resource("/callback").route(web::get().to(callback))),
+                    .service(web::resource("/callback").route(web::get().to(callback)))
+                    .service(web::resource("/status").route(web::get().to(status))),
             )
             .service(
                 web::scope("/auth")

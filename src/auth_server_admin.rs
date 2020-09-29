@@ -2,8 +2,11 @@ use anyhow::Error;
 use stack_string::StackString;
 use structopt::StructOpt;
 use uuid::Uuid;
+use futures::try_join;
 
-use auth_server_rust::{app::CONFIG, invitation::Invitation, pgpool::PgPool, user::User};
+use auth_server_rust::{
+    app::CONFIG, invitation::Invitation, pgpool::PgPool, ses_client::SesInstance, user::User,
+};
 
 #[derive(StructOpt, Debug)]
 enum AuthServerOptions {
@@ -45,6 +48,8 @@ enum AuthServerOptions {
         #[structopt(short, long)]
         password: StackString,
     },
+    /// Get Status of Server / Ses
+    Status,
 }
 
 fn parse_uuid(s: &str) -> Result<Uuid, Error> {
@@ -116,6 +121,20 @@ async fn main() -> Result<(), Error> {
             } else {
                 println!("User {} does not exist", email);
             }
+        }
+        AuthServerOptions::Status => {
+            let ses = SesInstance::new(None);
+            let (number_users, number_invitations, (quota, stats)) = try_join!(
+                User::get_number_users(&pool),
+                Invitation::get_number_invitations(&pool),
+                ses.get_statistics(),
+            )?;
+            println!(
+                "Users: {}\nInvitations: {}\n",
+                number_users, number_invitations
+            );
+            println!("{:#?}", quota);
+            println!("{:#?}", stats,);
         }
     };
     Ok(())

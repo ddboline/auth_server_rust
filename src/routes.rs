@@ -5,6 +5,7 @@ use actix_web::{
     HttpResponse,
 };
 use chrono::Utc;
+use futures::try_join;
 use log::debug;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
@@ -17,6 +18,7 @@ use crate::{
     google_openid::{CallbackQuery, GetAuthUrlData, GoogleClient},
     invitation::Invitation,
     logged_user::{LoggedUser, AUTHORIZED_USERS},
+    ses_client::SesInstance,
     token::Token,
     user::User,
 };
@@ -140,4 +142,18 @@ pub async fn callback(
     } else {
         Err(Error::BadRequest("Callback Failed".into()))
     }
+}
+
+pub async fn status(data: Data<AppState>) -> HttpResult {
+    let ses = SesInstance::new(None);
+    let (number_users, number_invitations, (quota, stats)) = try_join!(
+        User::get_number_users(&data.pool),
+        Invitation::get_number_invitations(&data.pool),
+        ses.get_statistics(),
+    )?;
+    let body = format!(
+        "Users: {}<br>Invitations: {}<br>{:#?}<br>{:#?}<br>",
+        number_users, number_invitations, quota, stats,
+    );
+    form_http_response(body)
 }
