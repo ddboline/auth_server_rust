@@ -1,8 +1,8 @@
 use anyhow::Error;
+use futures::try_join;
 use stack_string::StackString;
 use structopt::StructOpt;
 use uuid::Uuid;
-use futures::try_join;
 
 use auth_server_rust::{
     app::CONFIG, invitation::Invitation, pgpool::PgPool, ses_client::SesInstance, user::User,

@@ -7,6 +7,7 @@ use futures::{
     executor::block_on,
     future::{ready, Ready},
 };
+use im::HashMap;
 use lazy_static::lazy_static;
 use log::debug;
 use rand::{thread_rng, Rng};
@@ -15,7 +16,6 @@ use smallvec::SmallVec;
 use stack_string::StackString;
 use std::{
     cell::Cell,
-    collections::HashMap,
     env,
     path::Path,
     sync::{
@@ -128,14 +128,13 @@ impl AuthorizedUsers {
         } else {
             AuthStatus::NotAuthorized
         };
-        let mut auth_map = self.0.load().clone();
-        Arc::make_mut(&mut auth_map).insert(user, status);
+        let auth_map = Arc::new(self.0.load().update(user, status));
         self.0.store(auth_map);
         Ok(())
     }
 
     pub fn merge_users(&self, users: &[LoggedUser]) -> Result<(), anyhow::Error> {
-        let mut auth_map = self.0.load().clone();
+        let mut auth_map = (*self.0.load().clone()).clone();
         let not_auth_users: Vec<_> = auth_map
             .keys()
             .cloned()
@@ -143,13 +142,13 @@ impl AuthorizedUsers {
             .collect();
         for user in not_auth_users {
             if !users.contains(&user) {
-                Arc::make_mut(&mut auth_map).insert(user.clone(), AuthStatus::NotAuthorized);
+                auth_map.insert(user.clone(), AuthStatus::NotAuthorized);
             }
         }
         for user in users {
-            Arc::make_mut(&mut auth_map).insert(user.clone(), AuthStatus::Authorized(Utc::now()));
+            auth_map.insert(user.clone(), AuthStatus::Authorized(Utc::now()));
         }
-        self.0.store(auth_map);
+        self.0.store(Arc::new(auth_map));
         Ok(())
     }
 

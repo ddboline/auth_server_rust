@@ -1,6 +1,8 @@
 use crate::errors::ServiceError as Error;
+use arc_swap::ArcSwap;
 use base64::{encode_config, URL_SAFE_NO_PAD};
 use chrono::{DateTime, Utc};
+use im::HashMap;
 use lazy_static::lazy_static;
 use log::debug;
 use openid::{DiscoveredClient, Options, Userinfo};
@@ -8,15 +10,15 @@ use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use stack_string::StackString;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use tokio::sync::RwLock;
 use url::Url;
 
 use crate::{app::CONFIG, logged_user::LoggedUser, pgpool::PgPool, token::Token, user::User};
 
 lazy_static! {
-    pub static ref CSRF_TOKENS: RwLock<HashMap<StackString, CrsfTokenCache>> =
-        RwLock::new(HashMap::new());
+    pub static ref CSRF_TOKENS: ArcSwap<HashMap<StackString, CrsfTokenCache>> =
+        ArcSwap::new(Arc::new(HashMap::new()));
 }
 
 #[derive(Clone)]
@@ -63,10 +65,11 @@ impl GoogleClient {
         let csrf_state = state.expect("No CSRF state").into();
         let nonce = nonce.expect("No nonce");
 
-        CSRF_TOKENS
-            .write()
-            .await
-            .insert(csrf_state, CrsfTokenCache::new(&nonce, final_url));
+        CSRF_TOKENS.store(Arc::new(
+            CSRF_TOKENS
+                .load()
+                .update(csrf_state, CrsfTokenCache::new(&nonce, final_url)),
+        ));
         Ok(authorize_url)
     }
 
@@ -76,11 +79,15 @@ impl GoogleClient {
         pool: &PgPool,
     ) -> Result<Option<(Token, StackString)>, Error> {
         let CallbackQuery { code, state } = callback_query;
-        let value = CSRF_TOKENS.write().await.remove(state);
-        if let Some(CrsfTokenCache {
-            nonce, final_url, ..
-        }) = value
+
+        if let Some((
+            CrsfTokenCache {
+                nonce, final_url, ..
+            },
+            tokens,
+        )) = CSRF_TOKENS.load().extract(state)
         {
+            CSRF_TOKENS.store(Arc::new(tokens));
             debug!("Nonce {:?}", nonce);
 
             let userinfo = match request_userinfo(&(*self.0.read().await), code, &nonce).await {
@@ -119,9 +126,8 @@ fn get_random_string() -> StackString {
 }
 
 pub async fn cleanup_token_map() {
-    let expired_keys: Vec<_> = CSRF_TOKENS
-        .read()
-        .await
+    let mut tokens = (*CSRF_TOKENS.load().clone()).clone();
+    let expired_keys: Vec<_> = tokens
         .iter()
         .filter_map(|(k, t)| {
             if (Utc::now() - t.timestamp).num_seconds() > 3600 {
@@ -132,8 +138,9 @@ pub async fn cleanup_token_map() {
         })
         .collect();
     for key in expired_keys {
-        CSRF_TOKENS.write().await.remove(&key);
+        tokens.remove(&key);
     }
+    CSRF_TOKENS.store(Arc::new(tokens));
 }
 
 pub async fn get_google_client() -> Result<DiscoveredClient, Error> {
