@@ -3,14 +3,14 @@ use anyhow::Error as AnyhowError;
 use bcrypt::BcryptError;
 use openid::error::Error as OpenidError;
 use postgres_query::extract::Error as QueryError;
+use rusoto_core::RusotoError;
+use rusoto_ses::{GetSendQuotaError, GetSendStatisticsError, SendEmailError};
 use std::{convert::From, fmt::Debug};
 use thiserror::Error;
 use tokio::task::JoinError;
 use tokio_postgres::error::Error as PostgresError;
 use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
-use rusoto_core::{RusotoError};
-use rusoto_ses::{GetSendQuotaError, SendEmailError, GetSendStatisticsError};
 
 use crate::{logged_user::TRIGGER_DB_UPDATE, static_files};
 
