@@ -1,5 +1,5 @@
 use actix_identity::{CookieIdentityPolicy, IdentityService};
-use actix_web::{web, App, HttpServer};
+use actix_web::{web, App, HttpServer, middleware::Compress};
 use anyhow::Error;
 use lazy_static::lazy_static;
 use rand::{thread_rng, Rng};
@@ -74,6 +74,7 @@ async fn run_app(
         App::new()
             .data(google_client.clone())
             .data(AppState { pool: pool.clone() })
+            .wrap(Compress::default())
             .wrap(IdentityService::new(
                 CookieIdentityPolicy::new(&cookie_secret)
                     .name("auth")
