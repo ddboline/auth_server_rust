@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_rust"
-version = "0.1.18"
+version = "0.1.19"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -35,7 +35,7 @@ bcrypt = "0.8"
 bytes = "0.5"
 envy = "0.4"
 base64 = "0.13"
-openid = "0.4"
+openid = "0.6"
 rand = "0.7"
 url = "2.1"
 futures = "0.3"
