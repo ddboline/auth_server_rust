@@ -1,8 +1,9 @@
 #!/bin/bash
 
-PASSWORD=`head -c1000 /dev/urandom | tr -dc [:alpha:][:digit:] | head -c 16; echo ;`
+if [ -z "$PASSWORD" ]; then
+    PASSWORD=`head -c1000 /dev/urandom | tr -dc [:alpha:][:digit:] | head -c 16; echo ;`
+fi
 DB=auth_server_rust
-
 
 sudo apt-get install -y postgresql
 

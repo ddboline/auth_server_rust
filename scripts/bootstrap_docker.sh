@@ -1,6 +1,9 @@
 #!/bin/bash
 
 DB=auth_server_rust
+if [ -z "$PASSWORD" ]; then
+    PASSWORD=`head -c1000 /dev/urandom | tr -dc [:alpha:][:digit:] | head -c 16; echo ;`
+fi
 
 docker run -d --rm --name auth_server_postgres \
     -p 12346:5432 -e POSTGRES_PASSWORD=$PASSWORD postgres

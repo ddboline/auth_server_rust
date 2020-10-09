@@ -20,11 +20,7 @@ jobs:
       run: cargo clippy -- -W clippy::pedantic
     - name: Build
       run: cargo build --verbose
-    - name: Start Postgres
-      run: sh ./scripts/bootstrap_github.sh
-      env:
-        PASSWORD: 807bXYSp7ynpPeIJ
     - name: Run tests
       run: cargo test --verbose
       env:
-        DATABASE_URL: postgresql://postgres:807bXYSp7ynpPeIJ@localhost:12346/auth_server_rust
+        DATABASE_URL: postgresql://user:password@localhost:12346/auth_server_rust
