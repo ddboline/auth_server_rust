@@ -24,9 +24,10 @@ lazy_static! {
 }
 
 pub fn get_random_string(n: usize) -> String {
+    let mut rng = thread_rng();
     (0..)
         .filter_map(|_| {
-            let c: char = thread_rng().gen::<u8>().into();
+            let c: char = (rng.gen::<u8>() & 0x7f).into();
             match c {
                 ' '..='~' => Some(c),
                 _ => None,

@@ -8,7 +8,6 @@ use log::debug;
 use openid::{DiscoveredClient, Options, Userinfo};
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
-use smallvec::SmallVec;
 use stack_string::StackString;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -121,7 +120,9 @@ impl GoogleClient {
 }
 
 fn get_random_string() -> StackString {
-    let random_bytes: SmallVec<[u8; 16]> = (0..16).map(|_| thread_rng().gen::<u8>()).collect();
+    let mut rng = thread_rng();
+    let mut random_bytes = [0u8; 16];
+    rng.fill(&mut random_bytes);
     encode_config(&random_bytes, URL_SAFE_NO_PAD).into()
 }
 
