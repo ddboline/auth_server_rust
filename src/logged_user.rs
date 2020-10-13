@@ -216,11 +216,18 @@ impl AuthSecret {
     }
 
     pub async fn read_from_file(&self, p: &Path) -> Result<(), anyhow::Error> {
-        let mut secret = [0_u8; KEY_LENGTH];
-        let mut f = File::open(p).await?;
-        f.read_exact(&mut secret).await?;
-        self.0.store(Some(secret));
-        Ok(())
+        if p.exists() {
+            let mut secret = [0_u8; KEY_LENGTH];
+            let mut f = File::open(p).await?;
+            f.read_exact(&mut secret).await?;
+            self.0.store(Some(secret));
+            Ok(())
+        } else {
+            Err(anyhow::format_err!(
+                "Secret file {} doesn't exist",
+                p.to_string_lossy()
+            ))
+        }
     }
 }
 
