@@ -18,6 +18,7 @@ jobs:
       postgres:
         image: postgres:12.4-alpine
         env:
+          POSTGRES_DB: auth_server_rust
           POSTGRES_PASSWORD: 2UtcMAAvNuBHPqK9
         ports:
           - 5432:5432
@@ -34,8 +35,9 @@ jobs:
 
     - name: Run tests
       run: |
-        mkdir -p /tmp/test_home/.config/auth_server_rust
-        psql postgresql://postgres:2UtcMAAvNuBHPqK9@localhost:5432/postgres -c "CREATE DATABASE auth_server_rust" && \
+        mkdir -p /tmp/test_home/.config/auth_server_rust && \
+        psql $DATABASE_URL < ./scripts/invitations.sql && \
+        psql $DATABASE_URL < ./scripts/users.sql && \
         cargo test --verbose
       env:
         DATABASE_URL: postgresql://postgres:2UtcMAAvNuBHPqK9@localhost:5432/auth_server_rust
