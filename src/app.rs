@@ -145,7 +145,6 @@ mod tests {
     }
 
     #[actix_rt::test]
-    #[ignore]
     async fn test_create_user() -> Result<(), Error> {
         let pool = PgPool::new(&CONFIG.database_url);
         let email = format!("{}@localhost", get_random_string(32));

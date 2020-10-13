@@ -14,13 +14,29 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:12.4-alpine
+        env:
+          POSTGRES_PASSWORD: 2UtcMAAvNuBHPqK9
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
     steps:
     - uses: actions/checkout@v2
+
     - name: Clippy
       run: cargo clippy -- -W clippy::pedantic
+
     - name: Build
       run: cargo build --verbose
+
     - name: Run tests
-      run: cargo test --verbose
+      run: |
+        mkdir -p /tmp/test_home/.config/auth_server_rust
+        psql postgresql://postgres:2UtcMAAvNuBHPqK9@localhost:5432/postgres -c "CREATE DATABASE auth_server_rust" && \
+        cargo test --verbose
       env:
-        DATABASE_URL: postgresql://user:password@localhost:12346/auth_server_rust
+        DATABASE_URL: postgresql://postgres:2UtcMAAvNuBHPqK9@localhost:5432/auth_server_rust
+        HOME: /tmp/test_home
