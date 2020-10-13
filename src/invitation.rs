@@ -125,13 +125,11 @@ mod tests {
     #[ignore]
     async fn test_send_invitation() -> Result<(), Error> {
         let new_invitation = Invitation::from_email("ddboline.im@gmail.com");
-
         new_invitation.send_invitation("test_url").await?;
         Ok(())
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_create_delete_invitation() -> Result<(), Error> {
         let pool = PgPool::new(&CONFIG.database_url);
         let email = format!("{}@localhost", get_random_string(32));
@@ -149,7 +147,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_get_all_get_number_invitations() -> Result<(), Error> {
         let pool = PgPool::new(&CONFIG.database_url);
         let invitations = Invitation::get_all(&pool).await?;
