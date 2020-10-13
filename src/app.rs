@@ -157,7 +157,7 @@ mod tests {
         secret_key.copy_from_slice(&get_random_key());
 
         SECRET_KEY.set(secret_key);
-        JWT_SECRET.read_from_file(&CONFIG.jwt_secret_path).await?;
+        JWT_SECRET.set(secret_key);
 
         let test_port = 12345;
         actix_rt::spawn(async move {

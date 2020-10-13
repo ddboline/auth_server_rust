@@ -41,3 +41,22 @@ jobs:
         cargo test --verbose
       env:
         DATABASE_URL: postgresql://postgres:2UtcMAAvNuBHPqK9@localhost:5432/auth_server_rust
+
+      - name: Generate code coverage
+        run: |
+          cargo install cargo-tarpaulin && \
+          cargo build && \
+          cargo tarpaulin --verbose --all-features --workspace --out Xml
+        env:
+          DATABASE_URL: postgresql://postgres:2UtcMAAvNuBHPqK9@localhost:5432/auth_server_rust
+
+    - name: Upload to codecov.io
+      uses: codecov/codecov-action@v1.0.2
+      with:
+        token: ${{secrets.CODECOV_TOKEN}}
+
+    - name: Archive code coverage results
+      uses: actions/upload-artifact@v1
+      with:
+        name: code-coverage-report
+        path: cobertura.xml
