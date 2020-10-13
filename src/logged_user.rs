@@ -238,7 +238,8 @@ pub async fn create_secret(p: &Path) -> Result<(), anyhow::Error> {
 }
 
 pub fn get_random_key() -> SmallVec<SecretKey> {
-    (0..KEY_LENGTH).map(|_| thread_rng().gen::<u8>()).collect()
+    let mut rng = thread_rng();
+    (0..KEY_LENGTH).map(|_| rng.gen::<u8>()).collect()
 }
 
 pub async fn get_secrets<T: AsRef<Path>>(
