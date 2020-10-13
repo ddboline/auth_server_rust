@@ -33,22 +33,16 @@ jobs:
     - name: Build
       run: cargo build --verbose
 
-    - name: Run tests
+    - name: Run tests / generate code coverage
       run: |
         mkdir -p ${HOME}/.config/auth_server_rust && \
         psql $DATABASE_URL < ./scripts/invitations.sql && \
         psql $DATABASE_URL < ./scripts/users.sql && \
-        cargo test --verbose
+        cargo test --verbose && \
+        cargo install cargo-tarpaulin && \
+        cargo tarpaulin --verbose --all-features --workspace --out Xml
       env:
         DATABASE_URL: postgresql://postgres:2UtcMAAvNuBHPqK9@localhost:5432/auth_server_rust
-
-    - name: Generate code coverage
-      run: |
-        cargo install cargo-tarpaulin && \
-        cargo build && \
-        cargo tarpaulin --verbose --all-features --workspace --out Xml
-        env:
-          DATABASE_URL: postgresql://postgres:2UtcMAAvNuBHPqK9@localhost:5432/auth_server_rust
 
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v1.0.2
