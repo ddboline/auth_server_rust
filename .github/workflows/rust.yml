@@ -35,10 +35,9 @@ jobs:
 
     - name: Run tests
       run: |
-        mkdir -p /tmp/test_home/.config/auth_server_rust && \
+        mkdir -p ${HOME}/.config/auth_server_rust && \
         psql $DATABASE_URL < ./scripts/invitations.sql && \
         psql $DATABASE_URL < ./scripts/users.sql && \
         cargo test --verbose
       env:
         DATABASE_URL: postgresql://postgres:2UtcMAAvNuBHPqK9@localhost:5432/auth_server_rust
-        HOME: /tmp/test_home

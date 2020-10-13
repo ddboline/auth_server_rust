@@ -6,6 +6,7 @@
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::cognitive_complexity)]
+#![allow(clippy::unseparated_literal_suffix)]
 
 pub mod app;
 pub mod auth;
