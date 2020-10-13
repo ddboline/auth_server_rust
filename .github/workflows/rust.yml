@@ -42,11 +42,11 @@ jobs:
       env:
         DATABASE_URL: postgresql://postgres:2UtcMAAvNuBHPqK9@localhost:5432/auth_server_rust
 
-      - name: Generate code coverage
-        run: |
-          cargo install cargo-tarpaulin && \
-          cargo build && \
-          cargo tarpaulin --verbose --all-features --workspace --out Xml
+    - name: Generate code coverage
+      run: |
+        cargo install cargo-tarpaulin && \
+        cargo build && \
+        cargo tarpaulin --verbose --all-features --workspace --out Xml
         env:
           DATABASE_URL: postgresql://postgres:2UtcMAAvNuBHPqK9@localhost:5432/auth_server_rust
 
