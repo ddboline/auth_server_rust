@@ -20,6 +20,7 @@ pub mod pgpool;
 pub mod routes;
 pub mod ses_client;
 pub mod static_files;
+pub mod stdout_channel;
 pub mod token;
 pub mod user;
 
