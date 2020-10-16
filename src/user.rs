@@ -132,7 +132,6 @@ mod tests {
     };
 
     #[tokio::test]
-    #[ignore]
     async fn test_create_delete_user() -> Result<(), Error> {
         let pool = PgPool::new(&CONFIG.database_url);
 
@@ -162,7 +161,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_get_authorized_users_get_number_users() -> Result<(), Error> {
         let pool = PgPool::new(&CONFIG.database_url);
         let count = User::get_number_users(&pool).await? as usize;
