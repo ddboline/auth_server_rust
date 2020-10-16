@@ -149,3 +149,26 @@ async fn main() -> Result<(), Error> {
     stdout.close().await?;
     Ok(())
 }
+
+#[cfg(test)]
+mod test {
+    use anyhow::Error;
+
+    use auth_server_rust::pgpool::PgPool;
+    use auth_server_rust::stdout_channel::StdoutChannel;
+
+    use super::{AuthServerOptions, CONFIG};
+
+    #[tokio::test]
+    async fn test_process_args() -> Result<(), Error> {
+        let opts = AuthServerOptions::List;
+
+        let pool = PgPool::new(&CONFIG.database_url);
+        let stdout = StdoutChannel::new();
+
+        opts.process_args(&pool, &stdout).await?;
+        stdout.close().await?;
+
+        Ok(())
+    }
+}
