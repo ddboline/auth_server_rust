@@ -229,7 +229,7 @@ mod tests {
             .json()
             .await?;
         println!("I am: {:?}", resp);
-        assert_eq!(resp.email.as_str(), email.as_str());
+        assert_eq!(resp.email.as_str(), "user@test");
 
         std::env::remove_var("TESTENV");
         Ok(())
