@@ -162,14 +162,16 @@ pub async fn test_login(auth_data: Json<AuthRequest>, id: Identity) -> HttpResul
     if let Ok(s) = std::env::var("TESTENV") {
         if &s == "true" {
             let auth_data = auth_data.into_inner();
-            let user = LoggedUser { email: auth_data.email.into() };
+            let user = LoggedUser {
+                email: auth_data.email.into(),
+            };
             let token = Token::create_token(&user)?;
             id.remember(token.into());
             return to_json(user);
         }
     }
     Err(Error::BadRequest(
-            "Username and Password don't match".into(),
+        "Username and Password don't match".into(),
     ))
 }
 

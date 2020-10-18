@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::{app::CONFIG, errors::ServiceError as Error, pgpool::PgPool, ses_client::SesInstance};
 
-#[derive(FromSqlRow, Serialize, Deserialize, Debug)]
+#[derive(FromSqlRow, Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
 pub struct Invitation {
     pub id: Uuid,
     pub email: StackString,

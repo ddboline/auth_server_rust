@@ -1,12 +1,18 @@
 use anyhow::Error;
+use chrono::Utc;
 use futures::try_join;
 use stack_string::StackString;
+use stdout_channel::StdoutChannel;
 use structopt::StructOpt;
 use uuid::Uuid;
-use stdout_channel::StdoutChannel;
 
 use auth_server_rust::{
-    app::CONFIG, invitation::Invitation, pgpool::PgPool, ses_client::SesInstance, user::User,
+    app::CONFIG,
+    invitation::Invitation,
+    logged_user::{LoggedUser, AUTHORIZED_USERS},
+    pgpool::PgPool,
+    ses_client::SesInstance,
+    user::User,
 };
 
 #[derive(StructOpt, Debug)]
@@ -34,6 +40,13 @@ enum AuthServerOptions {
     Rm {
         #[structopt(short = "u", long)]
         email: StackString,
+    },
+    /// Register
+    Register {
+        #[structopt(short, long)]
+        invitation_id: StackString,
+        #[structopt(short, long)]
+        password: StackString,
     },
     /// Change password
     Change {
@@ -63,7 +76,7 @@ impl AuthServerOptions {
             }
             AuthServerOptions::ListInvites => {
                 for invite in Invitation::get_all(&pool).await? {
-                    stdout.send(format!("{:?}", invite));
+                    stdout.send(format!("{}", serde_json::to_string(&invite)?));
                 }
             }
             AuthServerOptions::SendInvite { email } => {
@@ -94,6 +107,24 @@ impl AuthServerOptions {
                     stdout.send(format!("Deleted user {}", user.email));
                 } else {
                     stdout.send(format!("User {} does not exist", email));
+                }
+            }
+            AuthServerOptions::Register {
+                invitation_id,
+                password,
+            } => {
+                let uuid = Uuid::parse_str(invitation_id)?;
+                if let Some(invitation) = Invitation::get_by_uuid(&uuid, &pool).await? {
+                    if invitation.expires_at > Utc::now() {
+                        let user = User::from_details(&invitation.email, password);
+                        user.upsert(&pool).await?;
+                        invitation.delete(&pool).await?;
+                        let user: LoggedUser = user.into();
+                        AUTHORIZED_USERS.store_auth(user.clone(), true)?;
+                        stdout.send(serde_json::to_string(&user)?);
+                    } else {
+                        invitation.delete(&pool).await?;
+                    }
                 }
             }
             AuthServerOptions::Change { email, password } => {
@@ -153,9 +184,12 @@ async fn main() -> Result<(), Error> {
 #[cfg(test)]
 mod test {
     use anyhow::Error;
+    use std::collections::HashSet;
     use stdout_channel::MockStdout;
     use stdout_channel::StdoutChannel;
 
+    use auth_server_rust::app::get_random_string;
+    use auth_server_rust::invitation::Invitation;
     use auth_server_rust::pgpool::PgPool;
     use auth_server_rust::user::User;
 
@@ -163,24 +197,72 @@ mod test {
 
     #[tokio::test]
     async fn test_process_args() -> Result<(), Error> {
-        let opts = AuthServerOptions::List;
-
         let pool = PgPool::new(&CONFIG.database_url);
+        let email = format!("{}@localhost", get_random_string(32));
+        let password = get_random_string(32);
+        let invitation = Invitation::from_email(&email);
+        invitation.insert(&pool).await?;
+
+        let invitations: HashSet<_> = Invitation::get_all(&pool).await?.into_iter().collect();
+
+        let mock_stdout = MockStdout::new();
+        let mock_stderr = MockStdout::new();
+        let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
+
+        let opts = AuthServerOptions::ListInvites;
+        opts.process_args(&pool, &stdout).await?;
+
+        stdout.close().await?;
+
+        assert_eq!(mock_stderr.lock().await.len(), 0);
+        assert_eq!(mock_stdout.lock().await.len(), invitations.len());
+        let mut stdout_invitations = HashSet::new();
+        for line in mock_stdout.lock().await.iter() {
+            let inv: Invitation = serde_json::from_str(line.as_str())?;
+            stdout_invitations.insert(inv.id);
+        }
+        println!("{:?}", stdout_invitations);
+        println!("{:?}", invitation);
+        assert!(stdout_invitations.contains(&invitation.id));
+
+        let mock_stdout = MockStdout::new();
+        let mock_stderr = MockStdout::new();
+        let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
+
+        let opts = AuthServerOptions::Register { invitation_id: invitation.id.to_string().into(), password: password.into() };
+        opts.process_args(&pool, &stdout).await?;
+
+        stdout.close().await?;
+
+        assert_eq!(mock_stderr.lock().await.len(), 0);
+        assert_eq!(mock_stdout.lock().await.len(), invitations.len());
 
         let users = User::get_authorized_users(&pool).await?;
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
-
         let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
 
+        let opts = AuthServerOptions::List;
         opts.process_args(&pool, &stdout).await?;
 
         stdout.close().await?;
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
         assert_eq!(mock_stdout.lock().await.len(), users.len());
+        println!("{:?}", mock_stdout.lock().await);
 
+        let mock_stdout = MockStdout::new();
+        let mock_stderr = MockStdout::new();
+        let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
+
+        let opts = AuthServerOptions::Rm { email: email.into() };
+        opts.process_args(&pool, &stdout).await?;
+
+        stdout.close().await?;
+
+        assert_eq!(mock_stderr.lock().await.len(), 0);
+        assert!(mock_stdout.lock().await[0].contains("Deleted user"));
         Ok(())
     }
 }

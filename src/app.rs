@@ -14,7 +14,7 @@ use crate::{
     pgpool::PgPool,
     routes::{
         auth_url, callback, change_password_user, get_me, login, logout, register_email,
-        register_user, status, test_get_me, test_login, test_logout
+        register_user, status, test_get_me, test_login, test_logout,
     },
     static_files::{change_password, index_html, login_html, main_css, main_js, register_html},
 };
@@ -124,7 +124,11 @@ async fn run_app(
     .map_err(Into::into)
 }
 
-pub async fn run_test_app(port: u32, cookie_secret: [u8; KEY_LENGTH], domain: StackString) -> Result<(), Error> {
+pub async fn run_test_app(
+    port: u32,
+    cookie_secret: [u8; KEY_LENGTH],
+    domain: StackString,
+) -> Result<(), Error> {
     HttpServer::new(move || {
         App::new()
             .wrap(Compress::default())
@@ -137,13 +141,12 @@ pub async fn run_test_app(port: u32, cookie_secret: [u8; KEY_LENGTH], domain: St
                     .secure(false),
             ))
             .service(
-                web::scope("/api")
-                    .service(
-                        web::resource("/auth")
-                            .route(web::post().to(test_login))
-                            .route(web::delete().to(test_logout))
-                            .route(web::get().to(test_get_me)),
-                    )
+                web::scope("/api").service(
+                    web::resource("/auth")
+                        .route(web::post().to(test_login))
+                        .route(web::delete().to(test_logout))
+                        .route(web::get().to(test_get_me)),
+                ),
             )
     })
     .bind(&format!("localhost:{}", port))?
@@ -155,12 +158,12 @@ pub async fn run_test_app(port: u32, cookie_secret: [u8; KEY_LENGTH], domain: St
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
+    use lazy_static::lazy_static;
     use maplit::hashmap;
     use parking_lot::Mutex;
-    use lazy_static::lazy_static;
 
     use crate::{
-        app::{get_random_string, run_app, CONFIG, run_test_app},
+        app::{get_random_string, run_app, run_test_app, CONFIG},
         invitation::Invitation,
         logged_user::{get_random_key, LoggedUser, JWT_SECRET, KEY_LENGTH, SECRET_KEY},
         pgpool::PgPool,

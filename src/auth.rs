@@ -23,10 +23,10 @@ impl AuthRequest {
 mod test {
     use anyhow::Error;
 
+    use crate::app::get_random_string;
+    use crate::auth::AuthRequest;
     use crate::config::Config;
     use crate::pgpool::PgPool;
-    use crate::auth::AuthRequest;
-    use crate::app::get_random_string;
 
     #[tokio::test]
     async fn test_authenticate() -> Result<(), Error> {
@@ -36,12 +36,12 @@ mod test {
         let email = format!("{}@localhost", get_random_string(32));
         let password = get_random_string(32);
 
-        let req = AuthRequest {
-            email,
-            password,
-        };
+        let req = AuthRequest { email, password };
         let resp = req.authenticate(&pool).await;
-        assert_eq!(resp.unwrap_err().to_string(), "BadRequest: Invalid username or password".to_string());
+        assert_eq!(
+            resp.unwrap_err().to_string(),
+            "BadRequest: Invalid username or password".to_string()
+        );
 
         Ok(())
     }
