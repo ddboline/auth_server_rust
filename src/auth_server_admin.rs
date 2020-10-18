@@ -185,13 +185,11 @@ async fn main() -> Result<(), Error> {
 mod test {
     use anyhow::Error;
     use std::collections::HashSet;
-    use stdout_channel::MockStdout;
-    use stdout_channel::StdoutChannel;
+    use stdout_channel::{MockStdout, StdoutChannel};
 
-    use auth_server_rust::app::get_random_string;
-    use auth_server_rust::invitation::Invitation;
-    use auth_server_rust::pgpool::PgPool;
-    use auth_server_rust::user::User;
+    use auth_server_rust::{
+        app::get_random_string, invitation::Invitation, pgpool::PgPool, user::User,
+    };
 
     use super::{AuthServerOptions, CONFIG};
 
@@ -229,7 +227,10 @@ mod test {
         let mock_stderr = MockStdout::new();
         let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
 
-        let opts = AuthServerOptions::Register { invitation_id: invitation.id.to_string().into(), password: password.into() };
+        let opts = AuthServerOptions::Register {
+            invitation_id: invitation.id.to_string().into(),
+            password: password.into(),
+        };
         opts.process_args(&pool, &stdout).await?;
 
         stdout.close().await?;
@@ -256,7 +257,9 @@ mod test {
         let mock_stderr = MockStdout::new();
         let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
 
-        let opts = AuthServerOptions::Rm { email: email.into() };
+        let opts = AuthServerOptions::Rm {
+            email: email.into(),
+        };
         opts.process_args(&pool, &stdout).await?;
 
         stdout.close().await?;

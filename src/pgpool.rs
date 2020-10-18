@@ -4,9 +4,9 @@ use deadpool_postgres::{ClientWrapper, Config, Pool};
 use std::fmt;
 use tokio_postgres::{error::Error as PgError, Config as PgConfig, NoTls};
 
-/// Wrapper around `deadpool_postgres::Pool`, two pools are considered equal if they have the
-/// same connection string The only way to use `PgPool` is through the get
-/// method, which returns a `PooledConnection` object
+/// Wrapper around `deadpool_postgres::Pool`, two pools are considered equal if
+/// they have the same connection string The only way to use `PgPool` is through
+/// the get method, which returns a `PooledConnection` object
 #[derive(Clone, Default)]
 pub struct PgPool {
     pgurl: String,

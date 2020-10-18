@@ -23,10 +23,7 @@ impl AuthRequest {
 mod test {
     use anyhow::Error;
 
-    use crate::app::get_random_string;
-    use crate::auth::AuthRequest;
-    use crate::config::Config;
-    use crate::pgpool::PgPool;
+    use crate::{app::get_random_string, auth::AuthRequest, config::Config, pgpool::PgPool};
 
     #[tokio::test]
     async fn test_authenticate() -> Result<(), Error> {
