@@ -157,6 +157,7 @@ mod test {
     use stdout_channel::StdoutChannel;
 
     use auth_server_rust::pgpool::PgPool;
+    use auth_server_rust::user::User;
 
     use super::{AuthServerOptions, CONFIG};
 
@@ -165,6 +166,9 @@ mod test {
         let opts = AuthServerOptions::List;
 
         let pool = PgPool::new(&CONFIG.database_url);
+
+        let users = User::get_authorized_users(&pool).await?;
+
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
 
@@ -175,7 +179,7 @@ mod test {
         stdout.close().await?;
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
-        assert!(mock_stdout.lock().await.len() > 0);
+        assert_eq!(mock_stdout.lock().await.len(), users.len());
 
         Ok(())
     }
