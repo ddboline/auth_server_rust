@@ -108,9 +108,9 @@ impl AuthServerOptions {
             AuthServerOptions::Verify { email, password } => {
                 if let Some(user) = User::get_by_email(&email, &pool).await? {
                     if user.verify_password(&password)? {
-                        stdout.send(format!("Password correct"));
+                        stdout.send("Password correct".to_string());
                     } else {
-                        stdout.send(format!("Password incorrect"));
+                        stdout.send("Password incorrect".to_string());
                     }
                 } else {
                     stdout.send(format!("User {} does not exist", email));
