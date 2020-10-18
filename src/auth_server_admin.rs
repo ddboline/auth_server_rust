@@ -175,7 +175,7 @@ mod test {
         stdout.close().await?;
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
-        assert_eq!(mock_stdout.lock().await.len(), 0);
+        assert!(mock_stdout.lock().await.len() > 0);
 
         Ok(())
     }
