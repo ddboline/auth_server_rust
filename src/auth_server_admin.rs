@@ -76,7 +76,7 @@ impl AuthServerOptions {
             }
             AuthServerOptions::ListInvites => {
                 for invite in Invitation::get_all(&pool).await? {
-                    stdout.send(format!("{}", serde_json::to_string(&invite)?));
+                    stdout.send(serde_json::to_string(&invite)?);
                 }
             }
             AuthServerOptions::SendInvite { email } => {
