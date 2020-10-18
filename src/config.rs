@@ -104,6 +104,6 @@ impl Config {
 
         let conf: ConfigInner = envy::from_env()?;
 
-        Ok(Self(Arc::new(conf)))
+        Ok(Self::from_inner(conf))
     }
 }
