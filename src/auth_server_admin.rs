@@ -3,7 +3,7 @@ use futures::try_join;
 use stack_string::StackString;
 use structopt::StructOpt;
 use uuid::Uuid;
-use stdout_channel::::StdoutChannel;
+use stdout_channel::StdoutChannel;
 
 use auth_server_rust::{
     app::CONFIG, invitation::Invitation, pgpool::PgPool, ses_client::SesInstance, user::User,
@@ -154,9 +154,9 @@ async fn main() -> Result<(), Error> {
 mod test {
     use anyhow::Error;
     use stdout_channel::MockStdout;
+    use stdout_channel::StdoutChannel;
 
     use auth_server_rust::pgpool::PgPool;
-    use auth_server_rust::stdout_channel::StdoutChannel;
 
     use super::{AuthServerOptions, CONFIG};
 
@@ -168,13 +168,14 @@ mod test {
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
 
-        let stdout = StdoutChannel::with_mock_stdout(mock_stdout, mock_stderr);
+        let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
 
         opts.process_args(&pool, &stdout).await?;
 
         stdout.close().await?;
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
+        assert_eq!(mock_stdout.lock().await.len(), 0);
 
         Ok(())
     }
