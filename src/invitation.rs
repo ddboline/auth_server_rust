@@ -122,7 +122,6 @@ mod tests {
     };
 
     #[tokio::test]
-    #[ignore]
     async fn test_send_invitation() -> Result<(), Error> {
         let new_invitation = Invitation::from_email("ddboline.im@gmail.com");
         new_invitation.send_invitation("test_url").await?;
