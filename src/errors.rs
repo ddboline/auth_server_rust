@@ -8,7 +8,7 @@ use rusoto_ses::{GetSendQuotaError, GetSendStatisticsError, SendEmailError};
 use std::{convert::From, fmt::Debug};
 use thiserror::Error;
 use tokio::task::JoinError;
-use tokio_postgres::error::Error as PostgresError;
+use tokio_postgres::Error as PostgresError;
 use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
 
