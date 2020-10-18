@@ -14,7 +14,7 @@ use crate::{
     pgpool::PgPool,
     routes::{
         auth_url, callback, change_password_user, get_me, login, logout, register_email,
-        register_user, status,
+        register_user, status, test_get_me, test_login, test_logout
     },
     static_files::{change_password, index_html, login_html, main_css, main_js, register_html},
 };
@@ -124,18 +124,52 @@ async fn run_app(
     .map_err(Into::into)
 }
 
+pub async fn run_test_app(port: u32, cookie_secret: [u8; KEY_LENGTH], domain: StackString) -> Result<(), Error> {
+    HttpServer::new(move || {
+        App::new()
+            .wrap(Compress::default())
+            .wrap(IdentityService::new(
+                CookieIdentityPolicy::new(&cookie_secret)
+                    .name("auth")
+                    .path("/")
+                    .domain(domain.as_str())
+                    .max_age(CONFIG.expiration_seconds)
+                    .secure(false),
+            ))
+            .service(
+                web::scope("/api")
+                    .service(
+                        web::resource("/auth")
+                            .route(web::post().to(test_login))
+                            .route(web::delete().to(test_logout))
+                            .route(web::get().to(test_get_me)),
+                    )
+            )
+    })
+    .bind(&format!("localhost:{}", port))?
+    .run()
+    .await
+    .map_err(Into::into)
+}
+
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
     use maplit::hashmap;
+    use parking_lot::Mutex;
+    use lazy_static::lazy_static;
 
     use crate::{
-        app::{get_random_string, run_app, CONFIG},
+        app::{get_random_string, run_app, CONFIG, run_test_app},
         invitation::Invitation,
         logged_user::{get_random_key, LoggedUser, JWT_SECRET, KEY_LENGTH, SECRET_KEY},
         pgpool::PgPool,
         user::User,
     };
+
+    lazy_static! {
+        static ref AUTH_APP_MUTEX: Mutex<()> = Mutex::new(());
+    }
 
     #[test]
     fn test_get_random_string() -> Result<(), Error> {
@@ -146,7 +180,65 @@ mod tests {
     }
 
     #[actix_rt::test]
+    async fn test_test_app() -> Result<(), Error> {
+        let _lock = AUTH_APP_MUTEX.lock();
+
+        std::env::set_var("TESTENV", "true");
+        let email = format!("{}@localhost", get_random_string(32));
+        let password = get_random_string(32);
+
+        let mut secret_key = [0u8; KEY_LENGTH];
+        secret_key.copy_from_slice(&get_random_key());
+
+        SECRET_KEY.set(secret_key);
+        JWT_SECRET.set(secret_key);
+
+        let test_port = 54321;
+        actix_rt::spawn(async move {
+            run_test_app(test_port, secret_key, "localhost".into())
+                .await
+                .unwrap()
+        });
+
+        tokio::time::delay_for(tokio::time::Duration::from_secs(10)).await;
+
+        let client = reqwest::Client::builder().cookie_store(true).build()?;
+        let url = format!("http://localhost:{}/api/auth", test_port);
+        let data = hashmap! {
+            "email" => &email,
+            "password" => &password,
+        };
+        println!("login");
+        let resp: LoggedUser = client
+            .post(&url)
+            .json(&data)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?;
+        println!("logged in {:?}", resp);
+        assert_eq!(resp.email.as_str(), email.as_str());
+
+        println!("get me");
+        let resp: LoggedUser = client
+            .get(&url)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?;
+        println!("I am: {:?}", resp);
+        assert_eq!(resp.email.as_str(), email.as_str());
+
+        std::env::remove_var("TESTENV");
+        Ok(())
+    }
+
+    #[actix_rt::test]
     async fn test_create_user() -> Result<(), Error> {
+        let _lock = AUTH_APP_MUTEX.lock();
+
         let pool = PgPool::new(&CONFIG.database_url);
         let email = format!("{}@localhost", get_random_string(32));
         let password = get_random_string(32);

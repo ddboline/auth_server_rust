@@ -157,3 +157,31 @@ pub async fn status(data: Data<AppState>) -> HttpResult {
     );
     form_http_response(body)
 }
+
+pub async fn test_login(auth_data: Json<AuthRequest>, id: Identity) -> HttpResult {
+    if let Ok(s) = std::env::var("TESTENV") {
+        if &s == "true" {
+            let auth_data = auth_data.into_inner();
+            let user = LoggedUser { email: auth_data.email.into() };
+            let token = Token::create_token(&user)?;
+            id.remember(token.into());
+            return to_json(user);
+        }
+    }
+    Err(Error::BadRequest(
+            "Username and Password don't match".into(),
+    ))
+}
+
+pub async fn test_logout(id: Identity) -> HttpResult {
+    id.forget();
+    if let Some(id) = id.identity() {
+        form_http_response(format!("{} has been logged out", id))
+    } else {
+        form_http_response("".to_string())
+    }
+}
+
+pub async fn test_get_me(logged_user: LoggedUser) -> HttpResult {
+    to_json(logged_user)
+}
