@@ -41,7 +41,7 @@ mod test {
             password,
         };
         let resp = req.authenticate(&pool).await;
-        assert_eq!(resp.unwrap_err().to_string(), "Invalid username or password".to_string());
+        assert_eq!(resp.unwrap_err().to_string(), "BadRequest: Invalid username or password".to_string());
 
         Ok(())
     }
