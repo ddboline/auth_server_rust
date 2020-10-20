@@ -1,0 +1,52 @@
+use anyhow::{format_err, Error};
+use stack_string::StackString;
+use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
+use url::Url;
+use std::convert::{TryInto, TryFrom};
+use std::collections::hash_map::IntoIter;
+use std::fs;
+use std::path::Path;
+
+pub struct AuthUserConfig(HashMap<StackString, Entry>);
+
+impl AuthUserConfig {
+    pub fn new(p: &Path) -> Result<Self, Error> {
+        let data = fs::read_to_string(p)?;
+        let config: ConfigToml = toml::from_str(&data)?;
+        config.try_into()
+    }
+}
+
+impl IntoIterator for AuthUserConfig {
+    type Item = (StackString, Entry);
+    type IntoIter = IntoIter<StackString, Entry>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+pub struct Entry {
+    pub database_url: Url,
+    pub table: StackString,
+}
+
+impl TryFrom<ConfigToml> for AuthUserConfig {
+    type Error = Error;
+    fn try_from(item: ConfigToml) -> Result<Self, Self::Error> {
+        let result: Result<HashMap<_, _>, Error> = item.into_iter().map(|(key, entry)| {
+            let database_url = entry.database_url.ok_or_else(|| format_err!("No database_url"))?;
+            let table = entry.table.ok_or_else(|| format_err!("No table"))?;
+            Ok((key, Entry {database_url, table} ))
+        }).collect();
+        result.map(AuthUserConfig)
+    }
+}
+
+type ConfigToml = HashMap<StackString, TomlEntry>;
+
+#[derive(Serialize, Deserialize)]
+struct TomlEntry {
+    database_url: Option<Url>,
+    table: Option<StackString>,
+}
