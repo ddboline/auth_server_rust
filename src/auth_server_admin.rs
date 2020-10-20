@@ -76,15 +76,16 @@ impl AuthServerOptions {
                 for user in User::get_authorized_users(&pool).await? {
                     stdout.send(format!("{}", user.email));
                 }
-                let auth_user_config = AuthUserConfig::new(&CONFIG.auth_user_config_path)?;
-                let futures = auth_user_config.into_iter().map(|(key, val)| async move {
-                    val.get_authorized_users().await.map(|users| (key, users))
-                });
-                let results: Result<Vec<_>, Error> = try_join_all(futures).await;
-                let auth_users: HashMap<_, _> = results?.into_iter().collect();
+                if let Ok(auth_user_config) = AuthUserConfig::new(&CONFIG.auth_user_config_path) {
+                    let futures = auth_user_config.into_iter().map(|(key, val)| async move {
+                        val.get_authorized_users().await.map(|users| (key, users))
+                    });
+                    let results: Result<Vec<_>, Error> = try_join_all(futures).await;
+                    let auth_users: HashMap<_, _> = results?.into_iter().collect();
 
-                for (key, val) in auth_users {
-                    stdout.send(format!("{} {:?}", key, val));
+                    for (key, val) in auth_users {
+                        stdout.send(format!("{} {:?}", key, val));
+                    }
                 }
             }
             AuthServerOptions::ListInvites => {
@@ -232,14 +233,15 @@ mod test {
             let inv: Invitation = serde_json::from_str(line.as_str())?;
             stdout_invitations.insert(inv.id);
         }
-        println!("{:?}", stdout_invitations);
-        println!("{:?}", invitation);
+        println!("invitation {:?}", stdout_invitations);
+        println!("invitation {:?}", invitation);
         assert!(stdout_invitations.contains(&invitation.id));
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
         let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
 
+        println!("start register");
         let opts = AuthServerOptions::Register {
             invitation_id: invitation.id.to_string().into(),
             password: password.into(),
@@ -257,6 +259,7 @@ mod test {
         let mock_stderr = MockStdout::new();
         let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
 
+        println!("start list");
         let opts = AuthServerOptions::List;
         opts.process_args(&pool, &stdout).await?;
 
@@ -264,7 +267,7 @@ mod test {
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
         assert_eq!(mock_stdout.lock().await.len(), users.len());
-        println!("{:?}", mock_stdout.lock().await);
+        println!("list users {:?}", mock_stdout.lock().await);
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
@@ -285,7 +288,7 @@ mod test {
             .await
             .join("")
             .contains("Password updated"));
-        println!("{:?}", mock_stdout.lock().await);
+        println!("change pwd {:?}", mock_stdout.lock().await);
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
@@ -301,7 +304,7 @@ mod test {
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
         let result = mock_stdout.lock().await.join("\n");
-        println!("{}", result);
+        println!("verify {}", result);
         assert!(result.contains("Password correct"));
 
         let mock_stdout = MockStdout::new();
