@@ -10,6 +10,7 @@
 
 pub mod app;
 pub mod auth;
+pub mod auth_user_config;
 pub mod claim;
 pub mod config;
 pub mod errors;
@@ -22,7 +23,6 @@ pub mod ses_client;
 pub mod static_files;
 pub mod token;
 pub mod user;
-pub mod auth_user_config;
 
 #[cfg(test)]
 mod tests {

@@ -71,7 +71,10 @@ fn default_secret_path() -> PathBuf {
         .join("secret.bin")
 }
 fn default_auth_user_config_path() -> PathBuf {
-    dirs::config_dir().unwrap().join("auth_server_rust").join("auth_user_config.toml")
+    dirs::config_dir()
+        .unwrap()
+        .join("auth_server_rust")
+        .join("auth_user_config.toml")
 }
 
 #[derive(Debug, Clone)]

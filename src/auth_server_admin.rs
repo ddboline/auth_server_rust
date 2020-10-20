@@ -258,20 +258,30 @@ mod test {
         let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
 
         let password = get_random_string(32);
-        let opts = AuthServerOptions::Change { email: email.clone().into(), password: password.clone().into()};
+        let opts = AuthServerOptions::Change {
+            email: email.clone().into(),
+            password: password.clone().into(),
+        };
         opts.process_args(&pool, &stdout).await?;
 
         stdout.close().await?;
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
-        assert!(mock_stdout.lock().await.join("").contains("Password updated"));
+        assert!(mock_stdout
+            .lock()
+            .await
+            .join("")
+            .contains("Password updated"));
         println!("{:?}", mock_stdout.lock().await);
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
         let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
 
-        let opts = AuthServerOptions::Verify { email: email.clone().into(), password: password.into()};
+        let opts = AuthServerOptions::Verify {
+            email: email.clone().into(),
+            password: password.into(),
+        };
         opts.process_args(&pool, &stdout).await?;
 
         stdout.close().await?;
