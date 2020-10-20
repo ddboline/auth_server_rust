@@ -1,11 +1,14 @@
 use anyhow::Error;
 use chrono::Utc;
+use futures::future::try_join_all;
 use futures::try_join;
 use stack_string::StackString;
+use std::collections::HashMap;
 use stdout_channel::StdoutChannel;
 use structopt::StructOpt;
 use uuid::Uuid;
 
+use auth_server_rust::auth_user_config::AuthUserConfig;
 use auth_server_rust::{
     app::CONFIG,
     invitation::Invitation,
@@ -72,6 +75,16 @@ impl AuthServerOptions {
             AuthServerOptions::List => {
                 for user in User::get_authorized_users(&pool).await? {
                     stdout.send(format!("{}", user.email));
+                }
+                let auth_user_config = AuthUserConfig::new(&CONFIG.auth_user_config_path)?;
+                let futures = auth_user_config.into_iter().map(|(key, val)| async move {
+                    val.get_authorized_users().await.map(|users| (key, users))
+                });
+                let results: Result<Vec<_>, Error> = try_join_all(futures).await;
+                let auth_users: HashMap<_, _> = results?.into_iter().collect();
+
+                for (key, val) in auth_users {
+                    stdout.send(format!("{} {:?}", key, val));
                 }
             }
             AuthServerOptions::ListInvites => {

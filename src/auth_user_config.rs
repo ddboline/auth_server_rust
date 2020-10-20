@@ -11,6 +11,8 @@ use std::{
 };
 use url::Url;
 
+use crate::pgpool::PgPool;
+
 #[derive(Debug)]
 pub struct AuthUserConfig(HashMap<StackString, Entry>);
 
@@ -45,13 +47,6 @@ impl IntoIterator for AuthUserConfig {
     }
 }
 
-#[derive(Debug)]
-pub struct Entry {
-    pub database_url: Url,
-    pub table: StackString,
-    pub email_field: StackString,
-}
-
 impl TryFrom<ConfigToml> for AuthUserConfig {
     type Error = Error;
     fn try_from(item: ConfigToml) -> Result<Self, Self::Error> {
@@ -77,6 +72,34 @@ impl TryFrom<ConfigToml> for AuthUserConfig {
     }
 }
 
+#[derive(Debug)]
+pub struct Entry {
+    pub database_url: Url,
+    pub table: StackString,
+    pub email_field: StackString,
+}
+
+impl Entry {
+    pub async fn get_authorized_users(&self) -> Result<Vec<StackString>, Error> {
+        let pool = PgPool::new(self.database_url.as_str());
+        let query = format!(
+            "SELECT {email_field} FROM {table}",
+            table = self.table,
+            email_field = self.email_field
+        );
+        pool.get()
+            .await?
+            .query(query.as_str(), &[])
+            .await?
+            .into_iter()
+            .map(|row| {
+                let email_field: StackString = row.try_get(self.email_field.as_str())?;
+                Ok(email_field)
+            })
+            .collect()
+    }
+}
+
 type ConfigToml = HashMap<String, TomlEntry>;
 
 #[derive(Serialize, Deserialize)]
@@ -98,6 +121,13 @@ mod tests {
         let config: AuthUserConfig = data.parse()?;
         println!("{:?}", config);
         assert_eq!(config.len(), 2);
+        let entry = config.get("aws_app_rust").unwrap();
+        assert_eq!(
+            entry.database_url,
+            "postgresql://user:password@localhost:5432/aws_app_cache".parse()?
+        );
+        assert_eq!(entry.table, "authorized_users");
+        assert_eq!(entry.email_field, "email");
         Ok(())
     }
 }
