@@ -2,8 +2,9 @@ use anyhow::Error;
 use chrono::Utc;
 use futures::future::try_join_all;
 use futures::try_join;
+use itertools::Itertools;
 use stack_string::StackString;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use stdout_channel::StdoutChannel;
 use structopt::StructOpt;
 use uuid::Uuid;
@@ -67,25 +68,38 @@ enum AuthServerOptions {
     },
     /// Get Status of Server / Ses
     Status,
+    /// Add User to App
+    AddToApp {
+        #[structopt(short, long)]
+        email: StackString,
+        #[structopt(short, long)]
+        app: StackString,
+    },
+    /// Remove User from App
+    RemoveFromApp {
+        #[structopt(short, long)]
+        email: StackString,
+        #[structopt(short, long)]
+        app: StackString,
+    },
 }
 
 impl AuthServerOptions {
     pub async fn process_args(&self, pool: &PgPool, stdout: &StdoutChannel) -> Result<(), Error> {
         match self {
             AuthServerOptions::List => {
-                for user in User::get_authorized_users(&pool).await? {
-                    stdout.send(format!("{}", user.email));
-                }
-                if let Ok(auth_user_config) = AuthUserConfig::new(&CONFIG.auth_user_config_path) {
-                    let futures = auth_user_config.into_iter().map(|(key, val)| async move {
-                        val.get_authorized_users().await.map(|users| (key, users))
-                    });
-                    let results: Result<Vec<_>, Error> = try_join_all(futures).await;
-                    let auth_users: HashMap<_, _> = results?.into_iter().collect();
+                let auth_app_map = get_auth_user_app_map().await?;
 
-                    for (key, val) in auth_users {
-                        stdout.send(format!("{} {:?}", key, val));
-                    }
+                for user in User::get_authorized_users(&pool).await? {
+                    stdout.send(format!(
+                        "{} {}",
+                        user.email,
+                        if let Some(apps) = auth_app_map.get(&user.email) {
+                            apps.iter().join(" ")
+                        } else {
+                            "".to_string()
+                        }
+                    ));
                 }
             }
             AuthServerOptions::ListInvites => {
@@ -175,6 +189,20 @@ impl AuthServerOptions {
                 stdout.send(format!("{:#?}", quota));
                 stdout.send(format!("{:#?}", stats,));
             }
+            AuthServerOptions::AddToApp { email, app } => {
+                if let Ok(auth_user_config) = AuthUserConfig::new(&CONFIG.auth_user_config_path) {
+                    if let Some(entry) = auth_user_config.get(app.as_str()) {
+                        entry.add_user(email.as_str()).await?;
+                    }
+                }
+            }
+            AuthServerOptions::RemoveFromApp { email, app } => {
+                if let Ok(auth_user_config) = AuthUserConfig::new(&CONFIG.auth_user_config_path) {
+                    if let Some(entry) = auth_user_config.get(app.as_str()) {
+                        entry.remove_user(email.as_str()).await?;
+                    }
+                }
+            }
         }
         Ok(())
     }
@@ -182,6 +210,22 @@ impl AuthServerOptions {
 
 fn parse_uuid(s: &str) -> Result<Uuid, Error> {
     Uuid::parse_str(s).map_err(Into::into)
+}
+
+async fn get_auth_user_app_map() -> Result<HashMap<StackString, BTreeSet<StackString>>, Error> {
+    let mut auth_app_map: HashMap<_, BTreeSet<_>> = HashMap::new();
+    if let Ok(auth_user_config) = AuthUserConfig::new(&CONFIG.auth_user_config_path) {
+        let futures = auth_user_config.into_iter().map(|(key, val)| async move {
+            val.get_authorized_users().await.map(|users| (key, users))
+        });
+        let results: Result<Vec<_>, Error> = try_join_all(futures).await;
+        for (key, users) in results? {
+            for user in users {
+                auth_app_map.entry(user).or_default().insert(key.clone());
+            }
+        }
+    }
+    Ok(auth_app_map)
 }
 
 #[tokio::main]

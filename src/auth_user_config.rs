@@ -98,6 +98,36 @@ impl Entry {
             })
             .collect()
     }
+
+    pub async fn add_user(&self, email: &str) -> Result<(), Error> {
+        let pool = PgPool::new(self.database_url.as_str());
+        let query = format!(
+            "INSERT INTO {table} ({email_field}) VALUES ($email)",
+            table = self.table,
+            email_field = self.email_field,
+        );
+        let query = postgres_query::query_dyn!(&query, email = email)?;
+        pool.get()
+            .await?
+            .execute(query.sql(), query.parameters())
+            .await?;
+        Ok(())
+    }
+
+    pub async fn remove_user(&self, email: &str) -> Result<(), Error> {
+        let pool = PgPool::new(self.database_url.as_str());
+        let query = format!(
+            "DELETE FROM {table} WHERE {email_field} = $email",
+            table = self.table,
+            email_field = self.email_field
+        );
+        let query = postgres_query::query_dyn!(&query, email = email)?;
+        pool.get()
+            .await?
+            .execute(query.sql(), query.parameters())
+            .await?;
+        Ok(())
+    }
 }
 
 type ConfigToml = HashMap<String, TomlEntry>;
