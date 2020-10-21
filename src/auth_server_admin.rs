@@ -1,7 +1,6 @@
 use anyhow::Error;
 use chrono::Utc;
-use futures::future::try_join_all;
-use futures::try_join;
+use futures::{future::try_join_all, try_join};
 use itertools::Itertools;
 use stack_string::StackString;
 use std::collections::{BTreeSet, HashMap};
@@ -9,9 +8,9 @@ use stdout_channel::StdoutChannel;
 use structopt::StructOpt;
 use uuid::Uuid;
 
-use auth_server_rust::auth_user_config::AuthUserConfig;
 use auth_server_rust::{
     app::CONFIG,
+    auth_user_config::AuthUserConfig,
     invitation::Invitation,
     logged_user::{LoggedUser, AUTHORIZED_USERS},
     pgpool::PgPool,
@@ -85,6 +84,7 @@ enum AuthServerOptions {
 }
 
 impl AuthServerOptions {
+    #[allow(clippy::too_many_lines)]
     pub async fn process_args(&self, pool: &PgPool, stdout: &StdoutChannel) -> Result<(), Error> {
         match self {
             AuthServerOptions::List => {
@@ -94,11 +94,9 @@ impl AuthServerOptions {
                     stdout.send(format!(
                         "{} {}",
                         user.email,
-                        if let Some(apps) = auth_app_map.get(&user.email) {
-                            apps.iter().join(" ")
-                        } else {
-                            "".to_string()
-                        }
+                        auth_app_map
+                            .get(&user.email)
+                            .map_or_else(|| "".to_string(), |apps| apps.iter().join(" "))
                     ));
                 }
             }
