@@ -10,6 +10,7 @@
 
 pub mod app;
 pub mod auth;
+pub mod auth_user_config;
 pub mod claim;
 pub mod config;
 pub mod errors;

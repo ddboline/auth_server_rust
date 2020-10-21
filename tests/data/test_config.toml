@@ -1,0 +1,9 @@
+[aws_app_rust]
+database_url = 'postgresql://user:password@localhost:5432/aws_app_cache'
+table = 'authorized_users'
+email_field = "email"
+
+[calendar_app_rust]
+database_url = 'postgresql://user:password@localhost:5432/calendar_app_cache'
+table = 'authorized_users'
+email_field = "email"

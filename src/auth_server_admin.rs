@@ -1,13 +1,16 @@
 use anyhow::Error;
 use chrono::Utc;
-use futures::try_join;
+use futures::{future::try_join_all, try_join};
+use itertools::Itertools;
 use stack_string::StackString;
+use std::collections::{BTreeSet, HashMap};
 use stdout_channel::StdoutChannel;
 use structopt::StructOpt;
 use uuid::Uuid;
 
 use auth_server_rust::{
     app::CONFIG,
+    auth_user_config::AuthUserConfig,
     invitation::Invitation,
     logged_user::{LoggedUser, AUTHORIZED_USERS},
     pgpool::PgPool,
@@ -64,14 +67,37 @@ enum AuthServerOptions {
     },
     /// Get Status of Server / Ses
     Status,
+    /// Add User to App
+    AddToApp {
+        #[structopt(short, long)]
+        email: StackString,
+        #[structopt(short, long)]
+        app: StackString,
+    },
+    /// Remove User from App
+    RemoveFromApp {
+        #[structopt(short, long)]
+        email: StackString,
+        #[structopt(short, long)]
+        app: StackString,
+    },
 }
 
 impl AuthServerOptions {
+    #[allow(clippy::too_many_lines)]
     pub async fn process_args(&self, pool: &PgPool, stdout: &StdoutChannel) -> Result<(), Error> {
         match self {
             AuthServerOptions::List => {
+                let auth_app_map = get_auth_user_app_map().await?;
+
                 for user in User::get_authorized_users(&pool).await? {
-                    stdout.send(format!("{}", user.email));
+                    stdout.send(format!(
+                        "{} {}",
+                        user.email,
+                        auth_app_map
+                            .get(&user.email)
+                            .map_or_else(|| "".to_string(), |apps| apps.iter().join(" "))
+                    ));
                 }
             }
             AuthServerOptions::ListInvites => {
@@ -161,6 +187,20 @@ impl AuthServerOptions {
                 stdout.send(format!("{:#?}", quota));
                 stdout.send(format!("{:#?}", stats,));
             }
+            AuthServerOptions::AddToApp { email, app } => {
+                if let Ok(auth_user_config) = AuthUserConfig::new(&CONFIG.auth_user_config_path) {
+                    if let Some(entry) = auth_user_config.get(app.as_str()) {
+                        entry.add_user(email.as_str()).await?;
+                    }
+                }
+            }
+            AuthServerOptions::RemoveFromApp { email, app } => {
+                if let Ok(auth_user_config) = AuthUserConfig::new(&CONFIG.auth_user_config_path) {
+                    if let Some(entry) = auth_user_config.get(app.as_str()) {
+                        entry.remove_user(email.as_str()).await?;
+                    }
+                }
+            }
         }
         Ok(())
     }
@@ -168,6 +208,22 @@ impl AuthServerOptions {
 
 fn parse_uuid(s: &str) -> Result<Uuid, Error> {
     Uuid::parse_str(s).map_err(Into::into)
+}
+
+async fn get_auth_user_app_map() -> Result<HashMap<StackString, BTreeSet<StackString>>, Error> {
+    let mut auth_app_map: HashMap<_, BTreeSet<_>> = HashMap::new();
+    if let Ok(auth_user_config) = AuthUserConfig::new(&CONFIG.auth_user_config_path) {
+        let futures = auth_user_config.into_iter().map(|(key, val)| async move {
+            val.get_authorized_users().await.map(|users| (key, users))
+        });
+        let results: Result<Vec<_>, Error> = try_join_all(futures).await;
+        for (key, users) in results? {
+            for user in users {
+                auth_app_map.entry(user).or_default().insert(key.clone());
+            }
+        }
+    }
+    Ok(auth_app_map)
 }
 
 #[tokio::main]
@@ -219,14 +275,15 @@ mod test {
             let inv: Invitation = serde_json::from_str(line.as_str())?;
             stdout_invitations.insert(inv.id);
         }
-        println!("{:?}", stdout_invitations);
-        println!("{:?}", invitation);
+        println!("invitation {:?}", stdout_invitations);
+        println!("invitation {:?}", invitation);
         assert!(stdout_invitations.contains(&invitation.id));
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
         let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
 
+        println!("start register");
         let opts = AuthServerOptions::Register {
             invitation_id: invitation.id.to_string().into(),
             password: password.into(),
@@ -244,6 +301,7 @@ mod test {
         let mock_stderr = MockStdout::new();
         let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
 
+        println!("start list");
         let opts = AuthServerOptions::List;
         opts.process_args(&pool, &stdout).await?;
 
@@ -251,34 +309,44 @@ mod test {
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
         assert_eq!(mock_stdout.lock().await.len(), users.len());
-        println!("{:?}", mock_stdout.lock().await);
+        println!("list users {:?}", mock_stdout.lock().await);
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
         let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
 
         let password = get_random_string(32);
-        let opts = AuthServerOptions::Change { email: email.clone().into(), password: password.clone().into()};
+        let opts = AuthServerOptions::Change {
+            email: email.clone().into(),
+            password: password.clone().into(),
+        };
         opts.process_args(&pool, &stdout).await?;
 
         stdout.close().await?;
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
-        assert!(mock_stdout.lock().await.join("").contains("Password updated"));
-        println!("{:?}", mock_stdout.lock().await);
+        assert!(mock_stdout
+            .lock()
+            .await
+            .join("")
+            .contains("Password updated"));
+        println!("change pwd {:?}", mock_stdout.lock().await);
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
         let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
 
-        let opts = AuthServerOptions::Verify { email: email.clone().into(), password: password.into()};
+        let opts = AuthServerOptions::Verify {
+            email: email.clone().into(),
+            password: password.into(),
+        };
         opts.process_args(&pool, &stdout).await?;
 
         stdout.close().await?;
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
         let result = mock_stdout.lock().await.join("\n");
-        println!("{}", result);
+        println!("verify {}", result);
         assert!(result.contains("Password correct"));
 
         let mock_stdout = MockStdout::new();

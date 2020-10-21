@@ -34,6 +34,8 @@ pub struct ConfigInner {
     pub secret_path: PathBuf,
     #[serde(default = "default_secret_path")]
     pub jwt_secret_path: PathBuf,
+    #[serde(default = "default_auth_user_config_path")]
+    pub auth_user_config_path: PathBuf,
 }
 
 fn default_database_url() -> StackString {
@@ -65,8 +67,14 @@ fn default_key() -> StackString {
 fn default_secret_path() -> PathBuf {
     dirs::config_dir()
         .unwrap()
-        .join("aws_app_rust")
+        .join("auth_server_rust")
         .join("secret.bin")
+}
+fn default_auth_user_config_path() -> PathBuf {
+    dirs::config_dir()
+        .unwrap()
+        .join("auth_server_rust")
+        .join("auth_user_config.toml")
 }
 
 #[derive(Debug, Clone)]

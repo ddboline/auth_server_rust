@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_rust"
-version = "0.1.21"
+version = "0.1.22"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -33,7 +33,7 @@ postgres-types = "0.1"
 postgres_query = "0.3"
 jsonwebtoken = "7.2"
 bcrypt = "0.8"
-bytes = "0.5"
+bytes = "0.6"
 envy = "0.4"
 base64 = "0.13"
 openid = "0.6"
@@ -47,6 +47,8 @@ structopt = "0.3"
 env_logger = "0.8"
 arc-swap = "0.4"
 im = "15.0"
+toml = "0.5"
+itertools = "0.9"
 stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.7", features=["postgres_types"] }
 stdout-channel = { git = "https://github.com/ddboline/stdout-channel-rs.git", branch="tokio_02" }
 
