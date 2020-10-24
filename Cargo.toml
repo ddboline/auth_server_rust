@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_rust"
-version = "0.1.22"
+version = "0.1.23"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -33,7 +33,7 @@ postgres-types = "0.1"
 postgres_query = "0.3"
 jsonwebtoken = "7.2"
 bcrypt = "0.8"
-bytes = "0.6"
+bytes = "0.5"
 envy = "0.4"
 base64 = "0.13"
 openid = "0.6"
