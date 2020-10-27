@@ -7,7 +7,8 @@ build_type := release
 all:
 	mkdir -p build/ && \
 	cp Dockerfile.ubuntu20.04 build/Dockerfile && \
-	cp -a Cargo.toml src scripts Makefile templates build/ && \
+	cp -a Cargo.toml src authorized_users auth_server_ext auth_server_http auth_server_lib \
+	scripts Makefile templates build/ && \
 	cd build && \
 	docker build -t auth_server_rust/build_rust:ubuntu20.04 . && \
 	cd ../ && \
