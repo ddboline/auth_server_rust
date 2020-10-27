@@ -1,6 +1,7 @@
+use anyhow::{format_err, Error};
 use serde::Deserialize;
 
-use crate::{errors::ServiceError as Error, pgpool::PgPool, user::User};
+use crate::{pgpool::PgPool, user::User};
 
 #[derive(Debug, Deserialize)]
 pub struct AuthRequest {
@@ -15,7 +16,7 @@ impl AuthRequest {
                 return Ok(Some(user));
             }
         }
-        Err(Error::BadRequest("Invalid username or password".into()))
+        Err(format_err!("Invalid username or password"))
     }
 }
 
@@ -23,7 +24,7 @@ impl AuthRequest {
 mod test {
     use anyhow::Error;
 
-    use crate::{app::get_random_string, auth::AuthRequest, config::Config, pgpool::PgPool};
+    use crate::{auth::AuthRequest, config::Config, get_random_string, pgpool::PgPool};
 
     #[tokio::test]
     async fn test_authenticate() -> Result<(), Error> {
@@ -37,7 +38,7 @@ mod test {
         let resp = req.authenticate(&pool).await;
         assert_eq!(
             resp.unwrap_err().to_string(),
-            "BadRequest: Invalid username or password".to_string()
+            "Invalid username or password".to_string()
         );
 
         Ok(())

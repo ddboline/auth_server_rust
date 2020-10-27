@@ -1,4 +1,4 @@
-use auth_server_rust::app::start_app;
+use auth_server_http::app::start_app;
 
 #[actix_web::main]
 async fn main() {

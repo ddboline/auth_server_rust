@@ -2,7 +2,7 @@ use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 
-use crate::app::CONFIG;
+use crate::config::Config;
 
 // JWT claim
 #[derive(Debug, Serialize, Deserialize)]
@@ -21,13 +21,13 @@ pub struct Claim {
 
 // struct to get converted to token and back
 impl Claim {
-    pub fn with_email(email: &str) -> Self {
+    pub fn with_email(email: &str, config: &Config) -> Self {
         Self {
-            iss: CONFIG.domain.clone(),
+            iss: config.domain.clone(),
             sub: "auth".into(),
             email: email.into(),
             iat: Utc::now().timestamp(),
-            exp: (Utc::now() + Duration::seconds(CONFIG.expiration_seconds)).timestamp(),
+            exp: (Utc::now() + Duration::seconds(config.expiration_seconds)).timestamp(),
         }
     }
 

@@ -1,14 +1,15 @@
+use anyhow::Error;
 use bcrypt::{hash, verify};
 use chrono::{DateTime, Utc};
 use postgres_query::FromSqlRow;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 
-use crate::{app::CONFIG, errors::ServiceError as Error, pgpool::PgPool};
+use crate::{config::Config, pgpool::PgPool};
 
-pub fn hash_password(plain: &str) -> StackString {
+pub fn hash_password(plain: &str, hash_rounds: u32) -> StackString {
     // get the hashing cost from the env variable or use default
-    hash(plain, CONFIG.hash_rounds)
+    hash(plain, hash_rounds)
         .expect("Password Hashing failed")
         .into()
 }
@@ -22,8 +23,8 @@ pub struct User {
 }
 
 impl User {
-    pub fn from_details(email: &str, password: &str) -> Self {
-        let password = hash_password(password);
+    pub fn from_details(email: &str, password: &str, config: &Config) -> Self {
+        let password = hash_password(password, config.hash_rounds);
         Self {
             email: email.into(),
             password,
@@ -31,8 +32,8 @@ impl User {
         }
     }
 
-    pub fn set_password(&mut self, password: &str) {
-        self.password = hash_password(password);
+    pub fn set_password(&mut self, password: &str, config: &Config) {
+        self.password = hash_password(password, config.hash_rounds);
     }
 
     pub fn verify_password(&self, password: &str) -> Result<bool, Error> {
@@ -125,22 +126,19 @@ impl User {
 mod tests {
     use anyhow::Error;
 
-    use crate::{
-        app::{get_random_string, CONFIG},
-        pgpool::PgPool,
-        user::User,
-    };
+    use crate::{config::Config, get_random_string, pgpool::PgPool, user::User};
 
     #[tokio::test]
     async fn test_create_delete_user() -> Result<(), Error> {
-        let pool = PgPool::new(&CONFIG.database_url);
+        let config = Config::init_config()?;
+        let pool = PgPool::new(&config.database_url);
 
         let email = format!("{}@localhost", get_random_string(32));
 
         assert_eq!(User::get_by_email(&email, &pool).await?, None);
 
         let password = get_random_string(32);
-        let user = User::from_details(&email, &password);
+        let user = User::from_details(&email, &password, &config);
 
         user.insert(&pool).await?;
         let mut db_user = User::get_by_email(&email, &pool).await?.unwrap();
@@ -148,7 +146,7 @@ mod tests {
         assert!(db_user.verify_password(&password)?);
 
         let password = get_random_string(32);
-        db_user.set_password(&password);
+        db_user.set_password(&password, &config);
         db_user.upsert(&pool).await?;
 
         let db_user = User::get_by_email(&email, &pool).await?.unwrap();
@@ -162,7 +160,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_authorized_users_get_number_users() -> Result<(), Error> {
-        let pool = PgPool::new(&CONFIG.database_url);
+        let config = Config::init_config()?;
+        let pool = PgPool::new(&config.database_url);
         let count = User::get_number_users(&pool).await? as usize;
         let users = User::get_authorized_users(&pool).await?;
         println!("{:?}", users);

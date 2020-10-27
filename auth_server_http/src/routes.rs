@@ -11,16 +11,20 @@ use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use uuid::Uuid;
 
-use crate::{
-    app::{AppState, CONFIG},
+use auth_server_lib::{
     auth::AuthRequest,
-    errors::ServiceError as Error,
+    authorized_users::{AuthorizedUser, AUTHORIZED_USERS},
     google_openid::{CallbackQuery, GetAuthUrlData, GoogleClient},
     invitation::Invitation,
-    logged_user::{LoggedUser, AUTHORIZED_USERS},
     ses_client::SesInstance,
     token::Token,
     user::User,
+};
+
+use crate::{
+    app::{AppState, CONFIG},
+    errors::ServiceError as Error,
+    logged_user::LoggedUser,
 };
 
 pub type HttpResult = Result<HttpResponse, Error>;
@@ -40,8 +44,9 @@ where
 
 pub async fn login(auth_data: Json<AuthRequest>, id: Identity, data: Data<AppState>) -> HttpResult {
     if let Some(user) = auth_data.authenticate(&data.pool).await? {
-        let user: LoggedUser = user.into();
-        let token = Token::create_token(&user)?;
+        let user: AuthorizedUser = user.into();
+        let token = Token::create_token(&user, &CONFIG)
+            .map_err(|_| Error::BadRequest("Failed to create_token".into()))?;
         id.remember(token.into());
         to_json(user)
     } else {
@@ -77,7 +82,7 @@ pub async fn register_email(
     let invitation = Invitation::from_email(&email);
     invitation.insert(&data.pool).await?;
     invitation
-        .send_invitation(CONFIG.callback_url.as_str())
+        .send_invitation(&CONFIG.sending_email_address, CONFIG.callback_url.as_str())
         .await?;
     to_json(invitation)
 }
@@ -95,10 +100,10 @@ pub async fn register_user(
     let uuid = Uuid::parse_str(&invitation_id)?;
     if let Some(invitation) = Invitation::get_by_uuid(&uuid, &data.pool).await? {
         if invitation.expires_at > Utc::now() {
-            let user = User::from_details(&invitation.email, &user_data.password);
+            let user = User::from_details(&invitation.email, &user_data.password, &CONFIG);
             user.upsert(&data.pool).await?;
             invitation.delete(&data.pool).await?;
-            let user: LoggedUser = user.into();
+            let user: AuthorizedUser = user.into();
             AUTHORIZED_USERS.store_auth(user.clone(), true)?;
             return to_json(user);
         } else {
@@ -114,7 +119,7 @@ pub async fn change_password_user(
     data: Data<AppState>,
 ) -> HttpResult {
     if let Some(mut user) = User::get_by_email(&logged_user.email, &data.pool).await? {
-        user.set_password(&user_data.password);
+        user.set_password(&user_data.password, &CONFIG);
         user.update(&data.pool).await?;
         form_http_response("password updated".to_string())
     } else {
@@ -136,7 +141,7 @@ pub async fn callback(
     client: Data<GoogleClient>,
     id: Identity,
 ) -> HttpResult {
-    if let Some((token, body)) = client.run_callback(&query, &data.pool).await? {
+    if let Some((token, body)) = client.run_callback(&query, &data.pool, &CONFIG).await? {
         id.remember(token.into());
         form_http_response(body.into())
     } else {
@@ -162,10 +167,10 @@ pub async fn test_login(auth_data: Json<AuthRequest>, id: Identity) -> HttpResul
     if let Ok(s) = std::env::var("TESTENV") {
         if &s == "true" {
             let auth_data = auth_data.into_inner();
-            let user = LoggedUser {
+            let user = AuthorizedUser {
                 email: auth_data.email.into(),
             };
-            let token = Token::create_token(&user)?;
+            let token = Token::create_token(&user, &CONFIG)?;
             id.remember(token.into());
             return to_json(user);
         }

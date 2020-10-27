@@ -1,4 +1,4 @@
-use crate::errors::ServiceError as Error;
+use anyhow::{format_err, Error};
 use arc_swap::ArcSwap;
 use base64::{encode_config, URL_SAFE_NO_PAD};
 use chrono::{DateTime, Utc};
@@ -13,7 +13,9 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use url::Url;
 
-use crate::{app::CONFIG, logged_user::LoggedUser, pgpool::PgPool, token::Token, user::User};
+use crate::{
+    authorized_users::AuthorizedUser, config::Config, pgpool::PgPool, token::Token, user::User,
+};
 
 lazy_static! {
     pub static ref CSRF_TOKENS: ArcSwap<HashMap<StackString, CrsfTokenCache>> =
@@ -41,8 +43,8 @@ impl CrsfTokenCache {
 pub struct GoogleClient(Arc<RwLock<DiscoveredClient>>);
 
 impl GoogleClient {
-    pub async fn new() -> Result<Self, Error> {
-        get_google_client()
+    pub async fn new(config: &Config) -> Result<Self, Error> {
+        get_google_client(config)
             .await
             .map(|client| Self(Arc::new(RwLock::new(client))))
     }
@@ -51,7 +53,7 @@ impl GoogleClient {
         let final_url: Url = payload
             .final_url
             .parse()
-            .map_err(|err| Error::BlockingError(format!("Failed to parse url {:?}", err)))?;
+            .map_err(|err| format_err!("Failed to parse url {:?}", err))?;
 
         let options = Options {
             scope: Some("email".into()),
@@ -76,6 +78,7 @@ impl GoogleClient {
         &self,
         callback_query: &CallbackQuery,
         pool: &PgPool,
+        config: &Config,
     ) -> Result<Option<(Token, StackString)>, Error> {
         let CallbackQuery { code, state } = callback_query;
 
@@ -92,7 +95,7 @@ impl GoogleClient {
             let userinfo = match request_userinfo(&(*self.0.read().await), code, &nonce).await {
                 Ok(userinfo) => userinfo,
                 Err(e) => {
-                    let new_client = get_google_client().await?;
+                    let new_client = get_google_client(config).await?;
                     *self.0.write().await = new_client;
                     return Err(e);
                 }
@@ -100,9 +103,9 @@ impl GoogleClient {
 
             if let Some(user_email) = &userinfo.email {
                 if let Some(user) = User::get_by_email(user_email, &pool).await? {
-                    let user: LoggedUser = user.into();
+                    let user: AuthorizedUser = user.into();
 
-                    let token = Token::create_token(&user)?;
+                    let token = Token::create_token(&user, config)?;
                     let body = format!(
                         "{}'{}'{}",
                         r#"<script>!function(){let url = "#,
@@ -112,9 +115,9 @@ impl GoogleClient {
                     return Ok(Some((token, body.into())));
                 }
             }
-            Err(Error::BadRequest("Oauth failed".into()))
+            Err(format_err!("Oauth failed"))
         } else {
-            Err(Error::BadRequest("Csrf Token invalid".into()))
+            Err(format_err!("Csrf Token invalid"))
         }
     }
 }
@@ -144,11 +147,11 @@ pub async fn cleanup_token_map() {
     CSRF_TOKENS.store(Arc::new(tokens));
 }
 
-pub async fn get_google_client() -> Result<DiscoveredClient, Error> {
-    let google_client_id = CONFIG.google_client_id.clone().into();
-    let google_client_secret = CONFIG.google_client_secret.clone().into();
+pub async fn get_google_client(config: &Config) -> Result<DiscoveredClient, Error> {
+    let google_client_id = config.google_client_id.clone().into();
+    let google_client_secret = config.google_client_secret.clone().into();
     let issuer_url = Url::parse("https://accounts.google.com").expect("Invalid issuer URL");
-    let redirect_url = format!("https://{}/api/callback", CONFIG.domain);
+    let redirect_url = format!("https://{}/api/callback", config.domain);
 
     DiscoveredClient::discover(
         google_client_id,
@@ -157,7 +160,7 @@ pub async fn get_google_client() -> Result<DiscoveredClient, Error> {
         issuer_url,
     )
     .await
-    .map_err(Into::into)
+    .map_err(|e| format_err!("Openid Error {:?}", e))
 }
 
 #[derive(Serialize, Deserialize)]
@@ -176,33 +179,32 @@ pub async fn request_userinfo(
     code: &str,
     nonce: &str,
 ) -> Result<Userinfo, Error> {
-    let token = client.authenticate(code, Some(nonce), None).await?;
-    let userinfo = client.request_userinfo(&token).await?;
+    let token = client
+        .authenticate(code, Some(nonce), None)
+        .await
+        .map_err(|e| format_err!("Openid Error {:?}", e))?;
+    let userinfo = client
+        .request_userinfo(&token)
+        .await
+        .map_err(|e| format_err!("Openid Error {:?}", e))?;
     Ok(userinfo)
 }
 
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
-    use std::path::Path;
 
-    use crate::google_openid::{GetAuthUrlData, GoogleClient};
+    use crate::{
+        config::Config,
+        google_openid::{GetAuthUrlData, GoogleClient},
+    };
 
     #[tokio::test]
     #[ignore]
     async fn test_google_openid() -> Result<(), Error> {
-        let config_dir = dirs::config_dir().expect("No CONFIG directory");
-        let env_file = config_dir.join("rust_auth_server").join("config.env");
+        let config = Config::init_config()?;
 
-        if env_file.exists() {
-            dotenv::from_path(&env_file).ok();
-        } else if Path::new("config.env").exists() {
-            dotenv::from_filename("config.env").ok();
-        } else {
-            dotenv::dotenv().ok();
-        }
-
-        let client = GoogleClient::new().await?;
+        let client = GoogleClient::new(&config).await?;
         let payload = GetAuthUrlData {
             final_url: "https://localhost".into(),
         };

@@ -1,12 +1,6 @@
-use actix_identity::Identity;
-use actix_web::{dev::Payload, FromRequest, HttpRequest};
 use arc_swap::ArcSwap;
 use chrono::{DateTime, Utc};
 use crossbeam::atomic::AtomicCell;
-use futures::{
-    executor::block_on,
-    future::{ready, Ready},
-};
 use im::HashMap;
 use lazy_static::lazy_static;
 use log::debug;
@@ -16,7 +10,6 @@ use smallvec::SmallVec;
 use stack_string::StackString;
 use std::{
     cell::Cell,
-    env,
     path::Path,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -29,9 +22,7 @@ use tokio::{
     io::AsyncReadExt,
 };
 
-use crate::{
-    claim::Claim, errors::ServiceError as Error, pgpool::PgPool, token::Token, user::User,
-};
+use crate::{claim::Claim, pgpool::PgPool, user::User};
 
 pub const KEY_LENGTH: usize = 32;
 
@@ -50,11 +41,11 @@ lazy_static! {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
-pub struct LoggedUser {
+pub struct AuthorizedUser {
     pub email: StackString,
 }
 
-impl<'a> From<Claim> for LoggedUser {
+impl<'a> From<Claim> for AuthorizedUser {
     fn from(claim: Claim) -> Self {
         Self {
             email: claim.get_email().into(),
@@ -62,38 +53,9 @@ impl<'a> From<Claim> for LoggedUser {
     }
 }
 
-impl From<User> for LoggedUser {
+impl From<User> for AuthorizedUser {
     fn from(user: User) -> Self {
         Self { email: user.email }
-    }
-}
-
-fn _from_request(req: &HttpRequest, pl: &mut Payload) -> Result<LoggedUser, actix_web::Error> {
-    if let Ok(s) = env::var("TESTENV") {
-        if &s == "true" {
-            return Ok(LoggedUser {
-                email: "user@test".into(),
-            });
-        }
-    }
-    if let Some(identity) = block_on(Identity::from_request(req, pl))?.identity() {
-        let user: LoggedUser = Token::decode_token(&identity.into())?.into();
-        if AUTHORIZED_USERS.is_authorized(&user) {
-            return Ok(user);
-        } else {
-            debug!("not authorized {:?}", user);
-        }
-    }
-    Err(Error::Unauthorized.into())
-}
-
-impl FromRequest for LoggedUser {
-    type Error = actix_web::Error;
-    type Future = Ready<Result<Self, actix_web::Error>>;
-    type Config = ();
-
-    fn from_request(req: &HttpRequest, pl: &mut Payload) -> Self::Future {
-        ready(_from_request(req, pl))
     }
 }
 
@@ -104,14 +66,14 @@ enum AuthStatus {
 }
 
 #[derive(Debug, Default)]
-pub struct AuthorizedUsers(ArcSwap<HashMap<LoggedUser, AuthStatus>>);
+pub struct AuthorizedUsers(ArcSwap<HashMap<AuthorizedUser, AuthStatus>>);
 
 impl AuthorizedUsers {
     pub fn new() -> Self {
         Self(ArcSwap::new(Arc::new(HashMap::new())))
     }
 
-    pub fn is_authorized(&self, user: &LoggedUser) -> bool {
+    pub fn is_authorized(&self, user: &AuthorizedUser) -> bool {
         if let Some(AuthStatus::Authorized(last_time)) = self.0.load().get(user) {
             let current_time = Utc::now();
             if (current_time - *last_time).num_minutes() < 15 {
@@ -121,7 +83,7 @@ impl AuthorizedUsers {
         false
     }
 
-    pub fn store_auth(&self, user: LoggedUser, is_auth: bool) -> Result<(), anyhow::Error> {
+    pub fn store_auth(&self, user: AuthorizedUser, is_auth: bool) -> Result<(), anyhow::Error> {
         let current_time = Utc::now();
         let status = if is_auth {
             AuthStatus::Authorized(current_time)
@@ -133,7 +95,7 @@ impl AuthorizedUsers {
         Ok(())
     }
 
-    pub fn merge_users(&self, users: &[LoggedUser]) -> Result<(), anyhow::Error> {
+    pub fn merge_users(&self, users: &[AuthorizedUser]) -> Result<(), anyhow::Error> {
         let mut auth_map = (*self.0.load().clone()).clone();
         let not_auth_users: Vec<_> = auth_map
             .keys()
@@ -152,7 +114,7 @@ impl AuthorizedUsers {
         Ok(())
     }
 
-    pub fn get_users(&self) -> Vec<LoggedUser> {
+    pub fn get_users(&self) -> Vec<AuthorizedUser> {
         self.0.load().keys().cloned().collect()
     }
 }
@@ -176,11 +138,11 @@ impl AuthTrigger {
 
 pub async fn fill_auth_from_db(pool: &PgPool) -> Result<(), anyhow::Error> {
     debug!("{:?}", *TRIGGER_DB_UPDATE);
-    let users: Vec<LoggedUser> = if TRIGGER_DB_UPDATE.check() {
+    let users: Vec<AuthorizedUser> = if TRIGGER_DB_UPDATE.check() {
         User::get_authorized_users(pool)
             .await?
             .into_iter()
-            .map(|user| LoggedUser { email: user.email })
+            .map(|user| AuthorizedUser { email: user.email })
             .collect()
     } else {
         AUTHORIZED_USERS.get_users()

@@ -147,7 +147,7 @@ mod tests {
 
     #[test]
     fn test_auth_user_config() -> Result<(), Error> {
-        let data = include_str!("../tests/data/test_config.toml");
+        let data = include_str!("../../tests/data/test_config.toml");
         let config: AuthUserConfig = data.parse()?;
         println!("{:?}", config);
         assert_eq!(config.len(), 2);

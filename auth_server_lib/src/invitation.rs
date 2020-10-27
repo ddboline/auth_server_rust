@@ -1,3 +1,4 @@
+use anyhow::Error;
 use chrono::{DateTime, Duration, Utc};
 use log::debug;
 use postgres_query::FromSqlRow;
@@ -5,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use uuid::Uuid;
 
-use crate::{app::CONFIG, errors::ServiceError as Error, pgpool::PgPool, ses_client::SesInstance};
+use crate::{pgpool::PgPool, ses_client::SesInstance};
 
 #[derive(FromSqlRow, Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
 pub struct Invitation {
@@ -81,10 +82,12 @@ impl Invitation {
         Ok(())
     }
 
-    pub async fn send_invitation(&self, callback_url: &str) -> Result<(), Error> {
+    pub async fn send_invitation(
+        &self,
+        sending_email: &str,
+        callback_url: &str,
+    ) -> Result<(), Error> {
         let ses = SesInstance::new(None);
-
-        let sending_email = &CONFIG.sending_email_address;
 
         let email_body = format!(
             "Please click on the link below to complete registration. <br/>
@@ -101,36 +104,37 @@ impl Invitation {
         );
 
         ses.send_email(
-            &sending_email,
+            sending_email,
             &self.email,
             "You have been invited to join Simple-Auth-Server Rust",
             &email_body,
         )
-        .await
-        .map(|_| debug!("Success"))
-        .map_err(|e| Error::BadRequest(format!("Bad request {:?}", e)))
+        .await?;
+        debug!("Success");
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        app::{get_random_string, CONFIG},
-        errors::ServiceError as Error,
-        invitation::Invitation,
-        pgpool::PgPool,
-    };
+    use anyhow::Error;
+
+    use crate::{config::Config, get_random_string, invitation::Invitation, pgpool::PgPool};
 
     #[tokio::test]
     async fn test_send_invitation() -> Result<(), Error> {
+        let config = Config::init_config()?;
         let new_invitation = Invitation::from_email("ddboline.im@gmail.com");
-        new_invitation.send_invitation("test_url").await?;
+        new_invitation
+            .send_invitation(&config.sending_email_address, "test_url")
+            .await?;
         Ok(())
     }
 
     #[tokio::test]
     async fn test_create_delete_invitation() -> Result<(), Error> {
-        let pool = PgPool::new(&CONFIG.database_url);
+        let config = Config::init_config()?;
+        let pool = PgPool::new(&config.database_url);
         let email = format!("{}@localhost", get_random_string(32));
         let invitation = Invitation::from_email(&email);
         let uuid = &invitation.id;
@@ -147,7 +151,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_all_get_number_invitations() -> Result<(), Error> {
-        let pool = PgPool::new(&CONFIG.database_url);
+        let config = Config::init_config()?;
+        let pool = PgPool::new(&config.database_url);
         let invitations = Invitation::get_all(&pool).await?;
         let count = Invitation::get_number_invitations(&pool).await? as usize;
         assert_eq!(invitations.len(), count);

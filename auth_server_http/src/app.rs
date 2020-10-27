@@ -2,39 +2,25 @@ use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{middleware::Compress, web, App, HttpServer};
 use anyhow::Error;
 use lazy_static::lazy_static;
-use rand::{thread_rng, Rng};
 use stack_string::StackString;
 use std::time::Duration;
 use tokio::{task::spawn, time::interval};
 
-use crate::{
+use auth_server_lib::{
+    authorized_users::{fill_auth_from_db, get_secrets, update_secret, KEY_LENGTH, SECRET_KEY},
     config::Config,
     google_openid::GoogleClient,
-    logged_user::{fill_auth_from_db, get_secrets, update_secret, KEY_LENGTH, SECRET_KEY},
     pgpool::PgPool,
-    routes::{
-        auth_url, callback, change_password_user, get_me, login, logout, register_email,
-        register_user, status, test_get_me, test_login, test_logout,
-    },
     static_files::{change_password, index_html, login_html, main_css, main_js, register_html},
+};
+
+use crate::routes::{
+    auth_url, callback, change_password_user, get_me, login, logout, register_email, register_user,
+    status, test_get_me, test_login, test_logout,
 };
 
 lazy_static! {
     pub static ref CONFIG: Config = Config::init_config().expect("Failed to init config");
-}
-
-pub fn get_random_string(n: usize) -> String {
-    let mut rng = thread_rng();
-    (0..)
-        .filter_map(|_| {
-            let c: char = (rng.gen::<u8>() & 0x7f).into();
-            match c {
-                ' '..='~' => Some(c),
-                _ => None,
-            }
-        })
-        .take(n)
-        .collect()
 }
 
 async fn update_secrets() -> Result<(), Error> {
@@ -66,7 +52,7 @@ async fn run_app(
         }
     }
 
-    let google_client = GoogleClient::new().await?;
+    let google_client = GoogleClient::new(&CONFIG).await?;
     let pool = PgPool::new(&CONFIG.database_url);
 
     spawn(_update_db(pool.clone()));
@@ -162,12 +148,17 @@ mod tests {
     use maplit::hashmap;
     use parking_lot::Mutex;
 
-    use crate::{
-        app::{get_random_string, run_app, run_test_app, CONFIG},
+    use auth_server_lib::{
+        authorized_users::{get_random_key, JWT_SECRET, KEY_LENGTH, SECRET_KEY},
+        get_random_string,
         invitation::Invitation,
-        logged_user::{get_random_key, LoggedUser, JWT_SECRET, KEY_LENGTH, SECRET_KEY},
         pgpool::PgPool,
         user::User,
+    };
+
+    use crate::{
+        app::{run_app, run_test_app, CONFIG},
+        logged_user::LoggedUser,
     };
 
     lazy_static! {

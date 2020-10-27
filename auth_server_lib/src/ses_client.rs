@@ -1,10 +1,9 @@
+use anyhow::Error;
 use chrono::{DateTime, Utc};
 use rusoto_core::Region;
 use rusoto_ses::{Body, Content, Destination, Message, SendEmailRequest, Ses, SesClient};
 use std::fmt;
 use sts_profile_auth::get_client_sts;
-
-use crate::errors::ServiceError as Error;
 
 #[derive(Clone)]
 pub struct SesInstance {

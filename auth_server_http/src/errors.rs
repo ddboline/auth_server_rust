@@ -12,7 +12,7 @@ use tokio_postgres::Error as PostgresError;
 use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
 
-use crate::{logged_user::TRIGGER_DB_UPDATE, static_files};
+use auth_server_lib::{authorized_users::TRIGGER_DB_UPDATE, static_files};
 
 #[derive(Debug, Error)]
 pub enum ServiceError {

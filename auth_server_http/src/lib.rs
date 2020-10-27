@@ -9,20 +9,9 @@
 #![allow(clippy::unseparated_literal_suffix)]
 
 pub mod app;
-pub mod auth;
-pub mod auth_user_config;
-pub mod claim;
-pub mod config;
 pub mod errors;
-pub mod google_openid;
-pub mod invitation;
 pub mod logged_user;
-pub mod pgpool;
 pub mod routes;
-pub mod ses_client;
-pub mod static_files;
-pub mod token;
-pub mod user;
 
 #[cfg(test)]
 mod tests {
