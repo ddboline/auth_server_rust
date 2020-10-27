@@ -10,11 +10,15 @@ edition = "2018"
 members = [
     "auth_server_http",
     "auth_server_lib",
+    "auth_server_ext",
+    "authorized_users",
 ]
 
 [dependencies]
 auth_server_http = {path = "auth_server_http"}
 auth_server_lib = {path = "auth_server_lib"}
+auth_server_ext = {path = "auth_server_ext"}
+authorized_users = {path = "authorized_users"}
 actix-web = "3.1"
 actix-identity = "0.3"
 actix-rt = "1.1"
@@ -62,7 +66,6 @@ stdout-channel = { git = "https://github.com/ddboline/stdout-channel-rs.git", br
 
 [dev-dependencies]
 reqwest = {version = "0.10", features=["cookies", "rustls-tls", "gzip", "json"]}
-maplit = "1.0"
 
 [[bin]]
 name = "auth-server-rust"

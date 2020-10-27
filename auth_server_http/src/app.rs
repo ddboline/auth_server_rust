@@ -2,16 +2,21 @@ use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{middleware::Compress, web, App, HttpServer};
 use anyhow::Error;
 use lazy_static::lazy_static;
+use log::debug;
 use stack_string::StackString;
 use std::time::Duration;
 use tokio::{task::spawn, time::interval};
 
+use auth_server_ext::google_openid::GoogleClient;
 use auth_server_lib::{
-    authorized_users::{fill_auth_from_db, get_secrets, update_secret, KEY_LENGTH, SECRET_KEY},
     config::Config,
-    google_openid::GoogleClient,
     pgpool::PgPool,
     static_files::{change_password, index_html, login_html, main_css, main_js, register_html},
+    user::User,
+};
+use authorized_users::{
+    get_secrets, update_secret, AuthorizedUser, AUTHORIZED_USERS, KEY_LENGTH, SECRET_KEY,
+    TRIGGER_DB_UPDATE,
 };
 
 use crate::routes::{
@@ -141,6 +146,22 @@ pub async fn run_test_app(
     .map_err(Into::into)
 }
 
+pub async fn fill_auth_from_db(pool: &PgPool) -> Result<(), anyhow::Error> {
+    debug!("{:?}", *TRIGGER_DB_UPDATE);
+    let users: Vec<AuthorizedUser> = if TRIGGER_DB_UPDATE.check() {
+        User::get_authorized_users(pool)
+            .await?
+            .into_iter()
+            .map(|user| AuthorizedUser { email: user.email })
+            .collect()
+    } else {
+        AUTHORIZED_USERS.get_users()
+    };
+    AUTHORIZED_USERS.merge_users(&users)?;
+    debug!("{:?}", *AUTHORIZED_USERS);
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
@@ -148,13 +169,9 @@ mod tests {
     use maplit::hashmap;
     use parking_lot::Mutex;
 
-    use auth_server_lib::{
-        authorized_users::{get_random_key, JWT_SECRET, KEY_LENGTH, SECRET_KEY},
-        get_random_string,
-        invitation::Invitation,
-        pgpool::PgPool,
-        user::User,
-    };
+    use auth_server_ext::invitation::Invitation;
+    use auth_server_lib::{get_random_string, pgpool::PgPool, user::User};
+    use authorized_users::{get_random_key, JWT_SECRET, KEY_LENGTH, SECRET_KEY};
 
     use crate::{
         app::{run_app, run_test_app, CONFIG},

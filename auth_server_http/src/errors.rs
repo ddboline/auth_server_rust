@@ -12,7 +12,8 @@ use tokio_postgres::Error as PostgresError;
 use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
 
-use auth_server_lib::{authorized_users::TRIGGER_DB_UPDATE, static_files};
+use auth_server_lib::static_files;
+use authorized_users::TRIGGER_DB_UPDATE;
 
 #[derive(Debug, Error)]
 pub enum ServiceError {

@@ -13,9 +13,9 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use url::Url;
 
-use crate::{
-    authorized_users::AuthorizedUser, config::Config, pgpool::PgPool, token::Token, user::User,
-};
+use authorized_users::AuthorizedUser;
+
+use auth_server_lib::{config::Config, pgpool::PgPool, token::Token, user::User};
 
 lazy_static! {
     pub static ref CSRF_TOKENS: ArcSwap<HashMap<StackString, CrsfTokenCache>> =
@@ -194,10 +194,9 @@ pub async fn request_userinfo(
 mod tests {
     use anyhow::Error;
 
-    use crate::{
-        config::Config,
-        google_openid::{GetAuthUrlData, GoogleClient},
-    };
+    use auth_server_lib::config::Config;
+
+    use crate::google_openid::{GetAuthUrlData, GoogleClient};
 
     #[tokio::test]
     #[ignore]

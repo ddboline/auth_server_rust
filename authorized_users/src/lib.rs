@@ -1,9 +1,18 @@
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::cognitive_complexity)]
+#![allow(clippy::unseparated_literal_suffix)]
+
 use arc_swap::ArcSwap;
 use chrono::{DateTime, Utc};
 use crossbeam::atomic::AtomicCell;
 use im::HashMap;
 use lazy_static::lazy_static;
-use log::debug;
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -21,8 +30,6 @@ use tokio::{
     fs::{self, File},
     io::AsyncReadExt,
 };
-
-use crate::{claim::Claim, pgpool::PgPool, user::User};
 
 pub const KEY_LENGTH: usize = 32;
 
@@ -43,20 +50,6 @@ lazy_static! {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
 pub struct AuthorizedUser {
     pub email: StackString,
-}
-
-impl<'a> From<Claim> for AuthorizedUser {
-    fn from(claim: Claim) -> Self {
-        Self {
-            email: claim.get_email().into(),
-        }
-    }
-}
-
-impl From<User> for AuthorizedUser {
-    fn from(user: User) -> Self {
-        Self { email: user.email }
-    }
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -136,22 +129,6 @@ impl AuthTrigger {
     }
 }
 
-pub async fn fill_auth_from_db(pool: &PgPool) -> Result<(), anyhow::Error> {
-    debug!("{:?}", *TRIGGER_DB_UPDATE);
-    let users: Vec<AuthorizedUser> = if TRIGGER_DB_UPDATE.check() {
-        User::get_authorized_users(pool)
-            .await?
-            .into_iter()
-            .map(|user| AuthorizedUser { email: user.email })
-            .collect()
-    } else {
-        AUTHORIZED_USERS.get_users()
-    };
-    AUTHORIZED_USERS.merge_users(&users)?;
-    debug!("{:?}", *AUTHORIZED_USERS);
-    Ok(())
-}
-
 pub struct AuthSecret(
     AtomicCell<Option<SecretKey>>,
     LocalKey<Cell<Option<SecretKey>>>,
@@ -217,4 +194,12 @@ pub async fn get_secrets<T: AsRef<Path>>(
 ) -> Result<(), anyhow::Error> {
     SECRET_KEY.read_from_file(secret_path.as_ref()).await?;
     JWT_SECRET.read_from_file(jwt_secret_path.as_ref()).await
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_works() {
+        assert_eq!(2 + 2, 4);
+    }
 }

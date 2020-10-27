@@ -5,6 +5,8 @@ use postgres_query::FromSqlRow;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 
+use authorized_users::AuthorizedUser;
+
 use crate::{config::Config, pgpool::PgPool};
 
 pub fn hash_password(plain: &str, hash_rounds: u32) -> StackString {
@@ -119,6 +121,12 @@ impl User {
             .execute(query.sql(), query.parameters())
             .await?;
         Ok(())
+    }
+}
+
+impl From<User> for AuthorizedUser {
+    fn from(user: User) -> Self {
+        Self { email: user.email }
     }
 }
 

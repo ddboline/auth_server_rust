@@ -2,11 +2,9 @@ use anyhow::{format_err, Error};
 use derive_more::{From, Into};
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 
-use crate::{
-    authorized_users::{AuthorizedUser, JWT_SECRET},
-    claim::Claim,
-    config::Config,
-};
+use authorized_users::{AuthorizedUser, JWT_SECRET};
+
+use crate::{claim::Claim, config::Config};
 
 const DEFAULT_ALGORITHM: Algorithm = Algorithm::HS256;
 

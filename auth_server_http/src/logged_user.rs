@@ -9,10 +9,8 @@ use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::env;
 
-use auth_server_lib::{
-    authorized_users::{AuthorizedUser, AUTHORIZED_USERS},
-    token::Token,
-};
+use auth_server_lib::token::Token;
+use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 
 use crate::errors::ServiceError as Error;
 

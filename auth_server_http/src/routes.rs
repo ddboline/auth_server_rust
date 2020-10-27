@@ -11,15 +11,13 @@ use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use uuid::Uuid;
 
-use auth_server_lib::{
-    auth::AuthRequest,
-    authorized_users::{AuthorizedUser, AUTHORIZED_USERS},
+use auth_server_ext::{
     google_openid::{CallbackQuery, GetAuthUrlData, GoogleClient},
     invitation::Invitation,
     ses_client::SesInstance,
-    token::Token,
-    user::User,
 };
+use auth_server_lib::{auth::AuthRequest, token::Token, user::User};
+use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 
 use crate::{
     app::{AppState, CONFIG},

@@ -8,15 +8,13 @@ use stdout_channel::StdoutChannel;
 use structopt::StructOpt;
 use uuid::Uuid;
 
-use crate::{
-    auth_user_config::AuthUserConfig,
-    authorized_users::{AuthorizedUser, AUTHORIZED_USERS},
-    config::Config,
-    invitation::Invitation,
-    pgpool::PgPool,
-    ses_client::SesInstance,
-    user::User,
+use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
+
+use auth_server_lib::{
+    auth_user_config::AuthUserConfig, config::Config, pgpool::PgPool, user::User,
 };
+
+use crate::{invitation::Invitation, ses_client::SesInstance};
 
 #[derive(StructOpt, Debug)]
 enum AuthServerOptions {
@@ -246,10 +244,9 @@ mod test {
     use std::collections::HashSet;
     use stdout_channel::{MockStdout, StdoutChannel};
 
-    use crate::{
-        auth_server_admin::AuthServerOptions, config::Config, get_random_string,
-        invitation::Invitation, pgpool::PgPool, user::User,
-    };
+    use auth_server_lib::{config::Config, get_random_string, pgpool::PgPool, user::User};
+
+    use crate::{auth_server_admin::AuthServerOptions, invitation::Invitation};
 
     #[tokio::test]
     async fn test_process_args() -> Result<(), Error> {

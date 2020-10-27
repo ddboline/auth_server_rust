@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use uuid::Uuid;
 
-use crate::{pgpool::PgPool, ses_client::SesInstance};
+use auth_server_lib::pgpool::PgPool;
+
+use crate::ses_client::SesInstance;
 
 #[derive(FromSqlRow, Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
 pub struct Invitation {
@@ -119,7 +121,9 @@ impl Invitation {
 mod tests {
     use anyhow::Error;
 
-    use crate::{config::Config, get_random_string, invitation::Invitation, pgpool::PgPool};
+    use auth_server_lib::{config::Config, get_random_string, pgpool::PgPool};
+
+    use crate::invitation::Invitation;
 
     #[tokio::test]
     async fn test_send_invitation() -> Result<(), Error> {

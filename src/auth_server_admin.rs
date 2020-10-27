@@ -1,6 +1,6 @@
 use anyhow::Error;
 
-use auth_server_lib::auth_server_admin::run_cli;
+use auth_server_ext::auth_server_admin::run_cli;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {

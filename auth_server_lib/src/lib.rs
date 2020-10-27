@@ -9,15 +9,10 @@
 #![allow(clippy::unseparated_literal_suffix)]
 
 pub mod auth;
-pub mod auth_server_admin;
 pub mod auth_user_config;
-pub mod authorized_users;
 pub mod claim;
 pub mod config;
-pub mod google_openid;
-pub mod invitation;
 pub mod pgpool;
-pub mod ses_client;
 pub mod static_files;
 pub mod token;
 pub mod user;

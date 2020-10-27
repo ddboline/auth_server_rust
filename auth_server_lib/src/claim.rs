@@ -2,6 +2,8 @@ use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 
+use authorized_users::AuthorizedUser;
+
 use crate::config::Config;
 
 // JWT claim
@@ -33,5 +35,13 @@ impl Claim {
 
     pub fn get_email(&self) -> &str {
         self.email.as_str()
+    }
+}
+
+impl From<Claim> for AuthorizedUser {
+    fn from(claim: Claim) -> Self {
+        Self {
+            email: claim.get_email().into(),
+        }
     }
 }
