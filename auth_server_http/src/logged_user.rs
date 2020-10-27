@@ -42,13 +42,12 @@ fn _from_request(req: &HttpRequest, pl: &mut Payload) -> Result<LoggedUser, acti
         }
     }
     if let Some(identity) = block_on(Identity::from_request(req, pl))?.identity() {
-        let user: AuthorizedUser = Token::decode_token(&identity.into())
-            .map_err(|_| Error::Unauthorized)?
-            .into();
-        if AUTHORIZED_USERS.is_authorized(&user) {
-            return Ok(user.into());
-        } else {
-            debug!("not authorized {:?}", user);
+        if let Some(user) = Token::decode_token(&identity.into()).ok().map(Into::into) {
+            if AUTHORIZED_USERS.is_authorized(&user) {
+                return Ok(user.into());
+            } else {
+                debug!("not authorized {:?}", user);
+            }
         }
     }
     Err(Error::Unauthorized.into())
