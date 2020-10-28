@@ -8,6 +8,9 @@
 #![allow(clippy::cognitive_complexity)]
 #![allow(clippy::unseparated_literal_suffix)]
 
+pub mod claim;
+pub mod token;
+
 use arc_swap::ArcSwap;
 use chrono::{DateTime, Utc};
 use crossbeam::atomic::AtomicCell;

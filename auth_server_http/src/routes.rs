@@ -16,8 +16,8 @@ use auth_server_ext::{
     invitation::Invitation,
     ses_client::SesInstance,
 };
-use auth_server_lib::{auth::AuthRequest, token::Token, user::User};
-use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
+use auth_server_lib::{auth::AuthRequest, user::User};
+use authorized_users::{token::Token, AuthorizedUser, AUTHORIZED_USERS};
 
 use crate::{
     app::{AppState, CONFIG},
@@ -43,7 +43,7 @@ where
 pub async fn login(auth_data: Json<AuthRequest>, id: Identity, data: Data<AppState>) -> HttpResult {
     if let Some(user) = auth_data.authenticate(&data.pool).await? {
         let user: AuthorizedUser = user.into();
-        let token = Token::create_token(&user, &CONFIG)
+        let token = Token::create_token(&user, &CONFIG.domain, CONFIG.expiration_seconds)
             .map_err(|_| Error::BadRequest("Failed to create_token".into()))?;
         id.remember(token.into());
         to_json(user)
@@ -168,7 +168,7 @@ pub async fn test_login(auth_data: Json<AuthRequest>, id: Identity) -> HttpResul
             let user = AuthorizedUser {
                 email: auth_data.email.into(),
             };
-            let token = Token::create_token(&user, &CONFIG)?;
+            let token = Token::create_token(&user, &CONFIG.domain, CONFIG.expiration_seconds)?;
             id.remember(token.into());
             return to_json(user);
         }

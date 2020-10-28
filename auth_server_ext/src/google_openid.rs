@@ -13,9 +13,9 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use url::Url;
 
-use authorized_users::AuthorizedUser;
+use authorized_users::{token::Token, AuthorizedUser};
 
-use auth_server_lib::{config::Config, pgpool::PgPool, token::Token, user::User};
+use auth_server_lib::{config::Config, pgpool::PgPool, user::User};
 
 lazy_static! {
     pub static ref CSRF_TOKENS: ArcSwap<HashMap<StackString, CrsfTokenCache>> =
@@ -105,7 +105,8 @@ impl GoogleClient {
                 if let Some(user) = User::get_by_email(user_email, &pool).await? {
                     let user: AuthorizedUser = user.into();
 
-                    let token = Token::create_token(&user, config)?;
+                    let token =
+                        Token::create_token(&user, &config.domain, config.expiration_seconds)?;
                     let body = format!(
                         "{}'{}'{}",
                         r#"<script>!function(){let url = "#,

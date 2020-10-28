@@ -2,9 +2,7 @@ use anyhow::{format_err, Error};
 use derive_more::{From, Into};
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 
-use authorized_users::{AuthorizedUser, JWT_SECRET};
-
-use crate::{claim::Claim, config::Config};
+use crate::{claim::Claim, AuthorizedUser, JWT_SECRET};
 
 const DEFAULT_ALGORITHM: Algorithm = Algorithm::HS256;
 
@@ -12,8 +10,12 @@ const DEFAULT_ALGORITHM: Algorithm = Algorithm::HS256;
 pub struct Token(String);
 
 impl Token {
-    pub fn create_token(data: &AuthorizedUser, config: &Config) -> Result<Self, Error> {
-        let claims = Claim::with_email(data.email.as_str(), config);
+    pub fn create_token(
+        data: &AuthorizedUser,
+        domain: &str,
+        expiration_seconds: i64,
+    ) -> Result<Self, Error> {
+        let claims = Claim::with_email(data.email.as_str(), domain, expiration_seconds);
         encode(
             &Header::new(DEFAULT_ALGORITHM),
             &claims,
