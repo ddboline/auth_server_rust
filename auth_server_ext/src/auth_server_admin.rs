@@ -293,7 +293,8 @@ mod test {
         stdout.close().await?;
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
-        assert_eq!(mock_stdout.lock().await.len(), invitations.len());
+        assert_eq!(mock_stdout.lock().await.len(), 1);
+        assert!(mock_stdout.lock().await[0].contains(&email));
 
         let users = User::get_authorized_users(&pool).await?;
 
