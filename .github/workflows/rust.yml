@@ -38,7 +38,7 @@ jobs:
         mkdir -p ${HOME}/.config/auth_server_rust && \
         psql $DATABASE_URL < ./scripts/invitations.sql && \
         psql $DATABASE_URL < ./scripts/users.sql && \
-        cargo test --verbose && \
+        cargo test --workspace --verbose && \
         cargo install cargo-tarpaulin && \
         cargo tarpaulin --verbose --all-features --workspace --out Xml
       env:
