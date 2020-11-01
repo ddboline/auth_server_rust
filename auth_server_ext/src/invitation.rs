@@ -120,6 +120,7 @@ impl Invitation {
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
+    use futures::try_join;
 
     use auth_server_lib::{config::Config, get_random_string, pgpool::PgPool};
 
@@ -157,9 +158,8 @@ mod tests {
     async fn test_get_all_get_number_invitations() -> Result<(), Error> {
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
-        let invitations = Invitation::get_all(&pool).await?;
-        let count = Invitation::get_number_invitations(&pool).await? as usize;
-        assert_eq!(invitations.len(), count);
+        let (invitations, count) = try_join!(Invitation::get_all(&pool), Invitation::get_number_invitations(&pool))?;
+        assert_eq!(invitations.len(), count as usize);
         Ok(())
     }
 }
