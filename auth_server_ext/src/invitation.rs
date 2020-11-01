@@ -160,7 +160,10 @@ mod tests {
         let _lock = AUTH_APP_MUTEX.lock();
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
-        let (invitations, count) = try_join!(Invitation::get_all(&pool), Invitation::get_number_invitations(&pool))?;
+        let (invitations, count) = try_join!(
+            Invitation::get_all(&pool),
+            Invitation::get_number_invitations(&pool)
+        )?;
         assert_eq!(invitations.len(), count as usize);
         Ok(())
     }

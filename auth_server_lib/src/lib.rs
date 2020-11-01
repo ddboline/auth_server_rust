@@ -15,9 +15,9 @@ pub mod pgpool;
 pub mod static_files;
 pub mod user;
 
-use rand::{thread_rng, Rng};
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
+use rand::{thread_rng, Rng};
 
 lazy_static! {
     pub static ref AUTH_APP_MUTEX: Mutex<()> = Mutex::new(());
