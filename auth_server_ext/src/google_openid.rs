@@ -208,11 +208,12 @@ mod tests {
             final_url: "https://localhost".into(),
         };
         let url = client.get_auth_url(payload).await?;
+        let redirect_uri = format!("redirect_uri=https%3A%2F%2F{}%2Fapi%2Fcallback", config.domain);
 
         assert_eq!(url.domain(), Some("accounts.google.com"));
         assert!(url
             .as_str()
-            .contains("redirect_uri=https%3A%2F%2Fwww.ddboline.net%2Fapi%2Fcallback"));
+            .contains(&redirect_uri));
         assert!(url.as_str().contains("scope=openid+email"));
         assert!(url.as_str().contains("response_type=code"));
         Ok(())

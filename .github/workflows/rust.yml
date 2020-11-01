@@ -49,6 +49,7 @@ jobs:
         SENDING_EMAIL_ADDRESS: ${{secrets.SENDING_EMAIL_ADDRESS}}
         GOOGLE_CLIENT_ID: ${{secrets.GOOGLE_CLIENT_ID}}
         GOOGLE_CLIENT_SECRET: ${{secrets.GOOGLE_CLIENT_SECRET}}
+        DOMAIN: localhost
 
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v1.0.2
