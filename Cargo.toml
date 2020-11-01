@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_rust"
-version = "0.2.4"
+version = "0.2.5"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -19,7 +19,7 @@ auth_server_http = {path = "auth_server_http"}
 auth_server_lib = {path = "auth_server_lib"}
 auth_server_ext = {path = "auth_server_ext"}
 authorized_users = {path = "authorized_users"}
-actix-web = "3.1"
+actix-web = "3.2"
 actix-identity = "0.3"
 actix-rt = "1.1"
 anyhow = "1.0"

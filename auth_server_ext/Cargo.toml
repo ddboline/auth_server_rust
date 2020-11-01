@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_ext"
-version = "0.2.3"
+version = "0.2.5"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 auth_server_lib = {path = "../auth_server_lib"}
 authorized_users = {path = "../authorized_users"}
-actix-web = "3.1"
+actix-web = "3.2"
 actix-rt = "1.1"
 anyhow = "1.0"
 log = "0.4"
@@ -33,7 +33,7 @@ tokio-postgres = {version = "0.5", features = ["with-chrono-0_4", "with-uuid-0_8
 postgres-types = "0.1"
 postgres_query = "0.3"
 jsonwebtoken = "7.2"
-bcrypt = "0.8"
+bcrypt = "0.9"
 bytes = "0.5"
 envy = "0.4"
 base64 = "0.13"
