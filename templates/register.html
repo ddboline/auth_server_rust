@@ -22,10 +22,13 @@
 </html>
 <script>
   function getUrlVars() {
-    var vars = {};
-    var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m, key, value) {
-      vars[key] = value;
-    });
+    let params = new URLSearchParams(window.location.search);
+    let vars = {};
+    for(const key of ['id', 'email']) {
+      if(params.has(key)){
+        vars[key] = params.get(key);
+      }
+    }
     return vars;
   }
   function register() {

@@ -23,13 +23,22 @@
   </body>
 </html>
 <script>
+  function getFinalUrl() {
+    let params = new URLSearchParams(window.location.search);
+    return params.get('final_url');
+  }
   function login() {
+    let final_url = getFinalUrl();
     let email = document.querySelector('#email');
     let password = document.querySelector('#password');
     var data = JSON.stringify({"email": email.value, "password": password.value});
     var xmlhttp = new XMLHttpRequest();
     xmlhttp.onload = function() {
-       location.reload();
+      if(final_url) {
+        location.replace(final_url);
+      } else {
+        location.reload();
+      }
     }
     xmlhttp.open( "POST", '/api/auth' , true );
     xmlhttp.setRequestHeader("Content-Type", "application/json");
