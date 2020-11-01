@@ -165,22 +165,16 @@ pub async fn fill_auth_from_db(pool: &PgPool) -> Result<(), anyhow::Error> {
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
-    use lazy_static::lazy_static;
     use maplit::hashmap;
-    use parking_lot::Mutex;
 
     use auth_server_ext::invitation::Invitation;
-    use auth_server_lib::{get_random_string, pgpool::PgPool, user::User};
+    use auth_server_lib::{get_random_string, pgpool::PgPool, user::User, AUTH_APP_MUTEX};
     use authorized_users::{get_random_key, JWT_SECRET, KEY_LENGTH, SECRET_KEY};
 
     use crate::{
         app::{run_app, run_test_app, CONFIG},
         logged_user::LoggedUser,
     };
-
-    lazy_static! {
-        static ref AUTH_APP_MUTEX: Mutex<()> = Mutex::new(());
-    }
 
     #[test]
     fn test_get_random_string() -> Result<(), Error> {

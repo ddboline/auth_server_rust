@@ -16,6 +16,12 @@ pub mod static_files;
 pub mod user;
 
 use rand::{thread_rng, Rng};
+use lazy_static::lazy_static;
+use parking_lot::Mutex;
+
+lazy_static! {
+    pub static ref AUTH_APP_MUTEX: Mutex<()> = Mutex::new(());
+}
 
 pub fn get_random_string(n: usize) -> String {
     let mut rng = thread_rng();

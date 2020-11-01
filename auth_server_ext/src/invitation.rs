@@ -122,7 +122,7 @@ mod tests {
     use anyhow::Error;
     use futures::try_join;
 
-    use auth_server_lib::{config::Config, get_random_string, pgpool::PgPool};
+    use auth_server_lib::{config::Config, get_random_string, pgpool::PgPool, AUTH_APP_MUTEX};
 
     use crate::invitation::Invitation;
 
@@ -138,6 +138,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_delete_invitation() -> Result<(), Error> {
+        let _lock = AUTH_APP_MUTEX.lock();
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
         let email = format!("{}@localhost", get_random_string(32));
@@ -156,6 +157,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_all_get_number_invitations() -> Result<(), Error> {
+        let _lock = AUTH_APP_MUTEX.lock();
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
         let (invitations, count) = try_join!(Invitation::get_all(&pool), Invitation::get_number_invitations(&pool))?;
