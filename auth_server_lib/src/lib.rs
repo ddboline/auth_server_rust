@@ -29,7 +29,7 @@ pub fn get_random_string(n: usize) -> String {
         .filter_map(|_| {
             let c: char = (rng.gen::<u8>() & 0x7f).into();
             match c {
-                ' '..='~' => Some(c),
+                '#'..='[' | ']'..='~' => Some(c),
                 _ => None,
             }
         })

@@ -295,7 +295,7 @@ mod test {
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
         assert_eq!(mock_stdout.lock().await.len(), 1);
-        println!("{}", mock_stdout.lock().await.join("\n"));
+        println!("{} {}", email, mock_stdout.lock().await.join("\n"));
         assert!(mock_stdout.lock().await[0].contains(&email));
 
         let users = User::get_authorized_users(&pool).await?;
