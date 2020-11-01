@@ -47,6 +47,8 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
         AWS_DEFAULT_REGION: us-east-1
         SENDING_EMAIL_ADDRESS: ${{secrets.SENDING_EMAIL_ADDRESS}}
+        GOOGLE_CLIENT_ID: ${{secrets.GOOGLE_CLIENT_ID}}
+        GOOGLE_CLIENT_SECRET: ${{secrets.GOOGLE_CLIENT_SECRET}}
 
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v1.0.2

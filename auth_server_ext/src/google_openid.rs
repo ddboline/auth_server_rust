@@ -200,7 +200,6 @@ mod tests {
     use crate::google_openid::{GetAuthUrlData, GoogleClient};
 
     #[tokio::test]
-    #[ignore]
     async fn test_google_openid() -> Result<(), Error> {
         let config = Config::init_config()?;
 
