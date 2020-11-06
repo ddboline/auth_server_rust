@@ -17,7 +17,7 @@ anyhow = "1.0"
 log = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "0.8", features = ["serde", "v4"] }
-tokio = {version="0.2", features=["full"]}
+tokio = {version="0.3", features=["full"]}
 thiserror = "1.0"
 dirs = "3.0"
 dotenv = "0.15"
@@ -28,12 +28,11 @@ sts_profile_auth = "0.5"
 lazy_static = "1.4"
 serde = { version="1.0", features=["derive"] }
 serde_json="1.0"
-deadpool = "0.5"
-deadpool-postgres = "0.5"
+deadpool = "0.6"
+deadpool-postgres = "0.6"
 deadqueue = "0.1"
-tokio-postgres = {version = "0.5", features = ["with-chrono-0_4", "with-uuid-0_8"]}
+tokio-postgres = {version = "0.6", features = ["with-chrono-0_4", "with-uuid-0_8"]}
 postgres-types = "0.1"
-postgres_query = "0.3"
 jsonwebtoken = "7.2"
 bcrypt = "0.9"
 bytes = "0.5"
@@ -51,8 +50,9 @@ arc-swap = "0.4"
 im = "15.0"
 toml = "0.5"
 itertools = "0.9"
+postgres_query = { git = "https://github.com/ddboline/rust-postgres-query.git", branch="master" }
 stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.9", features=["postgres_types"] }
-stdout-channel = { git = "https://github.com/ddboline/stdout-channel-rs.git", branch="tokio_02" }
+stdout-channel = { git = "https://github.com/ddboline/stdout-channel-rs.git", tag="0.2.1" }
 
 [dev-dependencies]
 reqwest = {version = "0.10", features=["cookies", "rustls-tls", "gzip", "json"]}

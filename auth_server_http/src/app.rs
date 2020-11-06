@@ -205,7 +205,7 @@ mod tests {
                 .unwrap()
         });
 
-        tokio::time::delay_for(tokio::time::Duration::from_secs(10)).await;
+        actix_rt::time::delay_for(std::time::Duration::from_secs(10)).await;
 
         let client = reqwest::Client::builder().cookie_store(true).build()?;
         let url = format!("http://localhost:{}/api/auth", test_port);
@@ -263,7 +263,7 @@ mod tests {
                 .unwrap()
         });
 
-        tokio::time::delay_for(tokio::time::Duration::from_secs(10)).await;
+        actix_rt::time::delay_for(std::time::Duration::from_secs(10)).await;
 
         let url = format!(
             "http://localhost:{}/api/register/{}",
