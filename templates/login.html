@@ -76,7 +76,12 @@
     console.log("data ", data);
     let xmlhttp = new XMLHttpRequest();
     xmlhttp.onload = function() {
-      location.replace(xmlhttp.responseText);
+      if(xmlhttp.responseText.startsWith('https://accounts.google.com')) {
+        window.open(xmlhttp.responseText, '_blank');
+        window.focus();
+      } else {
+        location.replace(xmlhttp.responseText);
+      }
     }
     xmlhttp.open("POST", url, true);
     xmlhttp.setRequestHeader("Content-Type", "application/json");
