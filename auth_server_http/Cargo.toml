@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_http"
-version = "0.2.6"
+version = "0.2.7"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -39,7 +39,6 @@ bcrypt = "0.9"
 bytes = "0.5"
 envy = "0.4"
 base64 = "0.13"
-openid = "0.6"
 rand = "0.7"
 url = "2.1"
 futures = "0.3"

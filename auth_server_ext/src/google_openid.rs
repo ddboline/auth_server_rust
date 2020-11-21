@@ -1,3 +1,4 @@
+pub use openid::error::Error as OpenidError;
 use anyhow::{format_err, Error};
 use arc_swap::ArcSwap;
 use base64::{encode_config, URL_SAFE_NO_PAD};
