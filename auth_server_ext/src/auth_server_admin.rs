@@ -110,7 +110,7 @@ impl AuthServerOptions {
                 invitation
                     .send_invitation(&config.sending_email_address, config.callback_url.as_str())
                     .await?;
-                stdout.send(format!("Invitation sent to {}", email));
+                stdout.send(format!("Invitation {} sent to {}", invitation.id, email));
             }
             AuthServerOptions::RmInvite { id } => {
                 if let Some(invitation) = Invitation::get_by_uuid(&id, &pool).await? {
@@ -243,20 +243,44 @@ mod test {
     use anyhow::Error;
     use std::collections::HashSet;
     use stdout_channel::{MockStdout, StdoutChannel};
+    use uuid::Uuid;
+    use rand::{thread_rng, Rng};
 
-    use auth_server_lib::{config::Config, get_random_string, pgpool::PgPool, user::User, AUTH_APP_MUTEX};
+    use auth_server_lib::{config::Config, pgpool::PgPool, user::User, AUTH_APP_MUTEX};
 
     use crate::{auth_server_admin::AuthServerOptions, invitation::Invitation};
+
+    pub fn get_random_string(n: usize) -> String {
+        let mut rng = thread_rng();
+        (0..)
+            .filter_map(|_| {
+                let c: char = (rng.gen::<u8>() & 0x7f).into();
+                match c {
+                    'A'..='Z' | 'a'..='z' | '0'..='9' => Some(c),
+                    _ => None,
+                }
+            })
+            .take(n)
+            .collect()
+    }
 
     #[tokio::test]
     async fn test_process_args() -> Result<(), Error> {
         let _lock = AUTH_APP_MUTEX.lock();
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
-        let email = format!("{}@localhost", get_random_string(32));
+        let email = format!("ddboline+{}@gmail.com", get_random_string(32));
         let password = get_random_string(32);
-        let invitation = Invitation::from_email(&email);
-        invitation.insert(&pool).await?;
+
+        let mock_stdout = MockStdout::new();
+        let mock_stderr = MockStdout::new();
+        let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
+
+        let opts = AuthServerOptions::SendInvite {email: email.clone().into()};
+        opts.process_args(&pool, &stdout).await?;
+        stdout.close().await?;
+        let invitation_uuid: Uuid = mock_stdout.lock().await[0].split_whitespace().nth(1).unwrap().parse()?;
+        let invitation = Invitation::get_by_uuid(&invitation_uuid, &pool).await?.unwrap();
 
         let invitations: HashSet<_> = Invitation::get_all(&pool).await?.into_iter().collect();
 
@@ -376,6 +400,55 @@ mod test {
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
         assert!(mock_stdout.lock().await.join("").contains("EmailStats"));
+
+        let email = format!("ddboline+{}@gmail.com", get_random_string(32));
+        let password = get_random_string(32);
+
+        let mock_stdout = MockStdout::new();
+        let mock_stderr = MockStdout::new();
+        let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
+
+        let opts = AuthServerOptions::Add {email: email.clone().into(), password: password.into()};
+        opts.process_args(&pool, &stdout).await?;
+        stdout.close().await?;
+
+        let mock_stdout = MockStdout::new();
+        let mock_stderr = MockStdout::new();
+        let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
+
+        let opts = AuthServerOptions::AddToApp {email: email.clone().into(), app: "movie_collection_rust".into()};
+        opts.process_args(&pool, &stdout).await?;
+        stdout.close().await?;
+
+        let mock_stdout = MockStdout::new();
+        let mock_stderr = MockStdout::new();
+        let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
+
+        let opts = AuthServerOptions::RemoveFromApp {email: email.clone().into(), app: "movie_collection_rust".into()};
+        opts.process_args(&pool, &stdout).await?;
+        stdout.close().await?;
+
+        let mock_stdout = MockStdout::new();
+        let mock_stderr = MockStdout::new();
+        let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
+
+        let opts = AuthServerOptions::Rm {email: email.clone().into()};
+        opts.process_args(&pool, &stdout).await?;
+        stdout.close().await?;
+
+        let mock_stdout = MockStdout::new();
+        let mock_stderr = MockStdout::new();
+        let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
+
+        let opts = AuthServerOptions::SendInvite {email: email.clone().into()};
+        opts.process_args(&pool, &stdout).await?;
+        stdout.close().await?;
+        let invitation_uuid: Uuid = mock_stdout.lock().await[0].split_whitespace().nth(1).unwrap().parse()?;
+
+        let opts = AuthServerOptions::RmInvite { id: invitation_uuid.clone() };
+        opts.process_args(&pool, &stdout).await?;
+        stdout.close().await?;
+        assert!(Invitation::get_by_uuid(&invitation_uuid, &pool).await?.is_none());
 
         Ok(())
     }
