@@ -22,7 +22,7 @@ impl Token {
             &EncodingKey::from_secret(&JWT_SECRET.get()),
         )
         .map(Into::into)
-        .map_err(|_err| format_err!("Internal Error {}", _err))
+        .map_err(|e| format_err!("Internal Error {}", e))
     }
 
     pub fn decode_token(token: &Self) -> Result<Claim, Error> {
@@ -32,6 +32,6 @@ impl Token {
             &Validation::new(DEFAULT_ALGORITHM),
         )
         .map(|data| Ok(data.claims))
-        .map_err(|_err| format_err!("Unauthorized {}", _err))?
+        .map_err(|e| format_err!("Unauthorized {}", e))?
     }
 }
