@@ -51,7 +51,7 @@ im = "15.0"
 toml = "0.5"
 itertools = "0.9"
 stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.10", features=["postgres_types"] }
-stdout-channel = { git = "https://github.com/ddboline/stdout-channel-rs.git", branch="tokio_02" }
+stdout-channel = { git = "https://github.com/ddboline/stdout-channel-rs.git", tag="0.1.4" }
 
 [dev-dependencies]
 reqwest = {version = "0.10", features=["cookies", "rustls-tls", "gzip", "json"]}
