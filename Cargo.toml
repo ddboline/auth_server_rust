@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_rust"
-version = "0.2.7"
+version = "0.2.8"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -22,7 +22,7 @@ auth_server_http = {path = "auth_server_http"}
 auth_server_lib = {path = "auth_server_lib"}
 auth_server_ext = {path = "auth_server_ext"}
 authorized_users = {path = "authorized_users"}
-actix-web = "3.2"
+actix-web = "3.3"
 actix-identity = "0.3"
 actix-rt = "1.1"
 anyhow = "1.0"
@@ -51,7 +51,7 @@ bcrypt = "0.9"
 bytes = "0.5"
 envy = "0.4"
 base64 = "0.13"
-rand = "0.7"
+rand = "0.8"
 url = "2.2"
 futures = "0.3"
 parking_lot = "0.11"
@@ -59,12 +59,12 @@ smallvec = "1.5"
 crossbeam = "0.8"
 structopt = "0.3"
 env_logger = "0.8"
-arc-swap = "1.0"
+arc-swap = "1.1"
 im = "15.0"
 toml = "0.5"
 itertools = "0.9"
-stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.9", features=["postgres_types"] }
-stdout-channel = { git = "https://github.com/ddboline/stdout-channel-rs.git", branch="tokio_02" }
+stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.10", features=["postgres_types"] }
+stdout-channel = { git = "https://github.com/ddboline/stdout-channel-rs.git", tag="0.1.4" }
 
 [dev-dependencies]
 reqwest = {version = "0.10", features=["cookies", "rustls-tls", "gzip", "json"]}
