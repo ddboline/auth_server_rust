@@ -1,4 +1,3 @@
-pub use openid::error::Error as OpenidError;
 use anyhow::{format_err, Error};
 use arc_swap::ArcSwap;
 use base64::{encode_config, URL_SAFE_NO_PAD};
@@ -6,6 +5,7 @@ use chrono::{DateTime, Utc};
 use im::HashMap;
 use lazy_static::lazy_static;
 use log::debug;
+pub use openid::error::Error as OpenidError;
 use openid::{DiscoveredClient, Options, Userinfo};
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
@@ -209,12 +209,13 @@ mod tests {
             final_url: "https://localhost".into(),
         };
         let url = client.get_auth_url(payload).await?;
-        let redirect_uri = format!("redirect_uri=https%3A%2F%2F{}%2Fapi%2Fcallback", config.domain);
+        let redirect_uri = format!(
+            "redirect_uri=https%3A%2F%2F{}%2Fapi%2Fcallback",
+            config.domain
+        );
 
         assert_eq!(url.domain(), Some("accounts.google.com"));
-        assert!(url
-            .as_str()
-            .contains(&redirect_uri));
+        assert!(url.as_str().contains(&redirect_uri));
         assert!(url.as_str().contains("scope=openid+email"));
         assert!(url.as_str().contains("response_type=code"));
         Ok(())

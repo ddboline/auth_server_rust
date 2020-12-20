@@ -1,7 +1,7 @@
 use actix_web::{error::ResponseError, HttpResponse};
 use anyhow::Error as AnyhowError;
-use bcrypt::BcryptError;
 use auth_server_ext::google_openid::OpenidError;
+use bcrypt::BcryptError;
 use postgres_query::extract::Error as QueryError;
 use rusoto_core::RusotoError;
 use rusoto_ses::{GetSendQuotaError, GetSendStatisticsError, SendEmailError};
