@@ -44,7 +44,7 @@ pub async fn login(auth_data: Json<AuthRequest>, id: Identity, data: Data<AppSta
     if let Some(user) = auth_data.authenticate(&data.pool).await? {
         let user: AuthorizedUser = user.into();
         let token = Token::create_token(&user, &CONFIG.domain, CONFIG.expiration_seconds)
-            .map_err(|_| Error::BadRequest("Failed to create_token".into()))?;
+            .map_err(|e| Error::BadRequest(format!("Failed to create_token {e}")))?;
         id.remember(token.into());
         to_json(user)
     } else {
