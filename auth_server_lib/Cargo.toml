@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 authorized_users = {path = "../authorized_users"}
-actix-web = "4.0.0-beta.2"
+actix-web = "4.0.0-beta.1"
 actix-rt = "2.0.0-beta.2"
 anyhow = "1.0"
 log = "0.4"
