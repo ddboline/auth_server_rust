@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_ext"
-version = "0.2.9"
+version = "0.3.0"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -9,8 +9,8 @@ edition = "2018"
 [dependencies]
 auth_server_lib = {path = "../auth_server_lib"}
 authorized_users = {path = "../authorized_users"}
-actix-web = "3.3"
-actix-rt = "1.1"
+actix-web = "4.0.0-beta.1"
+actix-rt = "2.0.0-beta.1"
 anyhow = "1.0"
 log = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
@@ -20,9 +20,9 @@ thiserror = "1.0"
 dirs = "3.0"
 dotenv = "0.15"
 derive_more = "0.99"
-rusoto_core = {version = "0.45", default_features = false, features=["rustls"]}
-rusoto_ses = {version = "0.45", default_features = false, features=["rustls"]}
-sts_profile_auth = "0.5"
+rusoto_core = {version = "0.46", default_features = false, features=["rustls"]}
+rusoto_ses = {version = "0.46", default_features = false, features=["rustls"]}
+sts_profile_auth = "0.6"
 lazy_static = "1.4"
 serde = { version="1.0", features=["derive"] }
 serde_json="1.0"
@@ -31,7 +31,7 @@ deadpool-postgres = "0.7"
 deadqueue = "0.2"
 tokio-postgres = {version = "0.7", features = ["with-chrono-0_4", "with-uuid-0_8"]}
 postgres-types = "0.2"
-postgres_query = "0.3"
+postgres_query = {git = "https://github.com/ddboline/rust-postgres-query", branch="master"}
 jsonwebtoken = "7.2"
 bcrypt = "0.9"
 bytes = "1.0"
@@ -49,8 +49,8 @@ arc-swap = "1.2"
 im = "15.0"
 toml = "0.5"
 itertools = "0.10"
-stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.10", features=["postgres_types"] }
-stdout-channel = { git = "https://github.com/ddboline/stdout-channel-rs.git", tag="0.1.4" }
+stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.2.0", features=["postgres_types"] }
+stdout-channel = { git = "https://github.com/ddboline/stdout-channel-rs.git", tag="0.3.0" }
 
 [dev-dependencies]
-reqwest = {version = "0.10", features=["cookies", "rustls-tls", "gzip", "json"]}
+reqwest = {version = "0.11", features=["cookies", "rustls-tls", "gzip", "json"]}
