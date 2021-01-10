@@ -27,9 +27,9 @@ auth_server_http = {path = "auth_server_http"}
 auth_server_lib = {path = "auth_server_lib"}
 auth_server_ext = {path = "auth_server_ext"}
 authorized_users = {path = "authorized_users"}
-actix-web = "4.0.0-beta.1"
-actix-identity = "0.3"
-actix-rt = "2.0.0-beta.1"
+actix-web = "4.0.0-beta.2"
+actix-identity = {git="https://github.com/ddboline/actix-extras", branch="update-dependencies"}
+actix-rt = "2.0.0-beta.2"
 anyhow = "1.0"
 log = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
