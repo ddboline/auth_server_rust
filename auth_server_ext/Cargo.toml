@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_ext"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -49,6 +49,7 @@ arc-swap = "1.2"
 im = "15.0"
 toml = "0.5"
 itertools = "0.10"
+refinery = {version="0.5", features=["tokio-postgres"]}
 stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.2.0", features=["postgres_types"] }
 stdout-channel = { git = "https://github.com/ddboline/stdout-channel-rs.git", tag="0.3.0" }
 
