@@ -31,13 +31,15 @@ jobs:
       run: cargo clippy -- -W clippy::pedantic
 
     - name: Build
-      run: cargo build --verbose
+      run: |
+        cargo build --verbose && \
+        ./target/debug/auth-server-admin run-migrations
+      env:
+        DATABASE_URL: postgresql://postgres:2UtcMAAvNuBHPqK9@localhost:5432/auth_server_rust
 
     - name: Run tests / generate code coverage
       run: |
         mkdir -p ${HOME}/.config/auth_server_rust && \
-        psql $DATABASE_URL < ./scripts/invitations.sql && \
-        psql $DATABASE_URL < ./scripts/users.sql && \
         cargo test --workspace --verbose && \
         cargo install cargo-tarpaulin && \
         cargo tarpaulin --verbose --all-features --workspace --out Xml
