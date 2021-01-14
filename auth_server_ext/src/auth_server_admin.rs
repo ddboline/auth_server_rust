@@ -205,7 +205,7 @@ impl AuthServerOptions {
                 }
             },
             RunMigrations => {
-                let conn = pool.get_client().await?;
+                let mut conn = pool.get_client().await?;
                 migrations::runner().run_async(&mut conn).await?;
             }
         }
