@@ -7,6 +7,7 @@ use std::collections::{BTreeSet, HashMap};
 use stdout_channel::StdoutChannel;
 use structopt::StructOpt;
 use uuid::Uuid;
+use refinery::embed_migrations;
 
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 
@@ -15,6 +16,8 @@ use auth_server_lib::{
 };
 
 use crate::{invitation::Invitation, ses_client::SesInstance};
+
+embed_migrations!("../migrations");
 
 #[derive(StructOpt, Debug)]
 enum AuthServerOptions {
@@ -79,6 +82,7 @@ enum AuthServerOptions {
         #[structopt(short, long)]
         app: StackString,
     },
+    RunMigrations,
 }
 
 impl AuthServerOptions {
@@ -199,6 +203,10 @@ impl AuthServerOptions {
                         entry.remove_user(email.as_str()).await?;
                     }
                 }
+            },
+            RunMigrations => {
+                let conn = pool.get().await?;
+                migrations::runner().run_async(&mut conn).await?;
             }
         }
         Ok(())
