@@ -2,12 +2,15 @@ use anyhow::Error;
 use chrono::Utc;
 use futures::{future::try_join_all, try_join};
 use itertools::Itertools;
+use refinery::embed_migrations;
 use stack_string::StackString;
-use std::collections::{BTreeSet, HashMap};
+use std::{
+    collections::{BTreeSet, HashMap},
+    ops::DerefMut,
+};
 use stdout_channel::StdoutChannel;
 use structopt::StructOpt;
 use uuid::Uuid;
-use refinery::embed_migrations;
 
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 
@@ -203,10 +206,12 @@ impl AuthServerOptions {
                         entry.remove_user(email.as_str()).await?;
                     }
                 }
-            },
+            }
             AuthServerOptions::RunMigrations => {
-                let mut conn = pool.get_client().await?;
-                migrations::runner().run_async(&mut conn).await?;
+                let mut client = pool.get().await?;
+                migrations::runner()
+                    .run_async(client.deref_mut().deref_mut())
+                    .await?;
             }
         }
         Ok(())
