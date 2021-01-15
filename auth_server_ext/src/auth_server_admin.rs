@@ -11,6 +11,7 @@ use std::{
 use stdout_channel::StdoutChannel;
 use structopt::StructOpt;
 use uuid::Uuid;
+use refinery::embed_migrations;
 
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 
@@ -206,6 +207,10 @@ impl AuthServerOptions {
                         entry.remove_user(email.as_str()).await?;
                     }
                 }
+            },
+            AuthServerOptions::RunMigrations => {
+                let mut conn = pool.get_client().await?;
+                migrations::runner().run_async(&mut conn).await?;
             }
             AuthServerOptions::RunMigrations => {
                 let mut client = pool.get().await?;
