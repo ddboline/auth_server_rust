@@ -2,7 +2,7 @@ use anyhow::{format_err, Error};
 use deadpool::managed::Object;
 use deadpool_postgres::{ClientWrapper, Config, Pool};
 use std::fmt;
-use tokio_postgres::{error::Error as PgError, Config as PgConfig, NoTls};
+use tokio_postgres::{Client, error::Error as PgError, Config as PgConfig, NoTls};
 
 /// Wrapper around `deadpool_postgres::Pool`, two pools are considered equal if
 /// they have the same connection string The only way to use `PgPool` is through
@@ -63,5 +63,15 @@ impl PgPool {
             .get()
             .await
             .map_err(Into::into)
+    }
+
+    pub async fn get_client(&self) -> Result<Client, Error> {
+        let (client, conn) = tokio_postgres::connect(&self.pgurl, NoTls).await?;
+        tokio::spawn(async move {
+            if let Err(e) = conn.await {
+                eprintln!("connection error: {}", e);
+            }
+        });
+        Ok(client)
     }
 }

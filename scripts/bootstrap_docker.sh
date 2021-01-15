@@ -26,5 +26,4 @@ PORT=3000
 HASH_ROUNDS=12
 EOL
 
-psql $DATABASE_URL < ./scripts/invitations.sql
-psql $DATABASE_URL < ./scripts/users.sql
+auth-server-admin run-migrations
