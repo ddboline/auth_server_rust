@@ -64,14 +64,4 @@ impl PgPool {
             .await
             .map_err(Into::into)
     }
-
-    pub async fn get_client(&self) -> Result<Client, Error> {
-        let (client, conn) = tokio_postgres::connect(&self.pgurl, NoTls).await?;
-        tokio::spawn(async move {
-            if let Err(e) = conn.await {
-                eprintln!("connection error: {}", e);
-            }
-        });
-        Ok(client)
-    }
 }
