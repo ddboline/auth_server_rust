@@ -63,20 +63,12 @@ pub async fn logout(id: Identity) -> HttpResult {
     }
 }
 
-pub async fn get_me(logged_user: LoggedUser, id: Identity, data: Data<AppState>) -> HttpResult {
-    if let Some(user) = User::get_by_email(&logged_user.email, &data.pool).await? {
-        let user: AuthorizedUser = user.into();
-        let token = Token::create_token(&user, &CONFIG.domain, CONFIG.expiration_seconds)
-            .map_err(|e| Error::BadRequest(format!("Failed to create_token {}", e)))?;
-        id.remember(token.into());
-        to_json(logged_user)
-    } else {
-        if let Some(id) = id.identity() {
-            form_http_response(format!("{} has been logged out", id))
-        } else {
-            form_http_response("".to_string())
-        }
-    }
+pub async fn get_me(logged_user: LoggedUser, id: Identity) -> HttpResult {
+    let user: AuthorizedUser = logged_user.into();
+    let token = Token::create_token(&user, &CONFIG.domain, CONFIG.expiration_seconds)
+        .map_err(|e| Error::BadRequest(format!("Failed to create_token {}", e)))?;
+    id.remember(token.into());
+    to_json(user)
 }
 
 #[derive(Deserialize)]
