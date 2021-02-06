@@ -1,9 +1,8 @@
-use actix_identity::{CookieIdentityPolicy, IdentityService};
-use actix_web::{middleware::Compress, web, App, HttpServer};
 use anyhow::Error;
 use lazy_static::lazy_static;
 use log::debug;
 use stack_string::StackString;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::{task::spawn, time::interval};
 
@@ -19,6 +18,7 @@ use authorized_users::{
     TRIGGER_DB_UPDATE,
 };
 
+use crate::errors::error_response;
 use crate::routes::{
     auth_url, callback, change_password_user, get_me, login, logout, register_email, register_user,
     status, test_get_me, test_login, test_logout,
@@ -35,6 +35,8 @@ async fn update_secrets() -> Result<(), Error> {
 
 pub struct AppState {
     pub pool: PgPool,
+    pub google_client: GoogleClient,
+    pub secret: [u8; KEY_LENGTH],
 }
 
 pub async fn start_app() -> Result<(), Error> {
@@ -62,57 +64,77 @@ async fn run_app(
 
     spawn(_update_db(pool.clone()));
 
-    HttpServer::new(move || {
-        App::new()
-            .data(google_client.clone())
-            .data(AppState { pool: pool.clone() })
-            .wrap(Compress::default())
-            .wrap(IdentityService::new(
-                CookieIdentityPolicy::new(&cookie_secret)
-                    .name("auth")
-                    .path("/")
-                    .domain(domain.as_str())
-                    .max_age(CONFIG.expiration_seconds)
-                    .secure(false),
-            ))
-            .service(
-                web::scope("/api")
-                    .service(
-                        web::resource("/auth")
-                            .route(web::post().to(login))
-                            .route(web::delete().to(logout))
-                            .route(web::get().to(get_me)),
-                    )
-                    .service(web::resource("/invitation").route(web::post().to(register_email)))
-                    .service(
-                        web::resource("/register/{invitation_id}")
-                            .route(web::post().to(register_user)),
-                    )
-                    .service(
-                        web::resource("/password_change")
-                            .route(web::post().to(change_password_user)),
-                    )
-                    .service(web::resource("/auth_url").route(web::post().to(auth_url)))
-                    .service(web::resource("/callback").route(web::get().to(callback)))
-                    .service(web::resource("/status").route(web::get().to(status))),
-            )
-            .service(
-                web::scope("/auth")
-                    .service(web::resource("/index.html").route(web::get().to(index_html)))
-                    .service(web::resource("/main.css").route(web::get().to(main_css)))
-                    .service(web::resource("/main.js").route(web::get().to(main_js)))
-                    .service(web::resource("/register.html").route(web::get().to(register_html)))
-                    .service(web::resource("/login.html").route(web::get().to(login_html)))
-                    .service(
-                        web::resource("/change_password.html")
-                            .route(web::get().to(change_password)),
-                    ),
-            )
-    })
-    .bind(&format!("localhost:{}", port))?
-    .run()
-    .await
-    .map_err(Into::into)
+    let app = Arc::new(AppState {
+        pool: pool.clone(),
+        google_client: google_client.clone(),
+        secret: cookie_secret,
+    });
+
+    let data = warp::any().map(move || app.clone());
+    let cors = warp::cors()
+        .allow_methods(vec!["GET", "POST", "DELETE"])
+        .allow_header("content-type")
+        .allow_header("authorization")
+        .allow_any_origin()
+        .build();
+
+    let post = warp::post()
+        .and(warp::path::end())
+        .and(data.clone())
+        .and(warp::body::json())
+        .and(warp::addr::remote())
+        .and_then(|data, auth_data, ip| async move { login(data, auth_data, ip) });
+
+    let delete = warp::delete().and(logout);
+    let get = warp::get().and(get_me);
+    let auth_path = warp::path("auth").and(post.or(delete).or(get));
+    let invitation_path = warp::path("invitation")
+        .and(warp::post())
+        .and(register_email);
+    let register_path = warp::post().and(warp::path!("register" / StackString).map(register_user));
+    let password_change_path = warp::path("password_change")
+        .and(warp::post())
+        .and(change_password_user);
+    let auth_url_path = warp::path("auth_url").and(warp::post()).and(auth_url);
+    let callback_path = warp::path("callback").and(warp::get()).and(callback);
+    let status_path = warp::path("status").and(warp::get()).and(status);
+
+    let api = warp::path("api").and(
+        auth_path
+            .or(invitation_path)
+            .or(register_path)
+            .or(password_change_path)
+            .or(auth_url_path)
+            .or(callback_path)
+            .or(status_path),
+    );
+
+    let index_html_path = warp::path("index.html").and(warp::get()).and(index_html);
+    let main_css_path = warp::path("main.css").and(warp::get()).and(main_css);
+    let main_js_path = warp::path("main.js").and(warp::get()).and(main_js);
+    let register_html_path = warp::path("register.html")
+        .and(warp::get())
+        .and(register_html);
+    let login_html_path = warp::path("login.html").and(warp::get()).and(login_html);
+    let change_password_path = warp::path("change_password.html")
+        .and(warp::get())
+        .and(change_password);
+    let auth = warp::path("auth").and(
+        index_html_path
+            .or(main_css_path)
+            .or(main_js_path)
+            .or(register_html_path)
+            .or(login_html_path)
+            .or(change_password_path),
+    );
+
+    let routes = api.or(auth).recover(error_response).with(cors);
+
+    warp::serve(routes)
+        .bind(&format!("localhost:{}", port))
+        .await;
+
+    Ok(())
 }
 
 pub async fn run_test_app(
@@ -120,30 +142,34 @@ pub async fn run_test_app(
     cookie_secret: [u8; KEY_LENGTH],
     domain: StackString,
 ) -> Result<(), Error> {
-    HttpServer::new(move || {
-        App::new()
-            .wrap(Compress::default())
-            .wrap(IdentityService::new(
-                CookieIdentityPolicy::new(&cookie_secret)
-                    .name("auth")
-                    .path("/")
-                    .domain(domain.as_str())
-                    .max_age(CONFIG.expiration_seconds)
-                    .secure(false),
-            ))
-            .service(
-                web::scope("/api").service(
-                    web::resource("/auth")
-                        .route(web::post().to(test_login))
-                        .route(web::delete().to(test_logout))
-                        .route(web::get().to(test_get_me)),
-                ),
-            )
-    })
-    .bind(&format!("localhost:{}", port))?
-    .run()
-    .await
-    .map_err(Into::into)
+    let google_client = GoogleClient::new(&CONFIG).await?;
+    let pool = PgPool::new(&CONFIG.database_url);
+
+    let app = Arc::new(AppState {
+        pool: pool.clone(),
+        google_client: google_client.clone(),
+        secret: cookie_secret,
+    });
+
+    let cors = warp::cors()
+        .allow_methods(vec!["GET", "POST", "DELETE"])
+        .allow_header("content-type")
+        .allow_header("authorization")
+        .allow_any_origin()
+        .build();
+
+    let post = warp::post().and(test_login);
+    let delete = warp::delete().and(test_logout);
+    let get = warp::get().and(test_get_me);
+    let auth_path = warp::path("auth").and(post.or(delete).or(get));
+
+    let routes = auth_path.recover(error_response).with(cors);
+
+    warp::serve(routes)
+        .bind(&format!("localhost:{}", port))
+        .await;
+
+    Ok(())
 }
 
 pub async fn fill_auth_from_db(pool: &PgPool) -> Result<(), anyhow::Error> {

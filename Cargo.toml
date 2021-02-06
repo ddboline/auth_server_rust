@@ -10,7 +10,7 @@ priority = "optional"
 section = "rust"
 provides = "auth-server-rust"
 extended-description = """\
-Authentication service using actix."""
+Authentication service using warp."""
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -27,9 +27,6 @@ auth_server_http = {path = "auth_server_http"}
 auth_server_lib = {path = "auth_server_lib"}
 auth_server_ext = {path = "auth_server_ext"}
 authorized_users = {path = "authorized_users"}
-actix-web = "4.0.0-beta.1"
-actix-identity = {git="https://github.com/ddboline/actix-extras", branch="update-dependencies"}
-actix-rt = "2.0.0-beta.3"
 anyhow = "1.0"
 log = "0.4"
 chrono = { version = "0.4", features = ["serde"] }

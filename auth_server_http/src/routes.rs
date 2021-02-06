@@ -1,14 +1,10 @@
-use actix_identity::Identity;
-use actix_web::{
-    http::StatusCode,
-    web::{Data, Json, Path, Query},
-    HttpResponse,
-};
 use chrono::Utc;
 use futures::try_join;
+use http::{header::CONTENT_TYPE, Response, StatusCode};
 use log::debug;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
+use std::net::IpAddr;
 use uuid::Uuid;
 
 use auth_server_ext::{
@@ -25,22 +21,40 @@ use crate::{
     logged_user::LoggedUser,
 };
 
-pub type HttpResult = Result<HttpResponse, Error>;
+pub type HttpResult = Result<Response, Error>;
 
 fn form_http_response(body: String) -> HttpResult {
-    Ok(HttpResponse::build(StatusCode::OK)
-        .content_type("text/html; charset=utf-8")
-        .body(body))
+    form_http_response_status(body, StatusCode::OK)
+}
+
+fn form_http_response_status(body: String, code: StatusCode) -> HttpResult {
+    Response::builder()
+        .status(code)
+        .header(CONTENT_TYPE, "text/html; charset=utf-8")
+        .body(body)
+        .map_err(Into::into)
 }
 
 fn to_json<T>(js: T) -> HttpResult
 where
     T: Serialize,
 {
-    Ok(HttpResponse::Ok().json(js))
+    to_json_status(js, StatusCode::OK)
 }
 
-pub async fn login(auth_data: Json<AuthRequest>, id: Identity, data: Data<AppState>) -> HttpResult {
+fn to_json_status<T>(js: T, code: StatusCode) -> HttpResult
+where
+    T: Serialize,
+{
+    let body = serde_json::to_string(&js)?;
+    Response::builder()
+        .status(code)
+        .header(CONTENT_TYPE, "application/json")
+        .body(body)
+        .map_err(Into::into)
+}
+
+pub async fn login(data: AppState, auth_data: AuthRequest, ip: IpAddr) -> HttpResult {
     if let Some(user) = auth_data.authenticate(&data.pool).await? {
         let user: AuthorizedUser = user.into();
         let token = Token::create_token(&user, &CONFIG.domain, CONFIG.expiration_seconds)
