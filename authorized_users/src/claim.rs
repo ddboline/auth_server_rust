@@ -8,25 +8,19 @@ use crate::AuthorizedUser;
 // JWT claim
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claim {
-    // issuer
-    iss: StackString,
-    // subject
-    sub: StackString,
-    // issued at
-    iat: i64,
-    // expiry
-    exp: i64,
-    // user email
+    domain: StackString,
+    expiry: i64,
+    issued_at: i64,
     email: StackString,
 }
 
 impl From<Claim> for RegisteredClaims {
     fn from(claim: Claim) -> Self {
         Self {
-            issuer: Some(claim.iss.into()),
-            subject: Some(claim.sub.into()),
-            issued_at: Some(claim.iat.into()),
-            expiry: Some(claim.exp.into()),
+            issuer: Some(claim.domain.into()),
+            subject: Some("auth".into()),
+            issued_at: Some(claim.issued_at.into()),
+            expiry: Some(claim.expiry.into()),
             id: Some(claim.email.into()),
             ..Self::default()
         }
@@ -37,11 +31,10 @@ impl From<Claim> for RegisteredClaims {
 impl Claim {
     pub fn with_email(email: &str, domain: &str, expiration_seconds: i64) -> Self {
         Self {
-            iss: domain.into(),
-            sub: "auth".into(),
+            domain: domain.into(),
             email: email.into(),
-            iat: Utc::now().timestamp(),
-            exp: (Utc::now() + Duration::seconds(expiration_seconds)).timestamp(),
+            issued_at: Utc::now().timestamp(),
+            expiry: (Utc::now() + Duration::seconds(expiration_seconds)).timestamp(),
         }
     }
 

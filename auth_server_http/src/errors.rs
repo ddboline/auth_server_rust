@@ -103,6 +103,7 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
                 }
             }
             _ => {
+                error!("Other error: {:?}", service_err);
                 code = StatusCode::INTERNAL_SERVER_ERROR;
                 message = "Internal Server Error, Please try again later";
             }
@@ -111,6 +112,7 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
         code = StatusCode::METHOD_NOT_ALLOWED;
         message = "METHOD NOT ALLOWED";
     } else {
+        error!("Unknown error: {:?}", err);
         code = StatusCode::INTERNAL_SERVER_ERROR;
         message = "Internal Server Error, Please try again later";
     };

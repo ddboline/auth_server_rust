@@ -195,7 +195,8 @@ async fn run_app(config: Config) -> Result<(), Error> {
 
     let routes = api.or(auth).recover(error_response).with(cors);
 
-    let addr: SocketAddr = format!("localhost:{}", config.port).parse()?;
+    let addr: SocketAddr = format!("127.0.0.1:{}", config.port).parse()?;
+    debug!("{:?}", addr);
     warp::serve(routes).bind(addr).await;
 
     Ok(())
@@ -236,11 +237,11 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
             |user: LoggedUser| async move { get_me(user).await.map_err(Into::<Rejection>::into) },
         );
 
-    let auth_path = warp::path("auth").and(post.or(delete).or(get));
+    let auth_path = warp::path!("api" / "auth").and(post.or(delete).or(get));
 
     let routes = auth_path.recover(error_response).with(cors);
 
-    let addr: SocketAddr = format!("localhost:{}", port).parse()?;
+    let addr: SocketAddr = format!("127.0.0.1:{}", port).parse()?;
     warp::serve(routes).bind(addr).await;
 
     Ok(())
@@ -265,6 +266,7 @@ pub async fn fill_auth_from_db(pool: &PgPool) -> Result<(), anyhow::Error> {
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
+    use log::debug;
     use maplit::hashmap;
     use std::env;
 
@@ -282,7 +284,7 @@ mod tests {
     #[test]
     fn test_get_random_string() -> Result<(), Error> {
         let rs = get_random_string(32);
-        println!("{}", rs);
+        debug!("{}", rs);
         assert_eq!(rs.len(), 32);
         Ok(())
     }
@@ -307,7 +309,9 @@ mod tests {
         env::set_var("DOMAIN", "localhost");
         let config = Config::init_config()?;
 
+        debug!("{} {}", config.port, config.domain);
         tokio::task::spawn({
+            env_logger::init();
             let config = config.clone();
             async move { run_test_app(config).await.unwrap() }
         });
@@ -320,7 +324,7 @@ mod tests {
             "email" => &email,
             "password" => &password,
         };
-        println!("login");
+        debug!("login");
         let resp: LoggedUser = client
             .post(&url)
             .json(&data)
@@ -329,10 +333,10 @@ mod tests {
             .error_for_status()?
             .json()
             .await?;
-        println!("logged in {:?}", resp);
+        debug!("logged in {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
-        println!("get me");
+        debug!("get me");
         let resp: LoggedUser = client
             .get(&url)
             .send()
@@ -340,8 +344,8 @@ mod tests {
             .error_for_status()?
             .json()
             .await?;
-        println!("I am: {:?}", resp);
-        assert_eq!(resp.email.as_str(), "user@test");
+        debug!("I am: {:?}", resp);
+        assert_eq!(resp.email.as_str(), email.as_str());
 
         std::env::remove_var("TESTENV");
         Ok(())
@@ -383,7 +387,7 @@ mod tests {
         };
 
         let client = reqwest::Client::builder().cookie_store(true).build()?;
-        println!("register");
+        debug!("register");
         let resp: LoggedUser = client
             .post(&url)
             .json(&data)
@@ -392,7 +396,7 @@ mod tests {
             .error_for_status()?
             .json()
             .await?;
-        println!("registered {:?}", resp);
+        debug!("registered {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
         assert!(Invitation::get_by_uuid(&invitation.id, &pool)
@@ -404,7 +408,7 @@ mod tests {
             "email" => &email,
             "password" => &password,
         };
-        println!("login");
+        debug!("login");
         let resp: LoggedUser = client
             .post(&url)
             .json(&data)
@@ -413,10 +417,10 @@ mod tests {
             .error_for_status()?
             .json()
             .await?;
-        println!("logged in {:?}", resp);
+        debug!("logged in {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
-        println!("get me");
+        debug!("get me");
         let resp: LoggedUser = client
             .get(&url)
             .send()
@@ -424,7 +428,7 @@ mod tests {
             .error_for_status()?
             .json()
             .await?;
-        println!("I am: {:?}", resp);
+        debug!("I am: {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
         let url = format!("http://localhost:{}/api/password_change", test_port);
@@ -433,7 +437,7 @@ mod tests {
             "email" => &email,
             "password" => &new_password,
         };
-        println!("change password");
+        debug!("change password");
         let text = client
             .post(&url)
             .json(&data)
@@ -442,7 +446,7 @@ mod tests {
             .error_for_status()?
             .text()
             .await?;
-        println!("password changed {:?}", text);
+        debug!("password changed {:?}", text);
         assert_eq!(text.as_str(), "password updated");
 
         let user = User::get_by_email(&email, &pool).await?.unwrap();

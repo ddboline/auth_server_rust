@@ -10,6 +10,7 @@ use biscuit::{
     ClaimsSet, Empty, JWE, JWT,
 };
 use derive_more::{Display, From, Into};
+use log::debug;
 
 use crate::{claim::Claim, get_random_nonce, AuthorizedUser, JWT_SECRET, SECRET_KEY};
 
@@ -36,10 +37,12 @@ impl Token {
             ..jws::RegisteredHeader::default()
         };
         let jwt = JWT::new_decoded(header.into(), claimset);
+        debug!("jwt {:?}", jwt);
         let jws_secret = Secret::Bytes(JWT_SECRET.get().into());
         let jwe_secret = JWK::new_octet_key(&SECRET_KEY.get(), Empty::default());
 
         let jws = jwt.into_encoded(&jws_secret)?;
+        debug!("jws {:?}", jws);
 
         let jwe_header = jwe::RegisteredHeader {
             cek_algorithm: KM_ALGORITHM,
@@ -49,6 +52,8 @@ impl Token {
             ..jwe::RegisteredHeader::default()
         };
         let jwe = JWE::new_decrypted(jwe_header.into(), jws);
+        debug!("jwe {:?}", jwe);
+
         let options = EncryptionOptions::AES_GCM {
             nonce: get_random_nonce(),
         };
@@ -67,5 +72,39 @@ impl Token {
         let decrypted_jws = decrypted_jwe.payload()?.clone();
         let token = decrypted_jws.into_decoded(&jws_secret, SG_ALGORITHM)?;
         Ok(token.payload()?.private.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Error;
+    use log::debug;
+
+    use crate::{get_random_key, token::Token, AuthorizedUser, JWT_SECRET, KEY_LENGTH, SECRET_KEY};
+
+    #[test]
+    fn test_token() -> Result<(), Error> {
+        let mut secret_key = [0u8; KEY_LENGTH];
+        secret_key.copy_from_slice(&get_random_key());
+
+        SECRET_KEY.set(secret_key);
+        JWT_SECRET.set(secret_key);
+
+        let user = AuthorizedUser {
+            email: "test@local".into(),
+        };
+
+        let token = Token::create_token(&user, "localhost", 3600)?;
+
+        debug!("token {}", token);
+
+        let claim = token.decode_token()?;
+
+        let obs_user: AuthorizedUser = claim.into();
+
+        debug!("{}", obs_user.email);
+
+        assert_eq!(user, obs_user);
+        Ok(())
     }
 }

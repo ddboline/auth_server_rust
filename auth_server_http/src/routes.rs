@@ -224,6 +224,7 @@ pub async fn test_login(auth_data: AuthRequest, config: &Config) -> Result<impl 
                     token, config.domain, config.expiration_seconds
                 ),
             );
+            AUTHORIZED_USERS.merge_users(&[user])?;
             return Ok(reply);
         }
     }

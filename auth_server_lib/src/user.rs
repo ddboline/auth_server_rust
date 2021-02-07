@@ -133,6 +133,7 @@ impl From<User> for AuthorizedUser {
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
+    use log::debug;
 
     use crate::{config::Config, get_random_string, pgpool::PgPool, user::User};
 
@@ -150,7 +151,7 @@ mod tests {
 
         user.insert(&pool).await?;
         let mut db_user = User::get_by_email(&email, &pool).await?.unwrap();
-        println!("{:?}", db_user);
+        debug!("{:?}", db_user);
         assert!(db_user.verify_password(&password)?);
 
         let password = get_random_string(32);
@@ -158,7 +159,7 @@ mod tests {
         db_user.upsert(&pool).await?;
 
         let db_user = User::get_by_email(&email, &pool).await?.unwrap();
-        println!("{:?}", db_user);
+        debug!("{:?}", db_user);
         assert!(db_user.verify_password(&password)?);
 
         db_user.delete(&pool).await?;
@@ -172,7 +173,7 @@ mod tests {
         let pool = PgPool::new(&config.database_url);
         let count = User::get_number_users(&pool).await? as usize;
         let users = User::get_authorized_users(&pool).await?;
-        println!("{:?}", users);
+        debug!("{:?}", users);
         assert_eq!(count, users.len());
         Ok(())
     }

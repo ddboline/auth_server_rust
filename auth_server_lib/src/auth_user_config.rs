@@ -142,6 +142,7 @@ struct TomlEntry {
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
+    use log::debug;
 
     use crate::auth_user_config::AuthUserConfig;
 
@@ -149,7 +150,7 @@ mod tests {
     fn test_auth_user_config() -> Result<(), Error> {
         let data = include_str!("../../tests/data/test_config.toml");
         let config: AuthUserConfig = data.parse()?;
-        println!("{:?}", config);
+        debug!("{:?}", config);
         assert_eq!(config.len(), 2);
         let entry = config.get("aws_app_rust").unwrap();
         assert_eq!(

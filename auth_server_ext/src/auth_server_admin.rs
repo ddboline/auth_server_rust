@@ -254,6 +254,7 @@ pub async fn run_cli() -> Result<(), Error> {
 #[cfg(test)]
 mod test {
     use anyhow::Error;
+    use log::debug;
     use rand::{thread_rng, Rng};
     use std::collections::HashSet;
     use stdout_channel::{MockStdout, StdoutChannel};
@@ -321,15 +322,15 @@ mod test {
             let inv: Invitation = serde_json::from_str(line.as_str())?;
             stdout_invitations.insert(inv.id);
         }
-        println!("invitation {:?}", stdout_invitations);
-        println!("invitation {:?}", invitation);
+        debug!("invitation {:?}", stdout_invitations);
+        debug!("invitation {:?}", invitation);
         assert!(stdout_invitations.contains(&invitation.id));
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
         let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
 
-        println!("start register");
+        debug!("start register");
         let opts = AuthServerOptions::Register {
             invitation_id: invitation.id.to_string().into(),
             password: password.into(),
@@ -340,7 +341,7 @@ mod test {
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
         assert_eq!(mock_stdout.lock().await.len(), 1);
-        println!("{} {}", email, mock_stdout.lock().await.join("\n"));
+        debug!("{} {}", email, mock_stdout.lock().await.join("\n"));
         assert!(mock_stdout.lock().await[0].contains(&email));
 
         let users = User::get_authorized_users(&pool).await?;
@@ -349,7 +350,7 @@ mod test {
         let mock_stderr = MockStdout::new();
         let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
 
-        println!("start list");
+        debug!("start list");
         let opts = AuthServerOptions::List;
         opts.process_args(&pool, &stdout).await?;
 
@@ -357,7 +358,7 @@ mod test {
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
         assert_eq!(mock_stdout.lock().await.len(), users.len());
-        println!("list users {:?}", mock_stdout.lock().await);
+        debug!("list users {:?}", mock_stdout.lock().await);
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
@@ -378,7 +379,7 @@ mod test {
             .await
             .join("")
             .contains("Password updated"));
-        println!("change pwd {:?}", mock_stdout.lock().await);
+        debug!("change pwd {:?}", mock_stdout.lock().await);
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
@@ -394,7 +395,7 @@ mod test {
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
         let result = mock_stdout.lock().await.join("\n");
-        println!("verify {}", result);
+        debug!("verify {}", result);
         assert!(result.contains("Password correct"));
 
         let mock_stdout = MockStdout::new();

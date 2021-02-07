@@ -193,7 +193,7 @@ pub fn get_random_key() -> SmallVec<SecretKey> {
 
 pub fn get_random_nonce() -> Vec<u8> {
     let mut rng = thread_rng();
-    (0..96).map(|_| rng.gen::<u8>()).collect()
+    (0..12).map(|_| rng.gen::<u8>()).collect()
 }
 
 pub async fn get_secrets<T: AsRef<Path>>(
