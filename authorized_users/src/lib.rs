@@ -12,6 +12,7 @@ pub mod claim;
 pub mod token;
 
 use arc_swap::ArcSwap;
+use biscuit::{jwk, jws, Empty};
 use chrono::{DateTime, Utc};
 use crossbeam::atomic::AtomicCell;
 use im::HashMap;
@@ -151,6 +152,14 @@ impl AuthSecret {
         } else {
             panic!("Attempting to use uninitialized secret key");
         }
+    }
+
+    pub fn get_jws_secret(&'static self) -> jws::Secret {
+        jws::Secret::Bytes(self.get().into())
+    }
+
+    pub fn get_jwk_secret(&'static self) -> jwk::JWK<Empty> {
+        jwk::JWK::new_octet_key(&self.get(), Empty::default())
     }
 
     pub fn set(&self, key: SecretKey) {

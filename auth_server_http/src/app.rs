@@ -164,7 +164,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
             status(&data.pool).await.map_err(Into::<Rejection>::into)
         });
 
-    let api = warp::path("api").and(
+    let api_scope = warp::path("api").and(
         auth_path
             .or(invitation_path)
             .or(register_path)
@@ -184,7 +184,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
     let change_password_path = warp::path("change_password.html")
         .and(warp::get())
         .map(change_password);
-    let auth = warp::path("auth").and(
+    let auth_scope = warp::path("auth").and(
         index_html_path
             .or(main_css_path)
             .or(main_js_path)
@@ -193,7 +193,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
             .or(change_password_path),
     );
 
-    let routes = api.or(auth).recover(error_response).with(cors);
+    let routes = api_scope.or(auth_scope).recover(error_response).with(cors);
 
     let addr: SocketAddr = format!("127.0.0.1:{}", config.port).parse()?;
     debug!("{:?}", addr);

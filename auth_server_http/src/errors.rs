@@ -108,7 +108,7 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
                 message = "Internal Server Error, Please try again later";
             }
         }
-    } else if let Some(_) = err.find::<warp::reject::MethodNotAllowed>() {
+    } else if err.find::<warp::reject::MethodNotAllowed>().is_some() {
         code = StatusCode::METHOD_NOT_ALLOWED;
         message = "METHOD NOT ALLOWED";
     } else {

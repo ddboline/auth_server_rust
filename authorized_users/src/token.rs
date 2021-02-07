@@ -3,11 +3,7 @@ use biscuit::{
     jwa::{
         ContentEncryptionAlgorithm, EncryptionOptions, KeyManagementAlgorithm, SignatureAlgorithm,
     },
-    jwe,
-    jwk::JWK,
-    jws,
-    jws::Secret,
-    ClaimsSet, Empty, JWE, JWT,
+    jwe, jws, ClaimsSet, Empty, JWE, JWT,
 };
 use derive_more::{Display, From, Into};
 use log::debug;
@@ -22,6 +18,7 @@ const CE_ALGORITHM: ContentEncryptionAlgorithm = ContentEncryptionAlgorithm::A25
 pub struct Token(String);
 
 impl Token {
+    #[allow(clippy::similar_names)]
     pub fn create_token(
         data: &AuthorizedUser,
         domain: &str,
@@ -38,10 +35,8 @@ impl Token {
         };
         let jwt = JWT::new_decoded(header.into(), claimset);
         debug!("jwt {:?}", jwt);
-        let jws_secret = Secret::Bytes(JWT_SECRET.get().into());
-        let jwe_secret = JWK::new_octet_key(&SECRET_KEY.get(), Empty::default());
 
-        let jws = jwt.into_encoded(&jws_secret)?;
+        let jws = jwt.into_encoded(&JWT_SECRET.get_jws_secret())?;
         debug!("jws {:?}", jws);
 
         let jwe_header = jwe::RegisteredHeader {
@@ -57,20 +52,20 @@ impl Token {
         let options = EncryptionOptions::AES_GCM {
             nonce: get_random_nonce(),
         };
-        let encrypted_jwe = jwe.encrypt(&jwe_secret, &options)?;
+        let encrypted_jwe = jwe.encrypt(&SECRET_KEY.get_jwk_secret(), &options)?;
 
         Ok(Token(encrypted_jwe.unwrap_encrypted().to_string()))
     }
 
+    #[allow(clippy::similar_names)]
     pub fn decode_token(&self) -> Result<Claim, Error> {
-        let jws_secret = Secret::Bytes(JWT_SECRET.get().into());
-        let jwe_secret = JWK::new_octet_key(&SECRET_KEY.get(), Empty::default());
-
         let token: JWE<Claim, Empty, Empty> = JWE::new_encrypted(&self.0);
 
-        let decrypted_jwe = token.into_decrypted(&jwe_secret, KM_ALGORITHM, CE_ALGORITHM)?;
+        let decrypted_jwe =
+            token.into_decrypted(&SECRET_KEY.get_jwk_secret(), KM_ALGORITHM, CE_ALGORITHM)?;
         let decrypted_jws = decrypted_jwe.payload()?.clone();
-        let token = decrypted_jws.into_decoded(&jws_secret, SG_ALGORITHM)?;
+
+        let token = decrypted_jws.into_decoded(&JWT_SECRET.get_jws_secret(), SG_ALGORITHM)?;
         Ok(token.payload()?.private.clone())
     }
 }
