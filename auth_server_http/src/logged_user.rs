@@ -1,13 +1,10 @@
-use actix_identity::Identity;
-use actix_web::{dev::Payload, FromRequest, HttpRequest};
-use futures::{
-    executor::block_on,
-    future::{ready, Ready},
-};
 use log::debug;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
-use std::env;
+use std::{
+    convert::{TryFrom, TryInto},
+    str::FromStr,
+};
 
 use authorized_users::{token::Token, AuthorizedUser, AUTHORIZED_USERS};
 
@@ -30,32 +27,23 @@ impl From<LoggedUser> for AuthorizedUser {
     }
 }
 
-fn _from_request(req: &HttpRequest, pl: &mut Payload) -> Result<LoggedUser, actix_web::Error> {
-    if let Ok(s) = env::var("TESTENV") {
-        if &s == "true" {
-            return Ok(LoggedUser {
-                email: "user@test".into(),
-            });
+impl TryFrom<Token> for LoggedUser {
+    type Error = Error;
+    fn try_from(token: Token) -> Result<Self, Self::Error> {
+        let user = token.decode_token()?.into();
+        if AUTHORIZED_USERS.is_authorized(&user) {
+            return Ok(user.into());
+        } else {
+            debug!("NOT AUTHORIZED {:?}", user);
         }
+        Err(Error::Unauthorized)
     }
-    if let Some(identity) = block_on(Identity::from_request(req, pl))?.identity() {
-        if let Some(user) = Token::decode_token(&identity.into()).ok().map(Into::into) {
-            if AUTHORIZED_USERS.is_authorized(&user) {
-                return Ok(user.into());
-            } else {
-                debug!("not authorized {:?}", user);
-            }
-        }
-    }
-    Err(Error::Unauthorized.into())
 }
 
-impl FromRequest for LoggedUser {
-    type Error = actix_web::Error;
-    type Future = Ready<Result<Self, actix_web::Error>>;
-    type Config = ();
-
-    fn from_request(req: &HttpRequest, pl: &mut Payload) -> Self::Future {
-        ready(_from_request(req, pl))
+impl FromStr for LoggedUser {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let token: Token = s.to_string().into();
+        token.try_into()
     }
 }

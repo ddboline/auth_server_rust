@@ -1,3 +1,4 @@
+use biscuit::RegisteredClaims;
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
@@ -5,7 +6,7 @@ use stack_string::StackString;
 use crate::AuthorizedUser;
 
 // JWT claim
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claim {
     // issuer
     iss: StackString,
@@ -17,6 +18,19 @@ pub struct Claim {
     exp: i64,
     // user email
     email: StackString,
+}
+
+impl From<Claim> for RegisteredClaims {
+    fn from(claim: Claim) -> Self {
+        Self {
+            issuer: Some(claim.iss.into()),
+            subject: Some(claim.sub.into()),
+            issued_at: Some(claim.iat.into()),
+            expiry: Some(claim.exp.into()),
+            id: Some(claim.email.into()),
+            ..Self::default()
+        }
+    }
 }
 
 // struct to get converted to token and back

@@ -1,10 +1,9 @@
 use anyhow::Error;
-use lazy_static::lazy_static;
 use log::debug;
 use stack_string::StackString;
-use std::sync::Arc;
-use std::time::Duration;
+use std::{net::SocketAddr, time::Duration};
 use tokio::{task::spawn, time::interval};
+use warp::{Filter, Rejection};
 
 use auth_server_ext::google_openid::GoogleClient;
 use auth_server_lib::{
@@ -14,42 +13,38 @@ use auth_server_lib::{
     user::User,
 };
 use authorized_users::{
-    get_secrets, update_secret, AuthorizedUser, AUTHORIZED_USERS, KEY_LENGTH, SECRET_KEY,
-    TRIGGER_DB_UPDATE,
+    get_secrets, update_secret, AuthorizedUser, AUTHORIZED_USERS, TRIGGER_DB_UPDATE,
 };
 
-use crate::errors::error_response;
-use crate::routes::{
-    auth_url, callback, change_password_user, get_me, login, logout, register_email, register_user,
-    status, test_get_me, test_login, test_logout,
+use crate::{
+    errors::error_response,
+    logged_user::LoggedUser,
+    routes::{
+        auth_url, callback, change_password_user, get_me, login, logout, register_email,
+        register_user, status, test_login,
+    },
 };
 
-lazy_static! {
-    pub static ref CONFIG: Config = Config::init_config().expect("Failed to init config");
+async fn update_secrets(config: &Config) -> Result<(), Error> {
+    update_secret(&config.secret_path).await?;
+    update_secret(&config.jwt_secret_path).await
 }
 
-async fn update_secrets() -> Result<(), Error> {
-    update_secret(&CONFIG.secret_path).await?;
-    update_secret(&CONFIG.jwt_secret_path).await
-}
-
+#[derive(Clone)]
 pub struct AppState {
+    pub config: Config,
     pub pool: PgPool,
     pub google_client: GoogleClient,
-    pub secret: [u8; KEY_LENGTH],
 }
 
 pub async fn start_app() -> Result<(), Error> {
-    update_secrets().await?;
-    get_secrets(&CONFIG.secret_path, &CONFIG.jwt_secret_path).await?;
-    run_app(CONFIG.port, SECRET_KEY.get(), CONFIG.domain.clone()).await
+    let config = Config::init_config()?;
+    update_secrets(&config).await?;
+    get_secrets(&config.secret_path, &config.jwt_secret_path).await?;
+    run_app(config).await
 }
 
-async fn run_app(
-    port: u32,
-    cookie_secret: [u8; KEY_LENGTH],
-    domain: StackString,
-) -> Result<(), Error> {
+async fn run_app(config: Config) -> Result<(), Error> {
     async fn _update_db(pool: PgPool) {
         let mut i = interval(Duration::from_secs(60));
         loop {
@@ -59,22 +54,22 @@ async fn run_app(
         }
     }
 
-    let google_client = GoogleClient::new(&CONFIG).await?;
-    let pool = PgPool::new(&CONFIG.database_url);
+    let google_client = GoogleClient::new(&config).await?;
+    let pool = PgPool::new(&config.database_url);
 
     spawn(_update_db(pool.clone()));
 
-    let app = Arc::new(AppState {
+    let app = AppState {
+        config: config.clone(),
         pool: pool.clone(),
         google_client: google_client.clone(),
-        secret: cookie_secret,
-    });
+    };
 
     let data = warp::any().map(move || app.clone());
     let cors = warp::cors()
         .allow_methods(vec!["GET", "POST", "DELETE"])
         .allow_header("content-type")
-        .allow_header("authorization")
+        .allow_header("jwt")
         .allow_any_origin()
         .build();
 
@@ -82,22 +77,92 @@ async fn run_app(
         .and(warp::path::end())
         .and(data.clone())
         .and(warp::body::json())
-        .and(warp::addr::remote())
-        .and_then(|data, auth_data, ip| async move { login(data, auth_data, ip) });
+        .and_then(|data: AppState, auth_data| async move {
+            login(auth_data, &data.pool, &data.config)
+                .await
+                .map_err(Into::<Rejection>::into)
+        });
 
-    let delete = warp::delete().and(logout);
-    let get = warp::get().and(get_me);
+    let delete = warp::delete()
+        .and(warp::path::end())
+        .and(warp::filters::cookie::cookie("jwt"))
+        .and(data.clone())
+        .and_then(|user: LoggedUser, data: AppState| async move {
+            logout(user, &data.config)
+                .await
+                .map_err(Into::<Rejection>::into)
+        });
+
+    let get = warp::get()
+        .and(warp::filters::cookie::cookie("jwt"))
+        .and_then(
+            |user: LoggedUser| async move { get_me(user).await.map_err(Into::<Rejection>::into) },
+        );
+
     let auth_path = warp::path("auth").and(post.or(delete).or(get));
+
     let invitation_path = warp::path("invitation")
         .and(warp::post())
-        .and(register_email);
-    let register_path = warp::post().and(warp::path!("register" / StackString).map(register_user));
+        .and(warp::path::end())
+        .and(data.clone())
+        .and(warp::body::json())
+        .and_then(|data: AppState, invitation| async move {
+            register_email(invitation, &data.pool, &data.config)
+                .await
+                .map_err(Into::<Rejection>::into)
+        });
+
+    let register_path = warp::path!("register" / StackString)
+        .and(warp::post())
+        .and(warp::path::end())
+        .and(data.clone())
+        .and(warp::body::json())
+        .and_then(|invitation_id, data: AppState, user_data| async move {
+            register_user(invitation_id, user_data, &data.pool, &data.config)
+                .await
+                .map_err(Into::<Rejection>::into)
+        });
+
     let password_change_path = warp::path("password_change")
         .and(warp::post())
-        .and(change_password_user);
-    let auth_url_path = warp::path("auth_url").and(warp::post()).and(auth_url);
-    let callback_path = warp::path("callback").and(warp::get()).and(callback);
-    let status_path = warp::path("status").and(warp::get()).and(status);
+        .and(warp::path::end())
+        .and(warp::filters::cookie::cookie("jwt"))
+        .and(data.clone())
+        .and(warp::body::json())
+        .and_then(|user: LoggedUser, data: AppState, user_data| async move {
+            change_password_user(user, user_data, &data.pool, &data.config)
+                .await
+                .map_err(Into::<Rejection>::into)
+        });
+
+    let auth_url_path = warp::path("auth_url")
+        .and(warp::post())
+        .and(warp::path::end())
+        .and(data.clone())
+        .and(warp::body::json())
+        .and_then(|data: AppState, payload| async move {
+            auth_url(payload, &data.google_client)
+                .await
+                .map_err(Into::<Rejection>::into)
+        });
+
+    let callback_path = warp::path("callback")
+        .and(warp::get())
+        .and(warp::path::end())
+        .and(data.clone())
+        .and(warp::filters::query::query())
+        .and_then(|data: AppState, query| async move {
+            callback(query, &data.pool, &data.google_client, &data.config)
+                .await
+                .map_err(Into::<Rejection>::into)
+        });
+
+    let status_path = warp::path("status")
+        .and(warp::get())
+        .and(data.clone())
+        .and_then(|data: AppState| async move {
+            status(&data.pool).await.map_err(Into::<Rejection>::into)
+        });
 
     let api = warp::path("api").and(
         auth_path
@@ -109,16 +174,16 @@ async fn run_app(
             .or(status_path),
     );
 
-    let index_html_path = warp::path("index.html").and(warp::get()).and(index_html);
-    let main_css_path = warp::path("main.css").and(warp::get()).and(main_css);
-    let main_js_path = warp::path("main.js").and(warp::get()).and(main_js);
+    let index_html_path = warp::path("index.html").and(warp::get()).map(index_html);
+    let main_css_path = warp::path("main.css").and(warp::get()).map(main_css);
+    let main_js_path = warp::path("main.js").and(warp::get()).map(main_js);
     let register_html_path = warp::path("register.html")
         .and(warp::get())
-        .and(register_html);
-    let login_html_path = warp::path("login.html").and(warp::get()).and(login_html);
+        .map(register_html);
+    let login_html_path = warp::path("login.html").and(warp::get()).map(login_html);
     let change_password_path = warp::path("change_password.html")
         .and(warp::get())
-        .and(change_password);
+        .map(change_password);
     let auth = warp::path("auth").and(
         index_html_path
             .or(main_css_path)
@@ -130,26 +195,15 @@ async fn run_app(
 
     let routes = api.or(auth).recover(error_response).with(cors);
 
-    warp::serve(routes)
-        .bind(&format!("localhost:{}", port))
-        .await;
+    let addr: SocketAddr = format!("localhost:{}", config.port).parse()?;
+    warp::serve(routes).bind(addr).await;
 
     Ok(())
 }
 
-pub async fn run_test_app(
-    port: u32,
-    cookie_secret: [u8; KEY_LENGTH],
-    domain: StackString,
-) -> Result<(), Error> {
-    let google_client = GoogleClient::new(&CONFIG).await?;
-    let pool = PgPool::new(&CONFIG.database_url);
-
-    let app = Arc::new(AppState {
-        pool: pool.clone(),
-        google_client: google_client.clone(),
-        secret: cookie_secret,
-    });
+pub async fn run_test_app(config: Config) -> Result<(), Error> {
+    let port = config.port;
+    let data = warp::any().map(move || config.clone());
 
     let cors = warp::cors()
         .allow_methods(vec!["GET", "POST", "DELETE"])
@@ -158,16 +212,36 @@ pub async fn run_test_app(
         .allow_any_origin()
         .build();
 
-    let post = warp::post().and(test_login);
-    let delete = warp::delete().and(test_logout);
-    let get = warp::get().and(test_get_me);
+    let post = warp::post()
+        .and(warp::path::end())
+        .and(warp::body::json())
+        .and(data.clone())
+        .and_then(|auth_data, config| async move {
+            test_login(auth_data, &config)
+                .await
+                .map_err(Into::<Rejection>::into)
+        });
+    let delete = warp::delete()
+        .and(warp::path::end())
+        .and(warp::filters::cookie::cookie("jwt"))
+        .and(data.clone())
+        .and_then(|user: LoggedUser, config| async move {
+            logout(user, &config).await.map_err(Into::<Rejection>::into)
+        });
+
+    let get = warp::get()
+        .and(warp::path::end())
+        .and(warp::filters::cookie::cookie("jwt"))
+        .and_then(
+            |user: LoggedUser| async move { get_me(user).await.map_err(Into::<Rejection>::into) },
+        );
+
     let auth_path = warp::path("auth").and(post.or(delete).or(get));
 
     let routes = auth_path.recover(error_response).with(cors);
 
-    warp::serve(routes)
-        .bind(&format!("localhost:{}", port))
-        .await;
+    let addr: SocketAddr = format!("localhost:{}", port).parse()?;
+    warp::serve(routes).bind(addr).await;
 
     Ok(())
 }
@@ -192,13 +266,16 @@ pub async fn fill_auth_from_db(pool: &PgPool) -> Result<(), anyhow::Error> {
 mod tests {
     use anyhow::Error;
     use maplit::hashmap;
+    use std::env;
 
     use auth_server_ext::invitation::Invitation;
-    use auth_server_lib::{get_random_string, pgpool::PgPool, user::User, AUTH_APP_MUTEX};
+    use auth_server_lib::{
+        config::Config, get_random_string, pgpool::PgPool, user::User, AUTH_APP_MUTEX,
+    };
     use authorized_users::{get_random_key, JWT_SECRET, KEY_LENGTH, SECRET_KEY};
 
     use crate::{
-        app::{run_app, run_test_app, CONFIG},
+        app::{run_app, run_test_app},
         logged_user::LoggedUser,
     };
 
@@ -210,11 +287,11 @@ mod tests {
         Ok(())
     }
 
-    #[actix_rt::test]
+    #[tokio::test]
     async fn test_test_app() -> Result<(), Error> {
         let _lock = AUTH_APP_MUTEX.lock();
 
-        std::env::set_var("TESTENV", "true");
+        env::set_var("TESTENV", "true");
         let email = format!("{}@localhost", get_random_string(32));
         let password = get_random_string(32);
 
@@ -225,10 +302,14 @@ mod tests {
         JWT_SECRET.set(secret_key);
 
         let test_port = 54321;
-        actix_rt::spawn(async move {
-            run_test_app(test_port, secret_key, "localhost".into())
-                .await
-                .unwrap()
+
+        env::set_var("PORT", test_port.to_string());
+        env::set_var("DOMAIN", "localhost");
+        let config = Config::init_config()?;
+
+        tokio::task::spawn({
+            let config = config.clone();
+            async move { run_test_app(config).await.unwrap() }
         });
 
         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
@@ -266,28 +347,30 @@ mod tests {
         Ok(())
     }
 
-    #[actix_rt::test]
+    #[tokio::test]
     async fn test_create_user() -> Result<(), Error> {
         let _lock = AUTH_APP_MUTEX.lock();
 
-        let pool = PgPool::new(&CONFIG.database_url);
+        let mut secret_key = [0u8; KEY_LENGTH];
+        secret_key.copy_from_slice(&get_random_key());
+
+        let test_port = 12345;
+
+        env::set_var("PORT", test_port.to_string());
+        env::set_var("DOMAIN", "localhost");
+
+        let config = Config::init_config()?;
+
+        let pool = PgPool::new(&config.database_url);
         let email = format!("{}@localhost", get_random_string(32));
         let password = get_random_string(32);
         let invitation = Invitation::from_email(&email);
         invitation.insert(&pool).await?;
 
-        let mut secret_key = [0u8; KEY_LENGTH];
-        secret_key.copy_from_slice(&get_random_key());
-
         SECRET_KEY.set(secret_key);
         JWT_SECRET.set(secret_key);
 
-        let test_port = 12345;
-        actix_rt::spawn(async move {
-            run_app(test_port, secret_key, "localhost".into())
-                .await
-                .unwrap()
-        });
+        tokio::task::spawn(async move { run_app(config).await.unwrap() });
 
         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 

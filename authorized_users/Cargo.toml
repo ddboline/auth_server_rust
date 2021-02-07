@@ -22,5 +22,5 @@ smallvec = "1.6"
 crossbeam = "0.8"
 arc-swap = "1.2"
 im = "15.0"
-jsonwebtoken = "7.2"
+biscuit = "0.5"
 stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.2.0", features=["postgres_types"] }

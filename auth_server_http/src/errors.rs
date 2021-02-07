@@ -2,18 +2,22 @@ use anyhow::Error as AnyhowError;
 use auth_server_ext::google_openid::OpenidError;
 use bcrypt::BcryptError;
 use http::{Error as HTTPError, StatusCode};
+use log::error;
 use postgres_query::extract::Error as QueryError;
 use rusoto_core::RusotoError;
 use rusoto_ses::{GetSendQuotaError, GetSendStatisticsError, SendEmailError};
 use serde::Serialize;
-use std::convert::Infallible;
-use std::{convert::From, fmt::Debug};
+use serde_json::Error as SerdeJsonError;
+use std::{
+    convert::{From, Infallible},
+    fmt::Debug,
+};
 use thiserror::Error;
 use tokio::task::JoinError;
 use tokio_postgres::Error as PostgresError;
 use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
-use warp::{Rejection, Reply};
+use warp::{reject::Reject, Rejection, Reply};
 
 use auth_server_lib::static_files;
 use authorized_users::TRIGGER_DB_UPDATE;
@@ -48,6 +52,8 @@ pub enum ServiceError {
     SendEmailError(#[from] RusotoError<SendEmailError>),
     #[error("HTTP error {0}")]
     HTTPError(#[from] HTTPError),
+    #[error("SerdeJsonError {0}")]
+    SerdeJsonError(#[from] SerdeJsonError),
 }
 
 // we can return early in our handlers if UUID provided by the user is not valid
@@ -64,11 +70,7 @@ impl From<OpenidError> for ServiceError {
     }
 }
 
-impl From<ServiceError> for Rejection {
-    fn from(e: ServiceError) -> Self {
-        warp::reject::custom(e)
-    }
-}
+impl Reject for ServiceError {}
 
 #[derive(Serialize)]
 struct ErrorMessage {
@@ -76,24 +78,25 @@ struct ErrorMessage {
     message: String,
 }
 
-pub fn error_response(err: Rejection) -> Result<impl Reply, Infallible> {
-    let code;
-    let message;
+pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible> {
+    let code: StatusCode;
+    let message: &str;
 
     if err.is_not_found() {
         code = StatusCode::NOT_FOUND;
         message = "NOT FOUND";
     } else if let Some(service_err) = err.find::<ServiceError>() {
         match service_err {
-            ServiceError::BadRequest(message) => {
+            ServiceError::BadRequest(msg) => {
                 code = StatusCode::BAD_REQUEST;
-                message = message;
+                message = msg.as_str();
             }
             ServiceError::Unauthorized => {
                 TRIGGER_DB_UPDATE.set();
-                match static_files::login_html().expect("Unexpected failure") {
-                    Ok(b) => return Ok(b),
+                match static_files::login_html() {
+                    Ok(b) => return Ok(Box::new(b)),
                     Err(e) => {
+                        error!("Encountered error: {:?}", e);
                         code = StatusCode::INTERNAL_SERVER_ERROR;
                         message = "Internal Server Error, Please try again later";
                     }
@@ -109,13 +112,16 @@ pub fn error_response(err: Rejection) -> Result<impl Reply, Infallible> {
         message = "METHOD NOT ALLOWED";
     } else {
         code = StatusCode::INTERNAL_SERVER_ERROR;
-        message = message = "Internal Server Error, Please try again later";
+        message = "Internal Server Error, Please try again later";
     };
 
-    let json = warp::reply::json(&ErrorMessage {
+    let body = serde_json::to_string(&ErrorMessage {
         code: code.as_u16(),
-        message: message.into(),
-    });
+        message: message.to_string(),
+    })
+    .expect("Bad error message");
 
-    Ok(warp::reply::with_status(json, code))
+    let reply = warp::reply::html(body);
+
+    Ok(Box::new(warp::reply::with_status(reply, code)))
 }
