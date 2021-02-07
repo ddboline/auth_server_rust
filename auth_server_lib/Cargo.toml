@@ -8,7 +8,6 @@ edition = "2018"
 
 [dependencies]
 authorized_users = {path = "../authorized_users"}
-warp = "0.3"
 http = "0.2"
 anyhow = "1.0"
 log = "0.4"

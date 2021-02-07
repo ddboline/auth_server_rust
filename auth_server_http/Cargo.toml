@@ -15,7 +15,6 @@ http = "0.2"
 biscuit = "0.5"
 anyhow = "1.0"
 log = "0.4"
-env_logger = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "0.8", features = ["serde", "v4"] }
 tokio = {version="1.0", features=["full"]}
@@ -35,7 +34,6 @@ deadqueue = "0.2"
 tokio-postgres = {version = "0.7", features = ["with-chrono-0_4", "with-uuid-0_8"]}
 postgres-types = "0.2"
 postgres_query = {git = "https://github.com/ddboline/rust-postgres-query", branch="master"}
-jsonwebtoken = "7.2"
 bcrypt = "0.9"
 bytes = "1.0"
 envy = "0.4"
@@ -57,3 +55,4 @@ stdout-channel = { git = "https://github.com/ddboline/stdout-channel-rs.git", ta
 [dev-dependencies]
 reqwest = {version = "0.11", features=["cookies", "rustls-tls", "gzip", "json"]}
 maplit = "1.0"
+env_logger = "0.8"
