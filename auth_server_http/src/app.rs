@@ -202,6 +202,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
     Ok(())
 }
 
+#[allow(clippy::similar_names)]
 pub async fn run_test_app(config: Config) -> Result<(), Error> {
     let port = config.port;
     let data = warp::any().map(move || config.clone());
