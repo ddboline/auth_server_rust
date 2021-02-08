@@ -47,3 +47,20 @@ impl FromStr for LoggedUser {
         token.try_into()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use authorized_users::AuthorizedUser;
+
+    use crate::logged_user::LoggedUser;
+
+    #[test]
+    fn test_authorized_user_to_logged_user() {
+        let email = "test@localhost";
+        let user = AuthorizedUser { email: email.into() };
+
+        let user: LoggedUser = user.into();
+
+        assert_eq!(user.email, email);
+    }
+}

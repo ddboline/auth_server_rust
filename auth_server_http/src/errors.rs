@@ -127,3 +127,23 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
 
     Ok(Box::new(warp::reply::with_status(reply, code)))
 }
+
+#[cfg(test)]
+mod test {
+    use anyhow::Error;
+    use warp::Reply;
+
+    use crate::errors::{error_response, ServiceError};
+
+    #[tokio::test]
+    async fn test_service_error() -> Result<(), Error> {
+        let err = ServiceError::BadRequest("TEST ERROR".into()).into();
+        let resp = error_response(err).await?.into_response();
+        assert_eq!(resp.status().as_u16(), 400);
+
+        let err = ServiceError::InternalServerError.into();
+        let resp = error_response(err).await?.into_response();
+        assert_eq!(resp.status().as_u16(), 500);
+        Ok(())
+    }
+}

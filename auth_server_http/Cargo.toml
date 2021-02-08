@@ -17,7 +17,7 @@ anyhow = "1.0"
 log = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "0.8", features = ["serde", "v4"] }
-tokio = {version="1.0", features=["full"]}
+tokio = {version="1.2", features=["full"]}
 thiserror = "1.0"
 dirs = "3.0"
 dotenv = "0.15"
@@ -50,7 +50,7 @@ im = "15.0"
 toml = "0.5"
 itertools = "0.10"
 stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.2.0", features=["postgres_types"] }
-stdout-channel = { git = "https://github.com/ddboline/stdout-channel-rs.git", tag="0.3.0" }
+stdout-channel = { git = "https://github.com/ddboline/stdout-channel-rs.git", tag="0.3.1" }
 
 [dev-dependencies]
 reqwest = {version = "0.11", features=["cookies", "rustls-tls", "gzip", "json"]}
