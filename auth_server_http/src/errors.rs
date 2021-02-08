@@ -117,15 +117,13 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
         message = "Internal Server Error, Please try again later";
     };
 
-    let body = serde_json::to_string(&ErrorMessage {
+    let reply = warp::reply::json(&ErrorMessage {
         code: code.as_u16(),
         message: message.to_string(),
-    })
-    .expect("Bad error message");
+    });
+    let reply = warp::reply::with_status(reply, code);
 
-    let reply = warp::reply::html(body);
-
-    Ok(Box::new(warp::reply::with_status(reply, code)))
+    Ok(Box::new(reply))
 }
 
 #[cfg(test)]

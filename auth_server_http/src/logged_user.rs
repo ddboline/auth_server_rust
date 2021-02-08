@@ -57,7 +57,9 @@ mod tests {
     #[test]
     fn test_authorized_user_to_logged_user() {
         let email = "test@localhost";
-        let user = AuthorizedUser { email: email.into() };
+        let user = AuthorizedUser {
+            email: email.into(),
+        };
 
         let user: LoggedUser = user.into();
 

@@ -5,10 +5,10 @@ use http::{
     StatusCode,
 };
 use log::debug;
-use serde::{Deserialize};
+use serde::Deserialize;
 use stack_string::StackString;
 use uuid::Uuid;
-use warp::{Reply, reply::Html, reply::Json};
+use warp::{reply::Html, reply::Json, Reply};
 
 use auth_server_ext::{
     google_openid::{CallbackQuery, GetAuthUrlData, GoogleClient},
