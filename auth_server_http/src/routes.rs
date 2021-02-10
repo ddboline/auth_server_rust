@@ -33,7 +33,7 @@ pub async fn login(data: AppState, auth_data: AuthRequest) -> WarpResult<impl Re
         reply,
         SET_COOKIE,
         format!(
-            "jwt={}; HttpOnly; Path=/; Domain={}; Max-Age={}",
+            "jwt={}; HttpOnly; Secure; Path=/; Domain={}; Max-Age={}",
             token, data.config.domain, data.config.expiration_seconds
         ),
     );
@@ -52,7 +52,7 @@ async fn login_user_token(
             Err(e) => format!("Failed to create_token {}", e),
         }
     } else {
-        format!("Username and Password don't match")
+        "Username and Password don't match".into()
     };
     Err(Error::BadRequest(message))
 }
@@ -63,7 +63,7 @@ pub async fn logout(logged_user: LoggedUser, data: AppState) -> WarpResult<impl 
         reply,
         SET_COOKIE,
         format!(
-            "jwt=; HttpOnly; Path=/; Domain={}; Max-Age={}",
+            "jwt=; HttpOnly; Secure; Path=/; Domain={}; Max-Age={}",
             data.config.domain, data.config.expiration_seconds
         ),
     );
