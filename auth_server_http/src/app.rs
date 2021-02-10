@@ -3,7 +3,7 @@ use log::debug;
 use stack_string::StackString;
 use std::{net::SocketAddr, time::Duration};
 use tokio::{task::spawn, time::interval};
-use warp::{Filter, Rejection};
+use warp::Filter;
 
 use auth_server_ext::google_openid::GoogleClient;
 use auth_server_lib::{
@@ -18,7 +18,6 @@ use authorized_users::{
 
 use crate::{
     errors::error_response,
-    logged_user::LoggedUser,
     routes::{
         auth_url, callback, change_password_user, get_me, login, logout, register_email,
         register_user, status, test_login,
@@ -77,27 +76,15 @@ async fn run_app(config: Config) -> Result<(), Error> {
         .and(warp::path::end())
         .and(data.clone())
         .and(warp::body::json())
-        .and_then(|data: AppState, auth_data| async move {
-            login(auth_data, &data.pool, &data.config)
-                .await
-                .map_err(Into::<Rejection>::into)
-        });
+        .and_then(login);
 
     let delete = warp::delete()
         .and(warp::path::end())
-        .and(warp::filters::cookie::cookie("jwt"))
+        .and(warp::cookie("jwt"))
         .and(data.clone())
-        .and_then(|user: LoggedUser, data: AppState| async move {
-            logout(user, &data.config)
-                .await
-                .map_err(Into::<Rejection>::into)
-        });
+        .and_then(logout);
 
-    let get = warp::get()
-        .and(warp::filters::cookie::cookie("jwt"))
-        .and_then(
-            |user: LoggedUser| async move { get_me(user).await.map_err(Into::<Rejection>::into) },
-        );
+    let get = warp::get().and(warp::cookie("jwt")).and_then(get_me);
 
     let auth_path = warp::path("auth").and(post.or(delete).or(get));
 
@@ -106,63 +93,41 @@ async fn run_app(config: Config) -> Result<(), Error> {
         .and(warp::path::end())
         .and(data.clone())
         .and(warp::body::json())
-        .and_then(|data: AppState, invitation| async move {
-            register_email(invitation, &data.pool, &data.config)
-                .await
-                .map_err(Into::<Rejection>::into)
-        });
+        .and_then(register_email);
 
     let register_path = warp::path!("register" / StackString)
         .and(warp::post())
         .and(warp::path::end())
         .and(data.clone())
         .and(warp::body::json())
-        .and_then(|invitation_id, data: AppState, user_data| async move {
-            register_user(invitation_id, user_data, &data.pool, &data.config)
-                .await
-                .map_err(Into::<Rejection>::into)
-        });
+        .and_then(register_user);
 
     let password_change_path = warp::path("password_change")
         .and(warp::post())
         .and(warp::path::end())
-        .and(warp::filters::cookie::cookie("jwt"))
+        .and(warp::cookie("jwt"))
         .and(data.clone())
         .and(warp::body::json())
-        .and_then(|user: LoggedUser, data: AppState, user_data| async move {
-            change_password_user(user, user_data, &data.pool, &data.config)
-                .await
-                .map_err(Into::<Rejection>::into)
-        });
+        .and_then(change_password_user);
 
     let auth_url_path = warp::path("auth_url")
         .and(warp::post())
         .and(warp::path::end())
         .and(data.clone())
         .and(warp::body::json())
-        .and_then(|data: AppState, payload| async move {
-            auth_url(payload, &data.google_client)
-                .await
-                .map_err(Into::<Rejection>::into)
-        });
+        .and_then(auth_url);
 
     let callback_path = warp::path("callback")
         .and(warp::get())
         .and(warp::path::end())
         .and(data.clone())
         .and(warp::filters::query::query())
-        .and_then(|data: AppState, query| async move {
-            callback(query, &data.pool, &data.google_client, &data.config)
-                .await
-                .map_err(Into::<Rejection>::into)
-        });
+        .and_then(callback);
 
     let status_path = warp::path("status")
         .and(warp::get())
         .and(data.clone())
-        .and_then(|data: AppState| async move {
-            status(&data.pool).await.map_err(Into::<Rejection>::into)
-        });
+        .and_then(status);
 
     let api_scope = warp::path("api").and(
         auth_path
@@ -204,8 +169,17 @@ async fn run_app(config: Config) -> Result<(), Error> {
 
 #[allow(clippy::similar_names)]
 pub async fn run_test_app(config: Config) -> Result<(), Error> {
+    let google_client = GoogleClient::new(&config).await?;
+    let pool = PgPool::new(&config.database_url);
+
+    let app = AppState {
+        config: config.clone(),
+        pool: pool.clone(),
+        google_client: google_client.clone(),
+    };
+
     let port = config.port;
-    let data = warp::any().map(move || config.clone());
+    let data = warp::any().map(move || app.clone());
 
     let cors = warp::cors()
         .allow_methods(vec!["GET", "POST", "DELETE"])
@@ -218,25 +192,18 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
         .and(warp::path::end())
         .and(warp::body::json())
         .and(data.clone())
-        .and_then(|auth_data, config| async move {
-            test_login(auth_data, &config)
-                .await
-                .map_err(Into::<Rejection>::into)
-        });
+        .and_then(test_login);
+
     let delete = warp::delete()
         .and(warp::path::end())
-        .and(warp::filters::cookie::cookie("jwt"))
+        .and(warp::cookie("jwt"))
         .and(data.clone())
-        .and_then(|user: LoggedUser, config| async move {
-            logout(user, &config).await.map_err(Into::<Rejection>::into)
-        });
+        .and_then(logout);
 
     let get = warp::get()
         .and(warp::path::end())
-        .and(warp::filters::cookie::cookie("jwt"))
-        .and_then(
-            |user: LoggedUser| async move { get_me(user).await.map_err(Into::<Rejection>::into) },
-        );
+        .and(warp::cookie("jwt"))
+        .and_then(get_me);
 
     let auth_path = warp::path!("api" / "auth").and(post.or(delete).or(get));
 

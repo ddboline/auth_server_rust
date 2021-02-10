@@ -7,8 +7,9 @@ use http::{
 use log::debug;
 use serde::Deserialize;
 use stack_string::StackString;
+use url::Url;
 use uuid::Uuid;
-use warp::{reply::Html, reply::Json, Reply};
+use warp::{Rejection, Reply};
 
 use auth_server_ext::{
     google_openid::{CallbackQuery, GetAuthUrlData, GoogleClient},
@@ -18,56 +19,59 @@ use auth_server_ext::{
 use auth_server_lib::{auth::AuthRequest, config::Config, pgpool::PgPool, user::User};
 use authorized_users::{token::Token, AuthorizedUser, AUTHORIZED_USERS};
 
-use crate::{errors::ServiceError as Error, logged_user::LoggedUser};
+use crate::{app::AppState, errors::ServiceError as Error, logged_user::LoggedUser};
 
-pub type WarpResult<T> = Result<T, Error>;
-pub type HttpResult = WarpResult<Html<String>>;
-pub type JsonResult = WarpResult<Json>;
+pub type WarpResult<T> = Result<T, Rejection>;
+pub type HttpResult<T> = Result<T, Error>;
 
-pub async fn login(
+pub async fn login(data: AppState, auth_data: AuthRequest) -> WarpResult<impl Reply> {
+    let (user, token) = login_user_token(auth_data, &data.pool, &data.config).await?;
+    let reply = warp::reply::json(&user);
+    let reply = warp::reply::with_status(reply, StatusCode::OK);
+    let reply = warp::reply::with_header(reply, CONTENT_TYPE, "application/json");
+    let reply = warp::reply::with_header(
+        reply,
+        SET_COOKIE,
+        format!(
+            "jwt={}; HttpOnly; Path=/; Domain={}; Max-Age={}",
+            token, data.config.domain, data.config.expiration_seconds
+        ),
+    );
+    Ok(reply)
+}
+
+async fn login_user_token(
     auth_data: AuthRequest,
     pool: &PgPool,
     config: &Config,
-) -> WarpResult<impl Reply> {
-    if let Some(user) = auth_data.authenticate(pool).await? {
+) -> HttpResult<(AuthorizedUser, Token)> {
+    let message = if let Some(user) = auth_data.authenticate(pool).await? {
         let user: AuthorizedUser = user.into();
-        let token = Token::create_token(&user, &config.domain, config.expiration_seconds)
-            .map_err(|e| Error::BadRequest(format!("Failed to create_token {}", e)))?;
-        let reply = warp::reply::json(&user);
-        let reply = warp::reply::with_status(reply, StatusCode::OK);
-        let reply = warp::reply::with_header(reply, CONTENT_TYPE, "application/json");
-        let reply = warp::reply::with_header(
-            reply,
-            SET_COOKIE,
-            format!(
-                "jwt={}; HttpOnly; Path=/; Domain={}; Max-Age={}",
-                token, config.domain, config.expiration_seconds
-            ),
-        );
-        Ok(reply)
+        match Token::create_token(&user, &config.domain, config.expiration_seconds) {
+            Ok(token) => return Ok((user, token)),
+            Err(e) => format!("Failed to create_token {}", e),
+        }
     } else {
-        Err(Error::BadRequest(
-            "Username and Password don't match".into(),
-        ))
-    }
+        format!("Username and Password don't match")
+    };
+    Err(Error::BadRequest(message))
 }
 
-pub async fn logout(logged_user: LoggedUser, config: &Config) -> WarpResult<impl Reply> {
+pub async fn logout(logged_user: LoggedUser, data: AppState) -> WarpResult<impl Reply> {
     let reply = warp::reply::html(format!("{} has been logged out", logged_user.email));
     let reply = warp::reply::with_header(
         reply,
         SET_COOKIE,
         format!(
             "jwt=; HttpOnly; Path=/; Domain={}; Max-Age={}",
-            config.domain, config.expiration_seconds
+            data.config.domain, data.config.expiration_seconds
         ),
     );
     Ok(reply)
 }
 
-pub async fn get_me(logged_user: LoggedUser) -> JsonResult {
-    let reply = warp::reply::json(&logged_user);
-    Ok(reply)
+pub async fn get_me(logged_user: LoggedUser) -> WarpResult<impl Reply> {
+    Ok(warp::reply::json(&logged_user))
 }
 
 #[derive(Deserialize)]
@@ -76,18 +80,25 @@ pub struct CreateInvitation {
 }
 
 pub async fn register_email(
+    data: AppState,
+    invitation: CreateInvitation,
+) -> WarpResult<impl Reply> {
+    let invitation = register_email_invitation(invitation, &data.pool, &data.config).await?;
+    Ok(warp::reply::json(&invitation))
+}
+
+async fn register_email_invitation(
     invitation: CreateInvitation,
     pool: &PgPool,
     config: &Config,
-) -> JsonResult {
+) -> HttpResult<Invitation> {
     let email = invitation.email;
     let invitation = Invitation::from_email(&email);
     invitation.insert(pool).await?;
     invitation
         .send_invitation(&config.sending_email_address, config.callback_url.as_str())
         .await?;
-    let reply = warp::reply::json(&invitation);
-    Ok(reply)
+    Ok(invitation)
 }
 
 #[derive(Debug, Deserialize)]
@@ -97,10 +108,19 @@ pub struct UserData {
 
 pub async fn register_user(
     invitation_id: StackString,
+    data: AppState,
+    user_data: UserData,
+) -> WarpResult<impl Reply> {
+    let user = register_user_object(invitation_id, user_data, &data.pool, &data.config).await?;
+    Ok(warp::reply::json(&user))
+}
+
+async fn register_user_object(
+    invitation_id: StackString,
     user_data: UserData,
     pool: &PgPool,
     config: &Config,
-) -> JsonResult {
+) -> HttpResult<AuthorizedUser> {
     let uuid = Uuid::parse_str(&invitation_id)?;
     if let Some(invitation) = Invitation::get_by_uuid(&uuid, pool).await? {
         if invitation.expires_at > Utc::now() {
@@ -109,8 +129,7 @@ pub async fn register_user(
             invitation.delete(pool).await?;
             let user: AuthorizedUser = user.into();
             AUTHORIZED_USERS.store_auth(user.clone(), true)?;
-            let reply = warp::reply::json(&user);
-            return Ok(reply);
+            return Ok(user);
         } else {
             invitation.delete(pool).await?;
         }
@@ -120,55 +139,76 @@ pub async fn register_user(
 
 pub async fn change_password_user(
     logged_user: LoggedUser,
+    data: AppState,
+    user_data: UserData,
+) -> WarpResult<impl Reply> {
+    let body = change_password_user_body(logged_user, user_data, &data.pool, &data.config).await?;
+    Ok(warp::reply::html(body))
+}
+
+async fn change_password_user_body(
+    logged_user: LoggedUser,
     user_data: UserData,
     pool: &PgPool,
     config: &Config,
-) -> HttpResult {
+) -> HttpResult<&'static str> {
     if let Some(mut user) = User::get_by_email(&logged_user.email, pool).await? {
         user.set_password(&user_data.password, &config);
         user.update(pool).await?;
-        let reply = warp::reply::html("password updated".into());
-        Ok(reply)
+        Ok("password updated")
     } else {
         Err(Error::BadRequest("Invalid User".into()))
     }
 }
 
-pub async fn auth_url(payload: GetAuthUrlData, google_client: &GoogleClient) -> HttpResult {
+pub async fn auth_url(data: AppState, payload: GetAuthUrlData) -> WarpResult<impl Reply> {
+    let authorize_url = auth_url_body(payload, &data.google_client).await?;
+    Ok(warp::reply::html(authorize_url.into_string()))
+}
+
+async fn auth_url_body(payload: GetAuthUrlData, google_client: &GoogleClient) -> HttpResult<Url> {
     debug!("{:?}", payload.final_url);
-    let authorize_url = google_client.get_auth_url(payload).await?;
-    let reply = warp::reply::html(authorize_url.into_string());
+    Ok(google_client.get_auth_url(payload).await?)
+}
+
+pub async fn callback(data: AppState, query: CallbackQuery) -> WarpResult<impl Reply> {
+    let (token, body) = callback_body(query, &data.pool, &data.google_client, &data.config).await?;
+    let body: String = body.into();
+    let reply = warp::reply::html(body);
+    let reply = warp::reply::with_status(reply, StatusCode::OK);
+    let reply = warp::reply::with_header(reply, CONTENT_TYPE, "application/json");
+    let reply = warp::reply::with_header(
+        reply,
+        SET_COOKIE,
+        format!(
+            "jwt={}; HttpOnly; Path=/; Domain={}; Max-Age={}",
+            token.to_string(),
+            data.config.domain,
+            data.config.expiration_seconds
+        ),
+    );
     Ok(reply)
 }
 
-pub async fn callback(
+async fn callback_body(
     query: CallbackQuery,
     pool: &PgPool,
     google_client: &GoogleClient,
     config: &Config,
-) -> WarpResult<impl Reply> {
+) -> HttpResult<(Token, StackString)> {
     if let Some((token, body)) = google_client.run_callback(&query, pool, &config).await? {
-        let body: String = body.into();
-        let reply = warp::reply::html(body);
-        let reply = warp::reply::with_status(reply, StatusCode::OK);
-        let reply = warp::reply::with_header(reply, CONTENT_TYPE, "application/json");
-        let reply = warp::reply::with_header(
-            reply,
-            SET_COOKIE,
-            format!(
-                "jwt={}; HttpOnly; Path=/; Domain={}; Max-Age={}",
-                token.to_string(),
-                config.domain,
-                config.expiration_seconds
-            ),
-        );
-        Ok(reply)
+        Ok((token, body))
     } else {
         Err(Error::BadRequest("Callback Failed".into()))
     }
 }
 
-pub async fn status(pool: &PgPool) -> HttpResult {
+pub async fn status(data: AppState) -> WarpResult<impl Reply> {
+    let body = status_body(&data.pool).await?;
+    Ok(warp::reply::html(body))
+}
+
+async fn status_body(pool: &PgPool) -> HttpResult<String> {
     let ses = SesInstance::new(None);
     let (number_users, number_invitations, (quota, stats)) = try_join!(
         User::get_number_users(pool),
@@ -179,30 +219,37 @@ pub async fn status(pool: &PgPool) -> HttpResult {
         "Users: {}<br>Invitations: {}<br>{:#?}<br>{:#?}<br>",
         number_users, number_invitations, quota, stats,
     );
-    let reply = warp::reply::html(body);
-    Ok(reply)
+    Ok(body)
 }
 
-pub async fn test_login(auth_data: AuthRequest, config: &Config) -> WarpResult<impl Reply> {
+pub async fn test_login(auth_data: AuthRequest, data: AppState) -> WarpResult<impl Reply> {
+    let (token, user) = test_login_token_user(auth_data, &data.config).await?;
+    let reply = warp::reply::json(&user);
+    let reply = warp::reply::with_status(reply, StatusCode::OK);
+    let reply = warp::reply::with_header(reply, CONTENT_TYPE, "application/json");
+    let reply = warp::reply::with_header(
+        reply,
+        SET_COOKIE,
+        format!(
+            "jwt={}; HttpOnly; Path=/; Domain={}; Max-Age={}",
+            token, data.config.domain, data.config.expiration_seconds
+        ),
+    );
+    return Ok(reply);
+}
+
+async fn test_login_token_user(
+    auth_data: AuthRequest,
+    config: &Config,
+) -> HttpResult<(Token, AuthorizedUser)> {
     if let Ok(s) = std::env::var("TESTENV") {
         if &s == "true" {
             let user = AuthorizedUser {
                 email: auth_data.email.into(),
             };
             let token = Token::create_token(&user, &config.domain, config.expiration_seconds)?;
-            let reply = warp::reply::json(&user);
-            let reply = warp::reply::with_status(reply, StatusCode::OK);
-            let reply = warp::reply::with_header(reply, CONTENT_TYPE, "application/json");
-            let reply = warp::reply::with_header(
-                reply,
-                SET_COOKIE,
-                format!(
-                    "jwt={}; HttpOnly; Path=/; Domain={}; Max-Age={}",
-                    token, config.domain, config.expiration_seconds
-                ),
-            );
-            AUTHORIZED_USERS.merge_users(&[user])?;
-            return Ok(reply);
+            AUTHORIZED_USERS.merge_users(&[user.clone()])?;
+            return Ok((token, user));
         }
     }
     Err(Error::BadRequest(
