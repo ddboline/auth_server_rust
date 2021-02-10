@@ -181,13 +181,6 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
     let port = config.port;
     let data = warp::any().map(move || app.clone());
 
-    let cors = warp::cors()
-        .allow_methods(vec!["GET", "POST", "DELETE"])
-        .allow_header("content-type")
-        .allow_header("authorization")
-        .allow_any_origin()
-        .build();
-
     let post = warp::post()
         .and(warp::path::end())
         .and(warp::body::json())
@@ -206,6 +199,13 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
         .and_then(get_me);
 
     let auth_path = warp::path!("api" / "auth").and(post.or(delete).or(get));
+
+    let cors = warp::cors()
+        .allow_methods(vec!["GET", "POST", "DELETE"])
+        .allow_header("content-type")
+        .allow_header("authorization")
+        .allow_any_origin()
+        .build();
 
     let routes = auth_path.recover(error_response).with(cors);
 

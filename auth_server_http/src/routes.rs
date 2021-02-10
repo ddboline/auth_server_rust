@@ -33,7 +33,7 @@ pub async fn login(data: AppState, auth_data: AuthRequest) -> WarpResult<impl Re
         reply,
         SET_COOKIE,
         format!(
-            "jwt={}; HttpOnly; Secure; Path=/; Domain={}; Max-Age={}",
+            "jwt={}; HttpOnly; Path=/; Domain={}; Max-Age={}",
             token, data.config.domain, data.config.expiration_seconds
         ),
     );
@@ -63,7 +63,7 @@ pub async fn logout(logged_user: LoggedUser, data: AppState) -> WarpResult<impl 
         reply,
         SET_COOKIE,
         format!(
-            "jwt=; HttpOnly; Secure; Path=/; Domain={}; Max-Age={}",
+            "jwt=; HttpOnly; Path=/; Domain={}; Max-Age={}",
             data.config.domain, data.config.expiration_seconds
         ),
     );
