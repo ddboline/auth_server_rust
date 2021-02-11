@@ -10,6 +10,7 @@
 
 pub mod claim;
 pub mod token;
+pub mod authorized_user;
 
 use arc_swap::ArcSwap;
 use biscuit::{jwk, jws, Empty};
@@ -18,9 +19,7 @@ use crossbeam::atomic::AtomicCell;
 use im::HashMap;
 use lazy_static::lazy_static;
 use rand::{thread_rng, Rng};
-use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use stack_string::StackString;
 use std::{
     cell::Cell,
     path::Path,
@@ -34,6 +33,7 @@ use tokio::{
     fs::{self, File},
     io::AsyncReadExt,
 };
+pub use authorized_user::AuthorizedUser;
 
 pub const KEY_LENGTH: usize = 32;
 
@@ -49,11 +49,6 @@ lazy_static! {
     pub static ref TRIGGER_DB_UPDATE: AuthTrigger = AuthTrigger::new();
     pub static ref SECRET_KEY: AuthSecret = AuthSecret::new(SECRET_KEY_CACHE);
     pub static ref JWT_SECRET: AuthSecret = AuthSecret::new(JWT_SECRET_CACHE);
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
-pub struct AuthorizedUser {
-    pub email: StackString,
 }
 
 #[derive(Clone, Debug, Copy)]
