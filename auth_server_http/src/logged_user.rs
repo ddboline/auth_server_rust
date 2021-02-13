@@ -15,6 +15,16 @@ pub struct LoggedUser {
     pub email: StackString,
 }
 
+impl LoggedUser {
+    pub fn get_jwt_cookie(&self, domain: &str, expiration_seconds: i64) -> Result<String, Error> {
+        let token = Token::create_token(&self.email, domain, expiration_seconds)?;
+        Ok(format!(
+            "jwt={}; HttpOnly; Path=/; Domain={}; Max-Age={}",
+            token, domain, expiration_seconds
+        ))
+    }
+}
+
 impl From<AuthorizedUser> for LoggedUser {
     fn from(user: AuthorizedUser) -> Self {
         Self { email: user.email }
