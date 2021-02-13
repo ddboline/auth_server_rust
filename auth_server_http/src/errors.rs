@@ -17,7 +17,7 @@ use tokio::task::JoinError;
 use tokio_postgres::Error as PostgresError;
 use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
-use warp::{reject::Reject, Rejection, Reply};
+use warp::{reject::Reject, Rejection, Reply, reject::MissingCookie};
 
 use auth_server_lib::static_files;
 use authorized_users::TRIGGER_DB_UPDATE;
@@ -85,6 +85,13 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
     if err.is_not_found() {
         code = StatusCode::NOT_FOUND;
         message = "NOT FOUND";
+    } else if let Some(missing_cookie) = err.find::<MissingCookie>() {
+        if missing_cookie.name() == "jwt" {
+            TRIGGER_DB_UPDATE.set();
+            return Ok(Box::new(static_files::login_html().unwrap()));
+        }
+        code = StatusCode::INTERNAL_SERVER_ERROR;
+        message = "Internal Server Error";
     } else if let Some(service_err) = err.find::<ServiceError>() {
         match service_err {
             ServiceError::BadRequest(msg) => {
@@ -93,14 +100,7 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
             }
             ServiceError::Unauthorized => {
                 TRIGGER_DB_UPDATE.set();
-                match static_files::login_html() {
-                    Ok(b) => return Ok(Box::new(b)),
-                    Err(e) => {
-                        error!("Encountered error: {:?}", e);
-                        code = StatusCode::INTERNAL_SERVER_ERROR;
-                        message = "Internal Server Error, Please try again later";
-                    }
-                }
+                return Ok(Box::new(static_files::login_html().unwrap()));
             }
             _ => {
                 error!("Other error: {:?}", service_err);
