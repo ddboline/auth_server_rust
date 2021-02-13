@@ -25,30 +25,24 @@ pub type WarpResult<T> = Result<T, Rejection>;
 pub type HttpResult<T> = Result<T, Error>;
 
 pub async fn login(data: AppState, auth_data: AuthRequest) -> WarpResult<impl Reply> {
-    let (user, token) = login_user_token(auth_data, &data.pool, &data.config).await?;
+    let (user, jwt) = login_user_jwt(auth_data, &data.pool, &data.config).await?;
     let reply = warp::reply::json(&user);
     let reply = warp::reply::with_status(reply, StatusCode::OK);
     let reply = warp::reply::with_header(reply, CONTENT_TYPE, "application/json");
-    let reply = warp::reply::with_header(
-        reply,
-        SET_COOKIE,
-        format!(
-            "jwt={}; HttpOnly; Path=/; Domain={}; Max-Age={}",
-            token, data.config.domain, data.config.expiration_seconds
-        ),
-    );
+    let reply = warp::reply::with_header(reply, SET_COOKIE, jwt);
     Ok(reply)
 }
 
-async fn login_user_token(
+async fn login_user_jwt(
     auth_data: AuthRequest,
     pool: &PgPool,
     config: &Config,
-) -> HttpResult<(AuthorizedUser, Token)> {
+) -> HttpResult<(LoggedUser, String)> {
     let message = if let Some(user) = auth_data.authenticate(pool).await? {
         let user: AuthorizedUser = user.into();
-        match Token::create_token(&user, &config.domain, config.expiration_seconds) {
-            Ok(token) => return Ok((user, token)),
+        let user: LoggedUser = user.into();
+        match user.get_jwt_cookie(&config.domain, config.expiration_seconds) {
+            Ok(jwt) => return Ok((user, jwt)),
             Err(e) => format!("Failed to create_token {}", e),
         }
     } else {
@@ -223,33 +217,27 @@ async fn status_body(pool: &PgPool) -> HttpResult<String> {
 }
 
 pub async fn test_login(auth_data: AuthRequest, data: AppState) -> WarpResult<impl Reply> {
-    let (token, user) = test_login_token_user(auth_data, &data.config).await?;
+    let (user, jwt) = test_login_user_jwt(auth_data, &data.config).await?;
     let reply = warp::reply::json(&user);
     let reply = warp::reply::with_status(reply, StatusCode::OK);
     let reply = warp::reply::with_header(reply, CONTENT_TYPE, "application/json");
-    let reply = warp::reply::with_header(
-        reply,
-        SET_COOKIE,
-        format!(
-            "jwt={}; HttpOnly; Path=/; Domain={}; Max-Age={}",
-            token, data.config.domain, data.config.expiration_seconds
-        ),
-    );
+    let reply = warp::reply::with_header(reply, SET_COOKIE, jwt);
     return Ok(reply);
 }
 
-async fn test_login_token_user(
+async fn test_login_user_jwt(
     auth_data: AuthRequest,
     config: &Config,
-) -> HttpResult<(Token, AuthorizedUser)> {
+) -> HttpResult<(LoggedUser, String)> {
     if let Ok(s) = std::env::var("TESTENV") {
         if &s == "true" {
             let user = AuthorizedUser {
                 email: auth_data.email.into(),
             };
-            let token = Token::create_token(&user, &config.domain, config.expiration_seconds)?;
             AUTHORIZED_USERS.merge_users(&[user.clone()])?;
-            return Ok((token, user));
+            let user: LoggedUser = user.into();
+            let jwt = user.get_jwt_cookie(&config.domain, config.expiration_seconds)?;
+            return Ok((user, jwt));
         }
     }
     Err(Error::BadRequest(
