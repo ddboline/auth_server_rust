@@ -17,7 +17,7 @@ use auth_server_ext::{
     ses_client::SesInstance,
 };
 use auth_server_lib::{auth::AuthRequest, config::Config, pgpool::PgPool, user::User};
-use authorized_users::{token::Token, AuthorizedUser, AUTHORIZED_USERS};
+use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 
 use crate::{app::AppState, errors::ServiceError as Error, logged_user::LoggedUser};
 
