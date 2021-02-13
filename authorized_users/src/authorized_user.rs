@@ -1,5 +1,5 @@
 use anyhow::Error;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::convert::TryFrom;
 

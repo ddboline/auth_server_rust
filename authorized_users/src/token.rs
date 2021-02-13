@@ -8,7 +8,7 @@ use biscuit::{
 use derive_more::{Display, From, Into};
 use log::debug;
 
-use crate::{claim::Claim, get_random_nonce, AuthorizedUser, JWT_SECRET, SECRET_KEY};
+use crate::{claim::Claim, get_random_nonce, JWT_SECRET, SECRET_KEY};
 
 const SG_ALGORITHM: SignatureAlgorithm = SignatureAlgorithm::HS256;
 const KM_ALGORITHM: KeyManagementAlgorithm = KeyManagementAlgorithm::A256GCMKW;
@@ -19,12 +19,8 @@ pub struct Token(String);
 
 impl Token {
     #[allow(clippy::similar_names)]
-    pub fn create_token(
-        data: &AuthorizedUser,
-        domain: &str,
-        expiration_seconds: i64,
-    ) -> Result<Self, Error> {
-        let claims = Claim::with_email(data.email.as_str(), domain, expiration_seconds);
+    pub fn create_token(email: &str, domain: &str, expiration_seconds: i64) -> Result<Self, Error> {
+        let claims = Claim::with_email(email, domain, expiration_seconds);
         let claimset = ClaimsSet {
             registered: claims.clone().into(),
             private: claims,
@@ -89,7 +85,7 @@ mod tests {
             email: "test@local".into(),
         };
 
-        let token = Token::create_token(&user, "localhost", 3600)?;
+        let token = Token::create_token(&user.email, "localhost", 3600)?;
 
         debug!("token {}", token);
 

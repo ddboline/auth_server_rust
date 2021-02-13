@@ -8,11 +8,12 @@
 #![allow(clippy::cognitive_complexity)]
 #![allow(clippy::unseparated_literal_suffix)]
 
+pub mod authorized_user;
 pub mod claim;
 pub mod token;
-pub mod authorized_user;
 
 use arc_swap::ArcSwap;
+pub use authorized_user::AuthorizedUser;
 use biscuit::{jwk, jws, Empty};
 use chrono::{DateTime, Utc};
 use crossbeam::atomic::AtomicCell;
@@ -33,7 +34,6 @@ use tokio::{
     fs::{self, File},
     io::AsyncReadExt,
 };
-pub use authorized_user::AuthorizedUser;
 
 pub const KEY_LENGTH: usize = 32;
 

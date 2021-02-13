@@ -106,8 +106,11 @@ impl GoogleClient {
                 if let Some(user) = User::get_by_email(user_email, &pool).await? {
                     let user: AuthorizedUser = user.into();
 
-                    let token =
-                        Token::create_token(&user, &config.domain, config.expiration_seconds)?;
+                    let token = Token::create_token(
+                        &user.email,
+                        &config.domain,
+                        config.expiration_seconds,
+                    )?;
                     let body = format!(
                         "{}'{}'{}",
                         r#"<script>!function(){let url = "#,
