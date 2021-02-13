@@ -27,8 +27,6 @@ pub type HttpResult<T> = Result<T, Error>;
 pub async fn login(data: AppState, auth_data: AuthRequest) -> WarpResult<impl Reply> {
     let (user, jwt) = login_user_jwt(auth_data, &data.pool, &data.config).await?;
     let reply = warp::reply::json(&user);
-    let reply = warp::reply::with_status(reply, StatusCode::OK);
-    let reply = warp::reply::with_header(reply, CONTENT_TYPE, "application/json");
     let reply = warp::reply::with_header(reply, SET_COOKIE, jwt);
     Ok(reply)
 }
@@ -166,21 +164,12 @@ async fn auth_url_body(payload: GetAuthUrlData, google_client: &GoogleClient) ->
 }
 
 pub async fn callback(data: AppState, query: CallbackQuery) -> WarpResult<impl Reply> {
-    let (token, body) = callback_body(query, &data.pool, &data.google_client, &data.config).await?;
+    let (jwt, body) = callback_body(query, &data.pool, &data.google_client, &data.config).await?;
     let body: String = body.into();
     let reply = warp::reply::html(body);
     let reply = warp::reply::with_status(reply, StatusCode::OK);
     let reply = warp::reply::with_header(reply, CONTENT_TYPE, "application/json");
-    let reply = warp::reply::with_header(
-        reply,
-        SET_COOKIE,
-        format!(
-            "jwt={}; HttpOnly; Path=/; Domain={}; Max-Age={}",
-            token.to_string(),
-            data.config.domain,
-            data.config.expiration_seconds
-        ),
-    );
+    let reply = warp::reply::with_header(reply, SET_COOKIE, jwt);
     Ok(reply)
 }
 
@@ -189,9 +178,11 @@ async fn callback_body(
     pool: &PgPool,
     google_client: &GoogleClient,
     config: &Config,
-) -> HttpResult<(Token, StackString)> {
-    if let Some((token, body)) = google_client.run_callback(&query, pool, &config).await? {
-        Ok((token, body))
+) -> HttpResult<(String, String)> {
+    if let Some((user, body)) = google_client.run_callback(&query, pool, &config).await? {
+        let user: LoggedUser = user.into();
+        let jwt = user.get_jwt_cookie(&config.domain, config.expiration_seconds)?;
+        Ok((jwt, body))
     } else {
         Err(Error::BadRequest("Callback Failed".into()))
     }
