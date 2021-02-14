@@ -8,18 +8,19 @@
 #![allow(clippy::cognitive_complexity)]
 #![allow(clippy::unseparated_literal_suffix)]
 
+pub mod authorized_user;
 pub mod claim;
 pub mod token;
 
 use arc_swap::ArcSwap;
+pub use authorized_user::AuthorizedUser;
+use biscuit::{jwk, jws, Empty};
 use chrono::{DateTime, Utc};
 use crossbeam::atomic::AtomicCell;
 use im::HashMap;
 use lazy_static::lazy_static;
 use rand::{thread_rng, Rng};
-use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use stack_string::StackString;
 use std::{
     cell::Cell,
     path::Path,
@@ -48,11 +49,6 @@ lazy_static! {
     pub static ref TRIGGER_DB_UPDATE: AuthTrigger = AuthTrigger::new();
     pub static ref SECRET_KEY: AuthSecret = AuthSecret::new(SECRET_KEY_CACHE);
     pub static ref JWT_SECRET: AuthSecret = AuthSecret::new(JWT_SECRET_CACHE);
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
-pub struct AuthorizedUser {
-    pub email: StackString,
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -153,6 +149,14 @@ impl AuthSecret {
         }
     }
 
+    pub fn get_jws_secret(&'static self) -> jws::Secret {
+        jws::Secret::Bytes(self.get().into())
+    }
+
+    pub fn get_jwk_secret(&'static self) -> jwk::JWK<Empty> {
+        jwk::JWK::new_octet_key(&self.get(), Empty::default())
+    }
+
     pub fn set(&self, key: SecretKey) {
         self.0.store(Some(key));
     }
@@ -189,6 +193,11 @@ pub async fn create_secret(p: &Path) -> Result<(), anyhow::Error> {
 pub fn get_random_key() -> SmallVec<SecretKey> {
     let mut rng = thread_rng();
     (0..KEY_LENGTH).map(|_| rng.gen::<u8>()).collect()
+}
+
+pub fn get_random_nonce() -> Vec<u8> {
+    let mut rng = thread_rng();
+    (0..12).map(|_| rng.gen::<u8>()).collect()
 }
 
 pub async fn get_secrets<T: AsRef<Path>>(

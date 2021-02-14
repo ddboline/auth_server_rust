@@ -14,7 +14,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use url::Url;
 
-use authorized_users::{token::Token, AuthorizedUser};
+use authorized_users::AuthorizedUser;
 
 use auth_server_lib::{config::Config, pgpool::PgPool, user::User};
 
@@ -80,7 +80,7 @@ impl GoogleClient {
         callback_query: &CallbackQuery,
         pool: &PgPool,
         config: &Config,
-    ) -> Result<Option<(Token, StackString)>, Error> {
+    ) -> Result<Option<(AuthorizedUser, String)>, Error> {
         let CallbackQuery { code, state } = callback_query;
 
         if let Some((
@@ -106,15 +106,13 @@ impl GoogleClient {
                 if let Some(user) = User::get_by_email(user_email, &pool).await? {
                     let user: AuthorizedUser = user.into();
 
-                    let token =
-                        Token::create_token(&user, &config.domain, config.expiration_seconds)?;
                     let body = format!(
                         "{}'{}'{}",
                         r#"<script>!function(){let url = "#,
                         final_url,
                         r#";location.replace(url);}();</script>"#
                     );
-                    return Ok(Some((token, body.into())));
+                    return Ok(Some((user, body)));
                 }
             }
             Err(format_err!("Oauth failed"))

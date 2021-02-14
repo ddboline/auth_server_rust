@@ -17,7 +17,7 @@ pub mod user;
 
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
-use rand::{thread_rng, Rng};
+use rand::{distributions::Alphanumeric, thread_rng, Rng};
 
 lazy_static! {
     pub static ref AUTH_APP_MUTEX: Mutex<()> = Mutex::new(());
@@ -25,15 +25,8 @@ lazy_static! {
 
 pub fn get_random_string(n: usize) -> String {
     let mut rng = thread_rng();
-    (0..)
-        .filter_map(|_| {
-            let c: char = (rng.gen::<u8>() & 0x7f).into();
-            match c {
-                '#'..='[' | ']'..='~' => Some(c),
-                _ => None,
-            }
-        })
-        .take(n)
+    (0..n)
+        .map(|_| char::from(rng.sample(Alphanumeric)))
         .collect()
 }
 

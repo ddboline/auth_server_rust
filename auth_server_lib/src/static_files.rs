@@ -1,37 +1,53 @@
-use actix_web::HttpResponse;
+use http::{header::CONTENT_TYPE, Error, Response, StatusCode};
 
-pub fn index_html() -> HttpResponse {
-    HttpResponse::Ok()
-        .content_type("text/html; charset=utf-8")
-        .body(include_str!("../../templates/index.html"))
+type HttpResult = Result<Response<&'static str>, Error>;
+
+#[inline]
+fn get_response(c: &'static str, s: &'static str) -> HttpResult {
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(CONTENT_TYPE, c)
+        .body(s)
 }
 
-pub fn main_css() -> HttpResponse {
-    HttpResponse::Ok()
-        .content_type("text/css; charset=utf-8")
-        .body(include_str!("../../templates/main.css"))
+pub fn index_html() -> HttpResult {
+    get_response(
+        "text/html; charset=utf-8",
+        include_str!("../../templates/index.html"),
+    )
 }
 
-pub fn register_html() -> HttpResponse {
-    HttpResponse::Ok()
-        .content_type("text/html; charset=utf-8")
-        .body(include_str!("../../templates/register.html"))
+pub fn main_css() -> HttpResult {
+    get_response(
+        "text/css; charset=utf-8",
+        include_str!("../../templates/main.css"),
+    )
 }
 
-pub fn main_js() -> HttpResponse {
-    HttpResponse::Ok()
-        .content_type("text/javascript; charset=utf-8")
-        .body(include_str!("../../templates/main.js"))
+pub fn register_html() -> HttpResult {
+    get_response(
+        "text/html; charset=utf-8",
+        include_str!("../../templates/register.html"),
+    )
 }
 
-pub fn login_html() -> HttpResponse {
-    HttpResponse::Ok()
-        .content_type("text/html; charset=utf-8")
-        .body(include_str!("../../templates/login.html"))
+pub fn main_js() -> HttpResult {
+    get_response(
+        "text/javascript; charset=utf-8",
+        include_str!("../../templates/main.js"),
+    )
 }
 
-pub fn change_password() -> HttpResponse {
-    HttpResponse::Ok()
-        .content_type("text/html; charset=utf-8")
-        .body(include_str!("../../templates/change_password.html"))
+pub fn login_html() -> HttpResult {
+    get_response(
+        "text/html; charset=utf-8",
+        include_str!("../../templates/login.html"),
+    )
+}
+
+pub fn change_password() -> HttpResult {
+    get_response(
+        "text/html; charset=utf-8",
+        include_str!("../../templates/change_password.html"),
+    )
 }

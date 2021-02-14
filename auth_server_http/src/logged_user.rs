@@ -1,13 +1,10 @@
-use actix_identity::Identity;
-use actix_web::{dev::Payload, FromRequest, HttpRequest};
-use futures::{
-    executor::block_on,
-    future::{ready, Ready},
-};
 use log::debug;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
-use std::env;
+use std::{
+    convert::{TryFrom, TryInto},
+    str::FromStr,
+};
 
 use authorized_users::{token::Token, AuthorizedUser, AUTHORIZED_USERS};
 
@@ -16,6 +13,16 @@ use crate::errors::ServiceError as Error;
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
 pub struct LoggedUser {
     pub email: StackString,
+}
+
+impl LoggedUser {
+    pub fn get_jwt_cookie(&self, domain: &str, expiration_seconds: i64) -> Result<String, Error> {
+        let token = Token::create_token(&self.email, domain, expiration_seconds)?;
+        Ok(format!(
+            "jwt={}; HttpOnly; Path=/; Domain={}; Max-Age={}",
+            token, domain, expiration_seconds
+        ))
+    }
 }
 
 impl From<AuthorizedUser> for LoggedUser {
@@ -30,32 +37,42 @@ impl From<LoggedUser> for AuthorizedUser {
     }
 }
 
-fn _from_request(req: &HttpRequest, pl: &mut Payload) -> Result<LoggedUser, actix_web::Error> {
-    if let Ok(s) = env::var("TESTENV") {
-        if &s == "true" {
-            return Ok(LoggedUser {
-                email: "user@test".into(),
-            });
+impl TryFrom<Token> for LoggedUser {
+    type Error = Error;
+    fn try_from(token: Token) -> Result<Self, Self::Error> {
+        let user = token.try_into()?;
+        if AUTHORIZED_USERS.is_authorized(&user) {
+            Ok(user.into())
+        } else {
+            debug!("NOT AUTHORIZED {:?}", user);
+            Err(Error::Unauthorized)
         }
     }
-    if let Some(identity) = block_on(Identity::from_request(req, pl))?.identity() {
-        if let Some(user) = Token::decode_token(&identity.into()).ok().map(Into::into) {
-            if AUTHORIZED_USERS.is_authorized(&user) {
-                return Ok(user.into());
-            } else {
-                debug!("not authorized {:?}", user);
-            }
-        }
-    }
-    Err(Error::Unauthorized.into())
 }
 
-impl FromRequest for LoggedUser {
-    type Error = actix_web::Error;
-    type Future = Ready<Result<Self, actix_web::Error>>;
-    type Config = ();
+impl FromStr for LoggedUser {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let token: Token = s.to_string().into();
+        token.try_into()
+    }
+}
 
-    fn from_request(req: &HttpRequest, pl: &mut Payload) -> Self::Future {
-        ready(_from_request(req, pl))
+#[cfg(test)]
+mod tests {
+    use authorized_users::AuthorizedUser;
+
+    use crate::logged_user::LoggedUser;
+
+    #[test]
+    fn test_authorized_user_to_logged_user() {
+        let email = "test@localhost";
+        let user = AuthorizedUser {
+            email: email.into(),
+        };
+
+        let user: LoggedUser = user.into();
+
+        assert_eq!(user.email, email);
     }
 }

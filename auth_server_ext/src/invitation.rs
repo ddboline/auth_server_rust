@@ -121,6 +121,7 @@ impl Invitation {
 mod tests {
     use anyhow::Error;
     use futures::try_join;
+    use log::debug;
 
     use auth_server_lib::{config::Config, get_random_string, pgpool::PgPool, AUTH_APP_MUTEX};
 
@@ -147,7 +148,7 @@ mod tests {
         invitation.insert(&pool).await?;
 
         let invitation = Invitation::get_by_uuid(uuid, &pool).await?.unwrap();
-        println!("{:?}", invitation);
+        debug!("{:?}", invitation);
 
         invitation.delete(&pool).await?;
 

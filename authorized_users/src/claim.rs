@@ -1,3 +1,4 @@
+use biscuit::RegisteredClaims;
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
@@ -5,17 +6,11 @@ use stack_string::StackString;
 use crate::AuthorizedUser;
 
 // JWT claim
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claim {
-    // issuer
-    iss: StackString,
-    // subject
-    sub: StackString,
-    // issued at
-    iat: i64,
-    // expiry
-    exp: i64,
-    // user email
+    domain: StackString,
+    expiry: i64,
+    issued_at: i64,
     email: StackString,
 }
 
@@ -23,16 +18,26 @@ pub struct Claim {
 impl Claim {
     pub fn with_email(email: &str, domain: &str, expiration_seconds: i64) -> Self {
         Self {
-            iss: domain.into(),
-            sub: "auth".into(),
+            domain: domain.into(),
             email: email.into(),
-            iat: Utc::now().timestamp(),
-            exp: (Utc::now() + Duration::seconds(expiration_seconds)).timestamp(),
+            issued_at: Utc::now().timestamp(),
+            expiry: (Utc::now() + Duration::seconds(expiration_seconds)).timestamp(),
         }
     }
 
     pub fn get_email(&self) -> &str {
         self.email.as_str()
+    }
+
+    pub fn get_registered_claims(&self) -> RegisteredClaims {
+        RegisteredClaims {
+            issuer: Some(self.domain.clone().into()),
+            subject: Some("auth".into()),
+            issued_at: Some(self.issued_at.into()),
+            expiry: Some(self.expiry.into()),
+            id: Some(self.email.clone().into()),
+            ..RegisteredClaims::default()
+        }
     }
 }
 
