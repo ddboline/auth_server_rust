@@ -22,7 +22,7 @@ impl Token {
     pub fn create_token(email: &str, domain: &str, expiration_seconds: i64) -> Result<Self, Error> {
         let claims = Claim::with_email(email, domain, expiration_seconds);
         let claimset = ClaimsSet {
-            registered: claims.clone().into(),
+            registered: claims.get_registered_claims(),
             private: claims,
         };
         let header = jws::RegisteredHeader {

@@ -14,19 +14,6 @@ pub struct Claim {
     email: StackString,
 }
 
-impl From<Claim> for RegisteredClaims {
-    fn from(claim: Claim) -> Self {
-        Self {
-            issuer: Some(claim.domain.into()),
-            subject: Some("auth".into()),
-            issued_at: Some(claim.issued_at.into()),
-            expiry: Some(claim.expiry.into()),
-            id: Some(claim.email.into()),
-            ..Self::default()
-        }
-    }
-}
-
 // struct to get converted to token and back
 impl Claim {
     pub fn with_email(email: &str, domain: &str, expiration_seconds: i64) -> Self {
@@ -40,6 +27,17 @@ impl Claim {
 
     pub fn get_email(&self) -> &str {
         self.email.as_str()
+    }
+
+    pub fn get_registered_claims(&self) -> RegisteredClaims {
+        RegisteredClaims {
+            issuer: Some(self.domain.clone().into()),
+            subject: Some("auth".into()),
+            issued_at: Some(self.issued_at.into()),
+            expiry: Some(self.expiry.into()),
+            id: Some(self.email.clone().into()),
+            ..RegisteredClaims::default()
+        }
     }
 }
 
