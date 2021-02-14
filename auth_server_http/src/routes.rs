@@ -165,10 +165,7 @@ async fn auth_url_body(payload: GetAuthUrlData, google_client: &GoogleClient) ->
 
 pub async fn callback(data: AppState, query: CallbackQuery) -> WarpResult<impl Reply> {
     let (jwt, body) = callback_body(query, &data.pool, &data.google_client, &data.config).await?;
-    let body: String = body.into();
     let reply = warp::reply::html(body);
-    let reply = warp::reply::with_status(reply, StatusCode::OK);
-    let reply = warp::reply::with_header(reply, CONTENT_TYPE, "application/json");
     let reply = warp::reply::with_header(reply, SET_COOKIE, jwt);
     Ok(reply)
 }
