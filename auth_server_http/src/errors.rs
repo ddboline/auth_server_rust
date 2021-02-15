@@ -17,7 +17,7 @@ use tokio::task::JoinError;
 use tokio_postgres::Error as PostgresError;
 use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
-use warp::{reject::Reject, Rejection, Reply, reject::MissingCookie};
+use warp::{reject::Reject, Rejection, Reply, reject::{MissingCookie, InvalidHeader}};
 
 use auth_server_lib::static_files;
 use authorized_users::TRIGGER_DB_UPDATE;
@@ -85,6 +85,9 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
     if err.is_not_found() {
         code = StatusCode::NOT_FOUND;
         message = "NOT FOUND";
+    } else if let Some(invalid_header) = err.find::<InvalidHeader>() {
+        TRIGGER_DB_UPDATE.set();
+        return Ok(Box::new(static_files::login_html().unwrap()));
     } else if let Some(missing_cookie) = err.find::<MissingCookie>() {
         if missing_cookie.name() == "jwt" {
             TRIGGER_DB_UPDATE.set();

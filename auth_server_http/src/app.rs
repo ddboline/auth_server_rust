@@ -80,7 +80,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
 
     let get = warp::get().and(warp::cookie("jwt")).and_then(get_me);
 
-    let auth_path = warp::path("auth").and(post.or(delete).or(get));
+    let auth_path = warp::path("auth").and(warp::path::end()).and(post.or(delete).or(get));
 
     let invitation_path = warp::path("invitation")
         .and(warp::post())
@@ -158,8 +158,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
     //     .allow_any_origin()
     //     .build();
 
-    let routes = api_scope.or(auth_scope).recover(error_response); //.with(cors);
-
+    let routes = api_scope.or(auth_scope).recover(error_response);
     let addr: SocketAddr = format!("127.0.0.1:{}", config.port).parse()?;
     debug!("{:?}", addr);
     warp::serve(routes).bind(addr).await;
