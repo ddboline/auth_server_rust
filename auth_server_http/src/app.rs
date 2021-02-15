@@ -65,12 +65,6 @@ async fn run_app(config: Config) -> Result<(), Error> {
     };
 
     let data = warp::any().map(move || app.clone());
-    let cors = warp::cors()
-        .allow_methods(vec!["GET", "POST", "DELETE"])
-        .allow_header("content-type")
-        .allow_header("jwt")
-        .allow_any_origin()
-        .build();
 
     let post = warp::post()
         .and(warp::path::end())
@@ -157,8 +151,14 @@ async fn run_app(config: Config) -> Result<(), Error> {
             .or(login_html_path)
             .or(change_password_path),
     );
+    // let cors = warp::cors()
+    //     .allow_methods(vec!["GET", "POST", "DELETE"])
+    //     .allow_header("content-type")
+    //     .allow_header("jwt")
+    //     .allow_any_origin()
+    //     .build();
 
-    let routes = api_scope.or(auth_scope).recover(error_response).with(cors);
+    let routes = api_scope.or(auth_scope).recover(error_response); //.with(cors);
 
     let addr: SocketAddr = format!("127.0.0.1:{}", config.port).parse()?;
     debug!("{:?}", addr);
