@@ -85,7 +85,7 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
     if err.is_not_found() {
         code = StatusCode::NOT_FOUND;
         message = "NOT FOUND";
-    } else if let Some(invalid_header) = err.find::<InvalidHeader>() {
+    } else if err.find::<InvalidHeader>().is_some() {
         TRIGGER_DB_UPDATE.set();
         return Ok(Box::new(static_files::login_html().unwrap()));
     } else if let Some(missing_cookie) = err.find::<MissingCookie>() {
