@@ -176,7 +176,7 @@ async fn callback_body(
     google_client: &GoogleClient,
     config: &Config,
 ) -> HttpResult<(String, String)> {
-    if let Some((user, body)) = google_client.run_callback(&query, pool, &config).await? {
+    if let Some((user, body)) = google_client.run_callback(&query, pool).await? {
         let user: LoggedUser = user.into();
         let jwt = user.get_jwt_cookie(&config.domain, config.expiration_seconds)?;
         Ok((jwt, body))

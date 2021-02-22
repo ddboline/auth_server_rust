@@ -80,7 +80,9 @@ async fn run_app(config: Config) -> Result<(), Error> {
 
     let get = warp::get().and(warp::cookie("jwt")).and_then(get_me);
 
-    let auth_path = warp::path("auth").and(warp::path::end()).and(post.or(delete).or(get));
+    let auth_path = warp::path("auth")
+        .and(warp::path::end())
+        .and(post.or(delete).or(get));
 
     let invitation_path = warp::path("invitation")
         .and(warp::post())

@@ -11,7 +11,6 @@ use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use url::Url;
 
 use authorized_users::AuthorizedUser;
@@ -41,13 +40,13 @@ impl CrsfTokenCache {
 }
 
 #[derive(Clone)]
-pub struct GoogleClient(Arc<RwLock<DiscoveredClient>>);
+pub struct GoogleClient(Arc<DiscoveredClient>);
 
 impl GoogleClient {
     pub async fn new(config: &Config) -> Result<Self, Error> {
         get_google_client(config)
             .await
-            .map(|client| Self(Arc::new(RwLock::new(client))))
+            .map(|client| Self(Arc::new(client)))
     }
 
     pub async fn get_auth_url(&self, payload: GetAuthUrlData) -> Result<Url, Error> {
@@ -62,7 +61,7 @@ impl GoogleClient {
             nonce: Some(get_random_string().into()),
             ..Options::default()
         };
-        let authorize_url = self.0.read().await.auth_url(&options);
+        let authorize_url = self.0.auth_url(&options);
         let Options { state, nonce, .. } = options;
         let csrf_state = state.expect("No CSRF state").into();
         let nonce = nonce.expect("No nonce");
@@ -79,7 +78,6 @@ impl GoogleClient {
         &self,
         callback_query: &CallbackQuery,
         pool: &PgPool,
-        config: &Config,
     ) -> Result<Option<(AuthorizedUser, String)>, Error> {
         let CallbackQuery { code, state } = callback_query;
 
@@ -93,14 +91,7 @@ impl GoogleClient {
             CSRF_TOKENS.store(Arc::new(tokens));
             debug!("Nonce {:?}", nonce);
 
-            let userinfo = match request_userinfo(&(*self.0.read().await), code, &nonce).await {
-                Ok(userinfo) => userinfo,
-                Err(e) => {
-                    let new_client = get_google_client(config).await?;
-                    *self.0.write().await = new_client;
-                    return Err(e);
-                }
-            };
+            let userinfo = self.request_userinfo(code, &nonce).await?;
 
             if let Some(user_email) = &userinfo.email {
                 if let Some(user) = User::get_by_email(user_email, &pool).await? {
@@ -119,6 +110,20 @@ impl GoogleClient {
         } else {
             Err(format_err!("Csrf Token invalid"))
         }
+    }
+
+    pub async fn request_userinfo(&self, code: &str, nonce: &str) -> Result<Userinfo, Error> {
+        let token = self
+            .0
+            .authenticate(code, Some(nonce), None)
+            .await
+            .map_err(|e| format_err!("Openid Error {:?}", e))?;
+        let userinfo = self
+            .0
+            .request_userinfo(&token)
+            .await
+            .map_err(|e| format_err!("Openid Error {:?}", e))?;
+        Ok(userinfo)
     }
 }
 
@@ -172,22 +177,6 @@ pub struct GetAuthUrlData {
 pub struct CallbackQuery {
     pub code: StackString,
     pub state: StackString,
-}
-
-pub async fn request_userinfo(
-    client: &DiscoveredClient,
-    code: &str,
-    nonce: &str,
-) -> Result<Userinfo, Error> {
-    let token = client
-        .authenticate(code, Some(nonce), None)
-        .await
-        .map_err(|e| format_err!("Openid Error {:?}", e))?;
-    let userinfo = client
-        .request_userinfo(&token)
-        .await
-        .map_err(|e| format_err!("Openid Error {:?}", e))?;
-    Ok(userinfo)
 }
 
 #[cfg(test)]
