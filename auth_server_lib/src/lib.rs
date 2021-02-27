@@ -8,7 +8,6 @@
 #![allow(clippy::cognitive_complexity)]
 #![allow(clippy::unseparated_literal_suffix)]
 
-pub mod auth;
 pub mod auth_user_config;
 pub mod config;
 pub mod pgpool;

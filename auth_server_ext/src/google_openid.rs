@@ -8,7 +8,6 @@ use log::debug;
 pub use openid::error::Error as OpenidError;
 use openid::{DiscoveredClient, Options, Userinfo};
 use rand::{thread_rng, Rng};
-use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::sync::Arc;
 use url::Url;
@@ -49,9 +48,8 @@ impl GoogleClient {
             .map(|client| Self(Arc::new(client)))
     }
 
-    pub async fn get_auth_url(&self, payload: GetAuthUrlData) -> Result<Url, Error> {
-        let final_url: Url = payload
-            .final_url
+    pub async fn get_auth_url(&self, final_url: &str) -> Result<Url, Error> {
+        let final_url: Url = final_url
             .parse()
             .map_err(|err| format_err!("Failed to parse url {:?}", err))?;
 
@@ -76,11 +74,10 @@ impl GoogleClient {
 
     pub async fn run_callback(
         &self,
-        callback_query: &CallbackQuery,
+        code: &str,
+        state: &str,
         pool: &PgPool,
     ) -> Result<Option<(AuthorizedUser, String)>, Error> {
-        let CallbackQuery { code, state } = callback_query;
-
         if let Some((
             CrsfTokenCache {
                 nonce, final_url, ..
@@ -168,34 +165,20 @@ pub async fn get_google_client(config: &Config) -> Result<DiscoveredClient, Erro
     .map_err(|e| format_err!("Openid Error {:?}", e))
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct GetAuthUrlData {
-    pub final_url: StackString,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct CallbackQuery {
-    pub code: StackString,
-    pub state: StackString,
-}
-
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
 
     use auth_server_lib::config::Config;
 
-    use crate::google_openid::{GetAuthUrlData, GoogleClient};
+    use crate::google_openid::GoogleClient;
 
     #[tokio::test]
     async fn test_google_openid() -> Result<(), Error> {
         let config = Config::init_config()?;
 
         let client = GoogleClient::new(&config).await?;
-        let payload = GetAuthUrlData {
-            final_url: "https://localhost".into(),
-        };
-        let url = client.get_auth_url(payload).await?;
+        let url = client.get_auth_url("https://localhost").await?;
         let redirect_uri = format!(
             "redirect_uri=https%3A%2F%2F{}%2Fapi%2Fcallback",
             config.domain

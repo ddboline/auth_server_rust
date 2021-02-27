@@ -1,9 +1,10 @@
 use anyhow::{format_err, Error};
+use rweb::Schema;
 use serde::Deserialize;
 
-use crate::{pgpool::PgPool, user::User};
+use auth_server_lib::{pgpool::PgPool, user::User};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Schema)]
 pub struct AuthRequest {
     pub email: String,
     pub password: String,
@@ -24,7 +25,9 @@ impl AuthRequest {
 mod test {
     use anyhow::Error;
 
-    use crate::{auth::AuthRequest, config::Config, get_random_string, pgpool::PgPool};
+    use auth_server_lib::{config::Config, get_random_string, pgpool::PgPool};
+
+    use crate::auth::AuthRequest;
 
     #[tokio::test]
     async fn test_authenticate() -> Result<(), Error> {

@@ -9,6 +9,7 @@
 #![allow(clippy::unseparated_literal_suffix)]
 
 pub mod app;
+pub mod auth;
 pub mod errors;
 pub mod logged_user;
 pub mod routes;
