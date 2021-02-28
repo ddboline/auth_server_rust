@@ -51,13 +51,13 @@ where
 {
     fn into_response(self) -> Response<Body> {
         let reply = rweb::reply::json(&self.data);
-        self.cookie.map_or_else(
-            || reply.into_response(),
-            |header| {
-                let reply = rweb::reply::with_header(reply, SET_COOKIE, header);
-                reply.into_response()
-            },
-        )
+        #[allow(clippy::option_if_let_else)]
+        if let Some(header) = self.cookie {
+            let reply = rweb::reply::with_header(reply, SET_COOKIE, header);
+            reply.into_response()
+        } else {
+            reply.into_response()
+        }
     }
 }
 
