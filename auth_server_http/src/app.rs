@@ -3,7 +3,7 @@ use log::debug;
 use rweb::openapi;
 use std::{net::SocketAddr, time::Duration};
 use tokio::{task::spawn, time::interval};
-use warp::{filters::BoxedFilter, Filter, Reply};
+use rweb::{filters::BoxedFilter, Filter, Reply};
 
 use auth_server_ext::google_openid::GoogleClient;
 use auth_server_lib::{
@@ -87,26 +87,26 @@ async fn run_app(config: Config) -> Result<(), Error> {
     let (spec, api_scope) = openapi::spec().build(|| get_api_scope(&app));
 
     let spec_json = serde_json::to_string(&spec)?;
-    let spec_json_path = warp::path!("api" / "openapi" / "json")
-        .and(warp::path::end())
+    let spec_json_path = rweb::path!("api" / "openapi" / "json")
+        .and(rweb::path::end())
         .map(move || spec_json.clone());
 
     let spec_yaml = serde_yaml::to_string(&spec)?;
-    let spec_yaml_path = warp::path!("api" / "openapi" / "yaml")
-        .and(warp::path::end())
+    let spec_yaml_path = rweb::path!("api" / "openapi" / "yaml")
+        .and(rweb::path::end())
         .map(move || spec_yaml.clone());
 
-    let index_html_path = warp::path("index.html").and(warp::get()).map(index_html);
-    let main_css_path = warp::path("main.css").and(warp::get()).map(main_css);
-    let main_js_path = warp::path("main.js").and(warp::get()).map(main_js);
-    let register_html_path = warp::path("register.html")
-        .and(warp::get())
+    let index_html_path = rweb::path("index.html").and(rweb::get()).map(index_html);
+    let main_css_path = rweb::path("main.css").and(rweb::get()).map(main_css);
+    let main_js_path = rweb::path("main.js").and(rweb::get()).map(main_js);
+    let register_html_path = rweb::path("register.html")
+        .and(rweb::get())
         .map(register_html);
-    let login_html_path = warp::path("login.html").and(warp::get()).map(login_html);
-    let change_password_path = warp::path("change_password.html")
-        .and(warp::get())
+    let login_html_path = rweb::path("login.html").and(rweb::get()).map(login_html);
+    let change_password_path = rweb::path("change_password.html")
+        .and(rweb::get())
         .map(change_password);
-    let auth_scope = warp::path("auth").and(
+    let auth_scope = rweb::path("auth").and(
         index_html_path
             .or(main_css_path)
             .or(main_js_path)
@@ -114,7 +114,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
             .or(login_html_path)
             .or(change_password_path),
     );
-    let cors = warp::cors()
+    let cors = rweb::cors()
         .allow_methods(vec!["GET", "POST", "DELETE"])
         .allow_header("content-type")
         .allow_header("jwt")
@@ -129,7 +129,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
         .with(cors);
     let addr: SocketAddr = format!("127.0.0.1:{}", config.port).parse()?;
     debug!("{:?}", addr);
-    warp::serve(routes).bind(addr).await;
+    rweb::serve(routes).bind(addr).await;
 
     Ok(())
 }
@@ -149,7 +149,7 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
 
     let auth_path = test_login(app.clone()).or(logout(app.clone())).or(get_me());
 
-    let cors = warp::cors()
+    let cors = rweb::cors()
         .allow_methods(vec!["GET", "POST", "DELETE"])
         .allow_header("content-type")
         .allow_header("authorization")
@@ -159,7 +159,7 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
     let routes = auth_path.recover(error_response).with(cors);
 
     let addr: SocketAddr = format!("127.0.0.1:{}", port).parse()?;
-    warp::serve(routes).bind(addr).await;
+    rweb::serve(routes).bind(addr).await;
 
     Ok(())
 }

@@ -17,7 +17,7 @@ use tokio::task::JoinError;
 use tokio_postgres::Error as PostgresError;
 use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
-use warp::{
+use rweb::{
     http::uri::InvalidUri,
     reject::{InvalidHeader, MissingCookie, Reject},
     Rejection, Reply,
@@ -117,7 +117,7 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
                 message = "Internal Server Error, Please try again later";
             }
         }
-    } else if err.find::<warp::reject::MethodNotAllowed>().is_some() {
+    } else if err.find::<rweb::reject::MethodNotAllowed>().is_some() {
         code = StatusCode::METHOD_NOT_ALLOWED;
         message = "METHOD NOT ALLOWED";
     } else {
@@ -126,11 +126,11 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
         message = "Internal Server Error, Please try again later";
     };
 
-    let reply = warp::reply::json(&ErrorMessage {
+    let reply = rweb::reply::json(&ErrorMessage {
         code: code.as_u16(),
         message: message.to_string(),
     });
-    let reply = warp::reply::with_status(reply, code);
+    let reply = rweb::reply::with_status(reply, code);
 
     Ok(Box::new(reply))
 }
@@ -138,7 +138,7 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
 #[cfg(test)]
 mod test {
     use anyhow::Error;
-    use warp::Reply;
+    use rweb::Reply;
 
     use crate::errors::{error_response, ServiceError};
 
