@@ -1,19 +1,18 @@
 use chrono::Utc;
 use futures::try_join;
 use http::header::SET_COOKIE;
-use indexmap::IndexMap;
 use log::debug;
 use rweb::{
     delete, get,
-    openapi::{self, Entity, MediaType, ObjectOrReference, Response, ResponseEntity, Responses},
+    openapi::{self, Entity, ResponseEntity, Responses},
     post, Json, Schema, Query,
+    hyper::{Response, Body},
+    Rejection, Reply, http::Uri
 };
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
-use std::borrow::Cow;
 use url::Url;
 use uuid::Uuid;
-use warp::{Rejection, Reply, http::Uri};
 
 use auth_server_ext::{
     google_openid::GoogleClient, invitation::Invitation, ses_client::SesInstance,
@@ -50,10 +49,10 @@ impl<T> Reply for JsonResponse<T>
 where
     T: Serialize + Entity + Send,
 {
-    fn into_response(self) -> warp::hyper::Response<warp::hyper::Body> {
-        let reply = warp::reply::json(&self.data);
+    fn into_response(self) -> Response<Body> {
+        let reply = rweb::reply::json(&self.data);
         if let Some(header) = self.cookie {
-            let reply = warp::reply::with_header(reply, SET_COOKIE, header);
+            let reply = rweb::reply::with_header(reply, SET_COOKIE, header);
             reply.into_response()
         } else {
             reply.into_response()
@@ -75,25 +74,7 @@ where
     T: Serialize + Entity + Send,
 {
     fn describe_responses() -> Responses {
-        let schema = Self::describe();
-        let mut content = IndexMap::new();
-        content.insert(
-            Cow::Borrowed("application/json"),
-            MediaType {
-                schema: Some(ObjectOrReference::Object(schema)),
-                examples: None,
-                encoding: Default::default(),
-            },
-        );
-        let mut map = Responses::new();
-        map.insert(
-            Cow::Borrowed("200"),
-            Response {
-                content,
-                ..Default::default()
-            },
-        );
-        map
+        Json::<T>::describe_responses()
     }
 }
 
@@ -296,8 +277,8 @@ pub async fn callback(
         &data.config,
     )
     .await?;
-    let redirect = warp::redirect(body);
-    let reply = warp::reply::with_header(redirect, SET_COOKIE, jwt);
+    let redirect = rweb::redirect(body);
+    let reply = rweb::reply::with_header(redirect, SET_COOKIE, jwt);
     Ok(reply)
 }
 
