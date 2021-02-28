@@ -1,9 +1,9 @@
 use anyhow::Error;
 use log::debug;
-use stack_string::StackString;
+use rweb::openapi;
 use std::{net::SocketAddr, time::Duration};
 use tokio::{task::spawn, time::interval};
-use warp::Filter;
+use warp::{filters::BoxedFilter, Filter, Reply};
 
 use auth_server_ext::google_openid::GoogleClient;
 use auth_server_lib::{
@@ -43,6 +43,26 @@ pub async fn start_app() -> Result<(), Error> {
     run_app(config).await
 }
 
+fn get_api_scope(app: &AppState) -> BoxedFilter<(impl Reply,)> {
+    let auth_path = login(app.clone()).or(logout(app.clone())).or(get_me());
+
+    let invitation_path = register_email(app.clone());
+    let register_path = register_user(app.clone());
+    let password_change_path = change_password_user(app.clone());
+    let auth_url_path = auth_url(app.clone());
+    let callback_path = callback(app.clone());
+    let status_path = status(app.clone());
+
+    auth_path
+        .or(invitation_path)
+        .or(register_path)
+        .or(password_change_path)
+        .or(auth_url_path)
+        .or(callback_path)
+        .or(status_path)
+        .boxed()
+}
+
 async fn run_app(config: Config) -> Result<(), Error> {
     async fn _update_db(pool: PgPool) {
         let mut i = interval(Duration::from_secs(60));
@@ -64,76 +84,17 @@ async fn run_app(config: Config) -> Result<(), Error> {
         google_client: google_client.clone(),
     };
 
-    let data = warp::any().map(move || app.clone());
+    let (spec, api_scope) = openapi::spec().build(|| get_api_scope(&app));
 
-    let post = warp::post()
+    let spec_json = serde_json::to_string(&spec)?;
+    let spec_json_path = warp::path!("api" / "openapi" / "json")
         .and(warp::path::end())
-        .and(data.clone())
-        .and(warp::body::json())
-        .and_then(login);
+        .map(move || spec_json.clone());
 
-    let delete = warp::delete()
+    let spec_yaml = serde_yaml::to_string(&spec)?;
+    let spec_yaml_path = warp::path!("api" / "openapi" / "yaml")
         .and(warp::path::end())
-        .and(warp::cookie("jwt"))
-        .and(data.clone())
-        .and_then(logout);
-
-    let get = warp::get().and(warp::cookie("jwt")).and_then(get_me);
-
-    let auth_path = warp::path("auth")
-        .and(warp::path::end())
-        .and(post.or(delete).or(get));
-
-    let invitation_path = warp::path("invitation")
-        .and(warp::post())
-        .and(warp::path::end())
-        .and(data.clone())
-        .and(warp::body::json())
-        .and_then(register_email);
-
-    let register_path = warp::path!("register" / StackString)
-        .and(warp::post())
-        .and(warp::path::end())
-        .and(data.clone())
-        .and(warp::body::json())
-        .and_then(register_user);
-
-    let password_change_path = warp::path("password_change")
-        .and(warp::post())
-        .and(warp::path::end())
-        .and(warp::cookie("jwt"))
-        .and(data.clone())
-        .and(warp::body::json())
-        .and_then(change_password_user);
-
-    let auth_url_path = warp::path("auth_url")
-        .and(warp::post())
-        .and(warp::path::end())
-        .and(data.clone())
-        .and(warp::body::json())
-        .and_then(auth_url);
-
-    let callback_path = warp::path("callback")
-        .and(warp::get())
-        .and(warp::path::end())
-        .and(data.clone())
-        .and(warp::filters::query::query())
-        .and_then(callback);
-
-    let status_path = warp::path("status")
-        .and(warp::get())
-        .and(data.clone())
-        .and_then(status);
-
-    let api_scope = warp::path("api").and(
-        auth_path
-            .or(invitation_path)
-            .or(register_path)
-            .or(password_change_path)
-            .or(auth_url_path)
-            .or(callback_path)
-            .or(status_path),
-    );
+        .map(move || spec_yaml.clone());
 
     let index_html_path = warp::path("index.html").and(warp::get()).map(index_html);
     let main_css_path = warp::path("main.css").and(warp::get()).map(main_css);
@@ -160,7 +121,12 @@ async fn run_app(config: Config) -> Result<(), Error> {
         .allow_any_origin()
         .build();
 
-    let routes = api_scope.or(auth_scope).recover(error_response).with(cors);
+    let routes = api_scope
+        .or(auth_scope)
+        .or(spec_json_path)
+        .or(spec_yaml_path)
+        .recover(error_response)
+        .with(cors);
     let addr: SocketAddr = format!("127.0.0.1:{}", config.port).parse()?;
     debug!("{:?}", addr);
     warp::serve(routes).bind(addr).await;
@@ -180,26 +146,8 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
     };
 
     let port = config.port;
-    let data = warp::any().map(move || app.clone());
 
-    let post = warp::post()
-        .and(warp::path::end())
-        .and(warp::body::json())
-        .and(data.clone())
-        .and_then(test_login);
-
-    let delete = warp::delete()
-        .and(warp::path::end())
-        .and(warp::cookie("jwt"))
-        .and(data.clone())
-        .and_then(logout);
-
-    let get = warp::get()
-        .and(warp::path::end())
-        .and(warp::cookie("jwt"))
-        .and_then(get_me);
-
-    let auth_path = warp::path!("api" / "auth").and(post.or(delete).or(get));
+    let auth_path = test_login(app.clone()).or(logout(app.clone())).or(get_me());
 
     let cors = warp::cors()
         .allow_methods(vec!["GET", "POST", "DELETE"])

@@ -18,6 +18,7 @@ use tokio_postgres::Error as PostgresError;
 use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
 use warp::{
+    http::uri::InvalidUri,
     reject::{InvalidHeader, MissingCookie, Reject},
     Rejection, Reply,
 };
@@ -57,6 +58,8 @@ pub enum ServiceError {
     HTTPError(#[from] HTTPError),
     #[error("SerdeJsonError {0}")]
     SerdeJsonError(#[from] SerdeJsonError),
+    #[error("InvalidUri {0}")]
+    InvalidUri(#[from] InvalidUri),
 }
 
 // we can return early in our handlers if UUID provided by the user is not valid

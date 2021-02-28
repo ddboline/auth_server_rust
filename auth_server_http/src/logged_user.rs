@@ -1,4 +1,5 @@
 use log::debug;
+use rweb::Schema;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::{
@@ -10,7 +11,7 @@ use authorized_users::{token::Token, AuthorizedUser, AUTHORIZED_USERS};
 
 use crate::errors::ServiceError as Error;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Schema)]
 pub struct LoggedUser {
     pub email: StackString,
 }
