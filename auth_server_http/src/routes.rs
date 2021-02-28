@@ -13,7 +13,7 @@ use stack_string::StackString;
 use std::borrow::Cow;
 use url::Url;
 use uuid::Uuid;
-use warp::{Rejection, Reply};
+use warp::{Rejection, Reply, http::Uri};
 
 use auth_server_ext::{
     google_openid::GoogleClient, invitation::Invitation, ses_client::SesInstance,
@@ -261,6 +261,7 @@ async fn change_password_user_body(
 
 #[derive(Deserialize, Schema)]
 pub struct GetAuthUrlData {
+    #[schema(description="Url to redirect to after completion of authorization")]
     pub final_url: StackString,
 }
 
@@ -287,7 +288,7 @@ pub struct CallbackQuery {
 pub async fn callback(
     #[data] data: AppState,
     query: Json<CallbackQuery>,
-) -> WarpResult<JsonResponse<String>> {
+) -> WarpResult<impl Reply> {
     let (jwt, body) = callback_body(
         query.into_inner(),
         &data.pool,
@@ -295,7 +296,9 @@ pub async fn callback(
         &data.config,
     )
     .await?;
-    Ok(JsonResponse::new(body).with_cookie(jwt))
+    let redirect = warp::redirect(body);
+    let reply = warp::reply::with_header(redirect, SET_COOKIE, jwt);
+    Ok(reply)
 }
 
 async fn callback_body(
@@ -303,14 +306,14 @@ async fn callback_body(
     pool: &PgPool,
     google_client: &GoogleClient,
     config: &Config,
-) -> HttpResult<(String, String)> {
+) -> HttpResult<(String, Uri)> {
     if let Some((user, body)) = google_client
         .run_callback(&query.code, &query.state, pool)
         .await?
     {
         let user: LoggedUser = user.into();
         let jwt = user.get_jwt_cookie(&config.domain, config.expiration_seconds)?;
-        Ok((jwt, body))
+        Ok((jwt, body.as_str().parse()?))
     } else {
         Err(Error::BadRequest("Callback Failed".into()))
     }

@@ -77,7 +77,7 @@ impl GoogleClient {
         code: &str,
         state: &str,
         pool: &PgPool,
-    ) -> Result<Option<(AuthorizedUser, String)>, Error> {
+    ) -> Result<Option<(AuthorizedUser, Url)>, Error> {
         if let Some((
             CrsfTokenCache {
                 nonce, final_url, ..
@@ -93,14 +93,7 @@ impl GoogleClient {
             if let Some(user_email) = &userinfo.email {
                 if let Some(user) = User::get_by_email(user_email, &pool).await? {
                     let user: AuthorizedUser = user.into();
-
-                    let body = format!(
-                        "{}'{}'{}",
-                        r#"<script>!function(){let url = "#,
-                        final_url,
-                        r#";location.replace(url);}();</script>"#
-                    );
-                    return Ok(Some((user, body)));
+                    return Ok(Some((user, final_url)));
                 }
             }
             Err(format_err!("Oauth failed"))
