@@ -6,7 +6,7 @@ use log::debug;
 use rweb::{
     delete, get,
     openapi::{self, Entity, MediaType, ObjectOrReference, Response, ResponseEntity, Responses},
-    post, Json, Schema,
+    post, Json, Schema, Query,
 };
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
@@ -287,7 +287,7 @@ pub struct CallbackQuery {
 #[openapi(description = "Callback method for use in Oauth flow")]
 pub async fn callback(
     #[data] data: AppState,
-    query: Json<CallbackQuery>,
+    query: Query<CallbackQuery>,
 ) -> WarpResult<impl Reply> {
     let (jwt, body) = callback_body(
         query.into_inner(),
@@ -296,6 +296,7 @@ pub async fn callback(
         &data.config,
     )
     .await?;
+    println!("redirecting {:?}", body);
     let redirect = warp::redirect(body);
     let reply = warp::reply::with_header(redirect, SET_COOKIE, jwt);
     Ok(reply)
