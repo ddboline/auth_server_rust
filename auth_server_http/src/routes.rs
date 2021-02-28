@@ -296,7 +296,6 @@ pub async fn callback(
         &data.config,
     )
     .await?;
-    println!("redirecting {:?}", body);
     let redirect = warp::redirect(body);
     let reply = warp::reply::with_header(redirect, SET_COOKIE, jwt);
     Ok(reply)
