@@ -120,7 +120,12 @@ impl AuthTrigger {
     }
 
     pub fn check(&self) -> bool {
-        self.0.compare_and_swap(true, false, Ordering::SeqCst)
+        match self
+            .0
+            .compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst)
+        {
+            Ok(x) | Err(x) => x,
+        }
     }
 
     pub fn set(&self) {

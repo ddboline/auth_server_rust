@@ -7,6 +7,7 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::cognitive_complexity)]
 #![allow(clippy::unseparated_literal_suffix)]
+#![allow(clippy::default_trait_access)]
 
 pub mod app;
 pub mod auth;

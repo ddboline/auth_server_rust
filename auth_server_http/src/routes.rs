@@ -4,10 +4,10 @@ use http::header::SET_COOKIE;
 use log::debug;
 use rweb::{
     delete, get,
+    http::Uri,
+    hyper::{Body, Response},
     openapi::{self, Entity, ResponseEntity, Responses},
-    post, Json, Schema, Query,
-    hyper::{Response, Body},
-    Rejection, Reply, http::Uri
+    post, Json, Query, Rejection, Reply, Schema,
 };
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
@@ -51,12 +51,13 @@ where
 {
     fn into_response(self) -> Response<Body> {
         let reply = rweb::reply::json(&self.data);
-        if let Some(header) = self.cookie {
-            let reply = rweb::reply::with_header(reply, SET_COOKIE, header);
-            reply.into_response()
-        } else {
-            reply.into_response()
-        }
+        self.cookie.map_or_else(
+            || reply.into_response(),
+            |header| {
+                let reply = rweb::reply::with_header(reply, SET_COOKIE, header);
+                reply.into_response()
+            },
+        )
     }
 }
 
@@ -201,9 +202,8 @@ async fn register_user_object(
             let user: AuthorizedUser = user.into();
             AUTHORIZED_USERS.store_auth(user.clone(), true)?;
             return Ok(user);
-        } else {
-            invitation.delete(pool).await?;
         }
+        invitation.delete(pool).await?;
     }
     Err(Error::BadRequest("Invalid invitation".into()))
 }
@@ -242,7 +242,7 @@ async fn change_password_user_body(
 
 #[derive(Deserialize, Schema)]
 pub struct GetAuthUrlData {
-    #[schema(description="Url to redirect to after completion of authorization")]
+    #[schema(description = "Url to redirect to after completion of authorization")]
     pub final_url: StackString,
 }
 

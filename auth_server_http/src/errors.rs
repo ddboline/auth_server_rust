@@ -18,8 +18,9 @@ use tokio_postgres::Error as PostgresError;
 use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
 use warp::{
+    http::uri::InvalidUri,
     reject::{InvalidHeader, MissingCookie, Reject},
-    Rejection, Reply, http::uri::InvalidUri
+    Rejection, Reply,
 };
 
 use auth_server_lib::static_files;

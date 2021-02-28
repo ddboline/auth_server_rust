@@ -43,7 +43,7 @@ pub async fn start_app() -> Result<(), Error> {
     run_app(config).await
 }
 
-fn get_api_scope(app: AppState) -> BoxedFilter<(impl Reply,)> {
+fn get_api_scope(app: &AppState) -> BoxedFilter<(impl Reply,)> {
     let auth_path = login(app.clone()).or(logout(app.clone())).or(get_me());
 
     let invitation_path = register_email(app.clone());
@@ -84,7 +84,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
         google_client: google_client.clone(),
     };
 
-    let (spec, api_scope) = openapi::spec().build(|| get_api_scope(app));
+    let (spec, api_scope) = openapi::spec().build(|| get_api_scope(&app));
 
     let spec_json = serde_json::to_string(&spec)?;
     let spec_json_path = warp::path!("api" / "openapi" / "json")
