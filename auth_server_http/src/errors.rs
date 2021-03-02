@@ -6,6 +6,11 @@ use log::error;
 use postgres_query::extract::Error as QueryError;
 use rusoto_core::RusotoError;
 use rusoto_ses::{GetSendQuotaError, GetSendStatisticsError, SendEmailError};
+use rweb::{
+    http::uri::InvalidUri,
+    reject::{InvalidHeader, MissingCookie, Reject},
+    Rejection, Reply,
+};
 use serde::Serialize;
 use serde_json::Error as SerdeJsonError;
 use std::{
@@ -17,11 +22,6 @@ use tokio::task::JoinError;
 use tokio_postgres::Error as PostgresError;
 use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
-use rweb::{
-    http::uri::InvalidUri,
-    reject::{InvalidHeader, MissingCookie, Reject},
-    Rejection, Reply,
-};
 
 use auth_server_lib::static_files;
 use authorized_users::TRIGGER_DB_UPDATE;
