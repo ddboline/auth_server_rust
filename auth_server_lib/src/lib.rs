@@ -15,7 +15,7 @@ pub mod static_files;
 pub mod user;
 
 use lazy_static::lazy_static;
-use parking_lot::Mutex;
+use tokio::sync::Mutex;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 
 lazy_static! {

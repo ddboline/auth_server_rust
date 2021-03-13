@@ -280,7 +280,7 @@ mod test {
 
     #[tokio::test]
     async fn test_process_args() -> Result<(), Error> {
-        let _lock = AUTH_APP_MUTEX.lock();
+        let _lock = AUTH_APP_MUTEX.lock().await;
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
         let email = format!("ddboline+{}@gmail.com", get_random_string(32));

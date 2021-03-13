@@ -163,11 +163,13 @@ mod tests {
     use anyhow::Error;
 
     use auth_server_lib::config::Config;
+    use auth_server_lib::AUTH_APP_MUTEX;
 
     use crate::google_openid::GoogleClient;
 
     #[tokio::test]
     async fn test_google_openid() -> Result<(), Error> {
+        let _lock = AUTH_APP_MUTEX.lock().await;
         let config = Config::init_config()?;
 
         let client = GoogleClient::new(&config).await?;
