@@ -23,4 +23,4 @@ crossbeam = "0.8"
 arc-swap = "1.2"
 im = "15.0"
 biscuit = "0.5"
-stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.2.2", features=["postgres_types"] }
+stack-string = { version="0.2", features=["postgres_types"] }

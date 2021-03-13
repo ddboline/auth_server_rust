@@ -29,12 +29,12 @@ deadpool-postgres = "0.7"
 deadqueue = "0.2"
 tokio-postgres = {version = "0.7", features = ["with-chrono-0_4", "with-uuid-0_8"]}
 postgres-types = "0.2"
-postgres_query = {git = "https://github.com/ddboline/rust-postgres-query.git", branch="master"}
+postgres_query = "0.3"
 bcrypt = "0.9"
 bytes = "1.0"
 envy = "0.4"
 base64 = "0.13"
-openid = {git="https://github.com/ddboline/openid.git", branch="master"}
+openid = "0.8"
 rand = "0.8"
 url = "2.2"
 futures = "0.3"
@@ -47,8 +47,8 @@ im = "15.0"
 toml = "0.5"
 itertools = "0.10"
 refinery = {version="0.5", features=["tokio-postgres"]}
-stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.2.2", features=["postgres_types", "rweb-openapi"] }
-stdout-channel = { git = "https://github.com/ddboline/stdout-channel-rs.git", tag="0.3.1" }
+stack-string = { version="0.2", features=["postgres_types", "rweb-openapi"] }
+stdout-channel = "0.4"
 
 [dev-dependencies]
 reqwest = {version = "0.11", features=["cookies", "rustls-tls", "gzip", "json"]}
