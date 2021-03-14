@@ -117,6 +117,7 @@ impl SesInstance {
     }
 }
 
+#[allow(clippy::default_trait_access)]
 #[derive(Default, Debug, Schema, Serialize)]
 pub struct SesQuotas {
     pub max_24_hour_send: f64,
@@ -124,6 +125,7 @@ pub struct SesQuotas {
     pub sent_last_24_hours: f64,
 }
 
+#[allow(clippy::default_trait_access)]
 #[derive(Default, Debug, Schema, Serialize)]
 pub struct EmailStats {
     pub bounces: i64,
