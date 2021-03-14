@@ -15,7 +15,9 @@ use url::Url;
 use uuid::Uuid;
 
 use auth_server_ext::{
-    google_openid::GoogleClient, invitation::Invitation, ses_client::SesInstance,
+    google_openid::GoogleClient,
+    invitation::Invitation,
+    ses_client::{EmailStats, SesInstance, SesQuotas},
 };
 use auth_server_lib::{config::Config, pgpool::PgPool, user::User};
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
@@ -300,25 +302,35 @@ async fn callback_body(
     }
 }
 
-#[get("/api/status")]
-#[openapi(description = "Status endpoint")]
-pub async fn status(#[data] data: AppState) -> WarpResult<String> {
-    let body = status_body(&data.pool).await?;
-    Ok(body)
+#[derive(Serialize, Schema)]
+pub struct StatusOutput {
+    number_of_users: i64,
+    number_of_invitations: i64,
+    quota: SesQuotas,
+    stats: EmailStats,
 }
 
-async fn status_body(pool: &PgPool) -> HttpResult<String> {
+#[get("/api/status")]
+#[openapi(description = "Status endpoint")]
+pub async fn status(#[data] data: AppState) -> WarpResult<JsonResponse<StatusOutput>> {
+    let result = status_body(&data.pool).await?;
+    Ok(JsonResponse::new(result))
+}
+
+async fn status_body(pool: &PgPool) -> HttpResult<StatusOutput> {
     let ses = SesInstance::new(None);
     let (number_users, number_invitations, (quota, stats)) = try_join!(
         User::get_number_users(pool),
         Invitation::get_number_invitations(pool),
         ses.get_statistics(),
     )?;
-    let body = format!(
-        "Users: {}<br>Invitations: {}<br>{:#?}<br>{:#?}<br>",
-        number_users, number_invitations, quota, stats,
-    );
-    Ok(body)
+    let result = StatusOutput {
+        number_of_users: number_users,
+        number_of_invitations: number_invitations,
+        quota,
+        stats,
+    };
+    Ok(result)
 }
 
 #[post("/api/auth")]
