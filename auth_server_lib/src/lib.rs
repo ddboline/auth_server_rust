@@ -15,8 +15,8 @@ pub mod static_files;
 pub mod user;
 
 use lazy_static::lazy_static;
-use tokio::sync::Mutex;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
+use tokio::sync::Mutex;
 
 lazy_static! {
     pub static ref AUTH_APP_MUTEX: Mutex<()> = Mutex::new(());

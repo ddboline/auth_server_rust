@@ -90,7 +90,11 @@ enum AuthServerOptions {
 
 impl AuthServerOptions {
     #[allow(clippy::too_many_lines)]
-    pub async fn process_args(&self, pool: &PgPool, stdout: &StdoutChannel<StackString>) -> Result<(), Error> {
+    pub async fn process_args(
+        &self,
+        pool: &PgPool,
+        stdout: &StdoutChannel<StackString>,
+    ) -> Result<(), Error> {
         let config = Config::init_config()?;
         match self {
             AuthServerOptions::List => {

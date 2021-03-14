@@ -162,8 +162,7 @@ pub async fn get_google_client(config: &Config) -> Result<DiscoveredClient, Erro
 mod tests {
     use anyhow::Error;
 
-    use auth_server_lib::config::Config;
-    use auth_server_lib::AUTH_APP_MUTEX;
+    use auth_server_lib::{config::Config, AUTH_APP_MUTEX};
 
     use crate::google_openid::GoogleClient;
 

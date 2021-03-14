@@ -1,9 +1,12 @@
 use anyhow::Error;
 use log::debug;
-use rweb::openapi::{self, Spec};
-use rweb::{filters::BoxedFilter, http::header::CONTENT_TYPE, Filter, Reply};
-use std::sync::Arc;
-use std::{net::SocketAddr, time::Duration};
+use rweb::{
+    filters::BoxedFilter,
+    http::header::CONTENT_TYPE,
+    openapi::{self, Spec},
+    Filter, Reply,
+};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{task::spawn, time::interval};
 
 use auth_server_ext::google_openid::GoogleClient;
@@ -66,7 +69,9 @@ fn get_api_scope(app: &AppState) -> BoxedFilter<(impl Reply,)> {
 
 fn modify_spec(spec: &mut Spec) {
     spec.info.title = "Rust Auth Server".into();
-    spec.info.description = "Authorization Server written in rust using jwt/jws/jwe and featuring integration with Google OAuth".into();
+    spec.info.description = "Authorization Server written in rust using jwt/jws/jwe and featuring \
+                             integration with Google OAuth"
+        .into();
     spec.info.version = env!("CARGO_PKG_VERSION").into();
 }
 
@@ -221,7 +226,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_test_app() -> Result<(), Error> {
-        let _lock = AUTH_APP_MUTEX.lock();
+        let _lock = AUTH_APP_MUTEX.lock().await;
 
         env::set_var("TESTENV", "true");
         let email = format!("{}@localhost", get_random_string(32));
@@ -283,7 +288,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_user() -> Result<(), Error> {
-        let _lock = AUTH_APP_MUTEX.lock();
+        let _lock = AUTH_APP_MUTEX.lock().await;
 
         let mut secret_key = [0u8; KEY_LENGTH];
         secret_key.copy_from_slice(&get_random_key());
