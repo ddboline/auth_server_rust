@@ -91,13 +91,11 @@ impl AuthorizedUsers {
         let mut auth_map = (*self.0.load().clone()).clone();
         let not_auth_users: Vec<_> = auth_map
             .keys()
-            .cloned()
             .filter(|user| !users.contains(user))
+            .cloned()
             .collect();
         for user in not_auth_users {
-            if !users.contains(&user) {
-                auth_map.insert(user.clone(), AuthStatus::NotAuthorized);
-            }
+            auth_map.insert(user.clone(), AuthStatus::NotAuthorized);
         }
         for user in users {
             auth_map.insert(user.clone(), AuthStatus::Authorized(Utc::now()));

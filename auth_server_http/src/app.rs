@@ -1,9 +1,13 @@
 use anyhow::Error;
 use log::debug;
-use rweb::openapi;
-use std::{net::SocketAddr, time::Duration};
+use rweb::{
+    filters::BoxedFilter,
+    http::header::CONTENT_TYPE,
+    openapi::{self, Spec},
+    Filter, Reply,
+};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{task::spawn, time::interval};
-use rweb::{filters::BoxedFilter, Filter, Reply};
 
 use auth_server_ext::google_openid::GoogleClient;
 use auth_server_lib::{
@@ -63,6 +67,14 @@ fn get_api_scope(app: &AppState) -> BoxedFilter<(impl Reply,)> {
         .boxed()
 }
 
+fn modify_spec(spec: &mut Spec) {
+    spec.info.title = "Rust Auth Server".into();
+    spec.info.description = "Authorization Server written in rust using jwt/jws/jwe and featuring \
+                             integration with Google OAuth"
+        .into();
+    spec.info.version = env!("CARGO_PKG_VERSION").into();
+}
+
 async fn run_app(config: Config) -> Result<(), Error> {
     async fn _update_db(pool: PgPool) {
         let mut i = interval(Duration::from_secs(60));
@@ -84,17 +96,23 @@ async fn run_app(config: Config) -> Result<(), Error> {
         google_client: google_client.clone(),
     };
 
-    let (spec, api_scope) = openapi::spec().build(|| get_api_scope(&app));
-
-    let spec_json = serde_json::to_string(&spec)?;
+    let (mut spec, api_scope) = openapi::spec().build(|| get_api_scope(&app));
+    modify_spec(&mut spec);
+    let spec = Arc::new(spec);
     let spec_json_path = rweb::path!("api" / "openapi" / "json")
         .and(rweb::path::end())
-        .map(move || spec_json.clone());
+        .map({
+            let spec = spec.clone();
+            move || warp::reply::json(spec.as_ref())
+        });
 
-    let spec_yaml = serde_yaml::to_string(&spec)?;
+    let spec_yaml = serde_yaml::to_string(spec.as_ref())?;
     let spec_yaml_path = rweb::path!("api" / "openapi" / "yaml")
         .and(rweb::path::end())
-        .map(move || spec_yaml.clone());
+        .map(move || {
+            let reply = rweb::reply::html(spec_yaml.clone());
+            rweb::reply::with_header(reply, CONTENT_TYPE, "text/yaml")
+        });
 
     let index_html_path = rweb::path("index.html").and(rweb::get()).map(index_html);
     let main_css_path = rweb::path("main.css").and(rweb::get()).map(main_css);
@@ -208,7 +226,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_test_app() -> Result<(), Error> {
-        let _lock = AUTH_APP_MUTEX.lock();
+        let _lock = AUTH_APP_MUTEX.lock().await;
 
         env::set_var("TESTENV", "true");
         let email = format!("{}@localhost", get_random_string(32));
@@ -270,7 +288,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_user() -> Result<(), Error> {
-        let _lock = AUTH_APP_MUTEX.lock();
+        let _lock = AUTH_APP_MUTEX.lock().await;
 
         let mut secret_key = [0u8; KEY_LENGTH];
         secret_key.copy_from_slice(&get_random_key());

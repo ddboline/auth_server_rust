@@ -90,7 +90,11 @@ enum AuthServerOptions {
 
 impl AuthServerOptions {
     #[allow(clippy::too_many_lines)]
-    pub async fn process_args(&self, pool: &PgPool, stdout: &StdoutChannel) -> Result<(), Error> {
+    pub async fn process_args(
+        &self,
+        pool: &PgPool,
+        stdout: &StdoutChannel<StackString>,
+    ) -> Result<(), Error> {
         let config = Config::init_config()?;
         match self {
             AuthServerOptions::List => {
@@ -280,7 +284,7 @@ mod test {
 
     #[tokio::test]
     async fn test_process_args() -> Result<(), Error> {
-        let _lock = AUTH_APP_MUTEX.lock();
+        let _lock = AUTH_APP_MUTEX.lock().await;
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
         let email = format!("ddboline+{}@gmail.com", get_random_string(32));

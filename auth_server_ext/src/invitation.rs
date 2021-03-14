@@ -130,7 +130,8 @@ mod tests {
     #[tokio::test]
     async fn test_send_invitation() -> Result<(), Error> {
         let config = Config::init_config()?;
-        let new_invitation = Invitation::from_email("ddboline.im@gmail.com");
+        let email = format!("ddboline+{}@gmail.com", get_random_string(32));
+        let new_invitation = Invitation::from_email(&email);
         new_invitation
             .send_invitation(&config.sending_email_address, "test_url")
             .await?;
@@ -139,7 +140,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_delete_invitation() -> Result<(), Error> {
-        let _lock = AUTH_APP_MUTEX.lock();
+        let _lock = AUTH_APP_MUTEX.lock().await;
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
         let email = format!("{}@localhost", get_random_string(32));
@@ -158,7 +159,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_all_get_number_invitations() -> Result<(), Error> {
-        let _lock = AUTH_APP_MUTEX.lock();
+        let _lock = AUTH_APP_MUTEX.lock().await;
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
         let (invitations, count) = try_join!(

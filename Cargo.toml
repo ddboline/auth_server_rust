@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_rust"
-version = "0.4.2"
+version = "0.4.3"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -64,8 +64,8 @@ arc-swap = "1.2"
 im = "15.0"
 toml = "0.5"
 itertools = "0.10"
-stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.2.2", features=["postgres_types"] }
-stdout-channel = { git = "https://github.com/ddboline/stdout-channel-rs.git", tag="0.3.1" }
+stack-string = { version="0.2", features=["postgres_types"] }
+stdout-channel = "0.4"
 
 [dev-dependencies]
 reqwest = {version = "0.11", features=["cookies", "rustls-tls", "gzip", "json"]}
