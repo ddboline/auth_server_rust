@@ -1,7 +1,10 @@
 use anyhow::Error;
 use chrono::{DateTime, Utc};
+use derive_more::{Deref, FromStr};
 use rusoto_core::Region;
 use rusoto_ses::{Body, Content, Destination, Message, SendEmailRequest, Ses, SesClient};
+use rweb::Schema;
+use serde::Serialize;
 use std::fmt;
 use sts_profile_auth::get_client_sts;
 
@@ -111,19 +114,35 @@ impl SesInstance {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Schema, Serialize)]
 pub struct SesQuotas {
     pub max_24_hour_send: f64,
     pub max_send_rate: f64,
     pub sent_last_24_hours: f64,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Schema, Serialize)]
 pub struct EmailStats {
     pub bounces: i64,
     pub complaints: i64,
     pub delivery_attempts: i64,
     pub rejects: i64,
-    pub min_timestamp: Option<DateTime<Utc>>,
-    pub max_timestamp: Option<DateTime<Utc>>,
+    pub min_timestamp: Option<DateTimeWrapper>,
+    pub max_timestamp: Option<DateTimeWrapper>,
+}
+
+#[derive(Serialize, Debug, FromStr, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Deref)]
+pub struct DateTimeWrapper(DateTime<Utc>);
+
+use rweb::openapi::{Entity, Schema, Type};
+
+impl Entity for DateTimeWrapper {
+    #[inline]
+    fn describe() -> Schema {
+        Schema {
+            schema_type: Some(Type::String),
+            format: "datetime".into(),
+            ..Default::default()
+        }
+    }
 }
