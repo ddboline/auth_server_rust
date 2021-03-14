@@ -3,7 +3,10 @@ use chrono::{DateTime, Utc};
 use derive_more::{Deref, FromStr};
 use rusoto_core::Region;
 use rusoto_ses::{Body, Content, Destination, Message, SendEmailRequest, Ses, SesClient};
-use rweb::Schema;
+use rweb::{
+    openapi::{Entity, Schema, Type},
+    Schema,
+};
 use serde::Serialize;
 use std::fmt;
 use sts_profile_auth::get_client_sts;
@@ -134,15 +137,13 @@ pub struct EmailStats {
 #[derive(Serialize, Debug, FromStr, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Deref)]
 pub struct DateTimeWrapper(DateTime<Utc>);
 
-use rweb::openapi::{Entity, Schema, Type};
-
 impl Entity for DateTimeWrapper {
     #[inline]
     fn describe() -> Schema {
         Schema {
             schema_type: Some(Type::String),
             format: "datetime".into(),
-            ..Default::default()
+            ..Schema::default()
         }
     }
 }
