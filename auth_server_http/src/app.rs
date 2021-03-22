@@ -464,7 +464,6 @@ mod tests {
         let spec_yaml = serde_yaml::to_string(&spec)?;
 
         println!("{}", spec_yaml);
-        assert!(false);
         Ok(())
     }
 }
