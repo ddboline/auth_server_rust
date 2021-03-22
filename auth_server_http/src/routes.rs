@@ -4,8 +4,7 @@ use http::header::SET_COOKIE;
 use log::debug;
 use rweb::{
     delete, get,
-    http::status::StatusCode,
-    http::Uri,
+    http::{status::StatusCode, Uri},
     hyper::{Body, Response},
     openapi::{self, Entity, ResponseEntity, Responses},
     post, Json, Query, Rejection, Reply, Schema,
@@ -239,21 +238,27 @@ async fn register_user_object(
     Err(Error::BadRequest("Invalid invitation".into()))
 }
 
+#[derive(Serialize, Deserialize, Debug, Schema)]
+pub struct PasswordChangeOutput {
+    pub message: StackString,
+}
+
 #[post("/api/password_change")]
 #[openapi(description = "Change password for currently logged in user")]
 pub async fn change_password_user(
     #[cookie = "jwt"] logged_user: LoggedUser,
     #[data] data: AppState,
     user_data: Json<UserData>,
-) -> WarpResult<JsonResponse<&'static str>> {
-    let body = change_password_user_body(
+) -> WarpResult<JsonResponse<PasswordChangeOutput>> {
+    let message = change_password_user_body(
         logged_user,
         user_data.into_inner(),
         &data.pool,
         &data.config,
     )
-    .await?;
-    let resp = JsonResponse::new(body).with_status(StatusCode::CREATED);
+    .await?
+    .into();
+    let resp = JsonResponse::new(PasswordChangeOutput { message }).with_status(StatusCode::CREATED);
     Ok(resp)
 }
 
@@ -369,7 +374,9 @@ pub async fn test_login(
     #[data] data: AppState,
 ) -> WarpResult<JsonResponse<LoggedUser>> {
     let (user, jwt) = test_login_user_jwt(auth_data.into_inner(), &data.config).await?;
-    let resp = JsonResponse::new(user).with_cookie(jwt).with_status(StatusCode::CREATED);
+    let resp = JsonResponse::new(user)
+        .with_cookie(jwt)
+        .with_status(StatusCode::CREATED);
     Ok(resp)
 }
 

@@ -1,16 +1,14 @@
 use anyhow::Error;
 use log::debug;
+use maplit::hashmap;
 use rweb::{
     filters::BoxedFilter,
-    http::header::CONTENT_TYPE,
-    http::status::StatusCode,
+    http::{header::CONTENT_TYPE, status::StatusCode},
     openapi::{self, Spec},
     Filter, Reply,
 };
-use std::{net::SocketAddr, sync::Arc, time::Duration};
+use std::{borrow::Cow, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{task::spawn, time::interval};
-use maplit::hashmap;
-use std::borrow::Cow;
 
 use auth_server_ext::google_openid::GoogleClient;
 use auth_server_lib::{
@@ -93,36 +91,36 @@ fn modify_spec(spec: &mut Spec) {
 
     for ((path, method), (old_code, new_code)) in status_codes {
         if let Some(path) = spec.paths.get_mut(path) {
-            match method {
+            if let Some(method) = match method {
                 "get" => path.get.as_mut(),
                 "post" => path.post.as_mut(),
                 "patch" => path.patch.as_mut(),
                 "delete" => path.delete.as_mut(),
                 _ => panic!("Unsupported"),
-            }.map(|method| {
+            } {
                 let old_code: Cow<'static, str> = old_code.as_u16().to_string().into();
                 let new_code = new_code.as_u16().to_string();
                 if let Some(old) = method.responses.remove(&old_code) {
                     method.responses.insert(new_code.into(), old);
                 }
-            });
+            }
         }
     }
 
     for ((path, method, code), description) in response_descriptions {
         let code: Cow<'static, str> = code.as_u16().to_string().into();
         if let Some(path) = spec.paths.get_mut(path) {
-            match method {
+            if let Some(method) = match method {
                 "get" => path.get.as_mut(),
                 "patch" => path.patch.as_mut(),
                 "post" => path.post.as_mut(),
                 "delete" => path.delete.as_mut(),
                 _ => panic!("Unsupported"),
-            }.map(|method| {
+            } {
                 if let Some(resp) = method.responses.get_mut(&code) {
                     resp.description = description.into();
                 }
-            });
+            }
         }
     }
 }
@@ -258,8 +256,7 @@ mod tests {
     use rweb::openapi;
     use std::env;
 
-    use auth_server_ext::google_openid::GoogleClient;
-    use auth_server_ext::invitation::Invitation;
+    use auth_server_ext::{google_openid::GoogleClient, invitation::Invitation};
     use auth_server_lib::{
         config::Config, get_random_string, pgpool::PgPool, user::User, AUTH_APP_MUTEX,
     };
@@ -267,6 +264,7 @@ mod tests {
 
     use crate::{
         app::{get_api_scope, modify_spec, run_app, run_test_app, AppState},
+        routes::PasswordChangeOutput,
         logged_user::LoggedUser,
     };
 
@@ -427,16 +425,16 @@ mod tests {
             "password" => &new_password,
         };
         debug!("change password");
-        let text = client
+        let output: PasswordChangeOutput = client
             .post(&url)
             .json(&data)
             .send()
             .await?
             .error_for_status()?
-            .text()
+            .json()
             .await?;
-        debug!("password changed {:?}", text);
-        assert_eq!(text.as_str(), "password updated");
+        debug!("password changed {:?}", output);
+        assert_eq!(output.message.as_str(), "password updated");
 
         let user = User::get_by_email(&email, &pool).await?.unwrap();
         assert!(user.verify_password(&new_password)?);
