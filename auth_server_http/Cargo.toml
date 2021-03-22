@@ -52,6 +52,7 @@ itertools = "0.10"
 rweb = {version="0.6", features=["openapi"]}
 serde_yaml = "0.8"
 indexmap = "1.6"
+maplit = "1.0"
 stack-string = { version="0.2", features=["postgres_types", "rweb-openapi"] }
 stdout-channel = "0.4"
 

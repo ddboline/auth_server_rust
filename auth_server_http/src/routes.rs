@@ -4,6 +4,7 @@ use http::header::SET_COOKIE;
 use log::debug;
 use rweb::{
     delete, get,
+    http::status::StatusCode,
     http::Uri,
     hyper::{Body, Response},
     openapi::{self, Entity, ResponseEntity, Responses},
@@ -15,6 +16,7 @@ use url::Url;
 use uuid::Uuid;
 
 use auth_server_ext::{
+    datetime_wrapper::DateTimeWrapper,
     google_openid::GoogleClient,
     invitation::Invitation,
     ses_client::{EmailStats, SesInstance, SesQuotas},
@@ -32,6 +34,7 @@ pub type HttpResult<T> = Result<T, Error>;
 pub struct JsonResponse<T: Serialize + Entity + Send> {
     data: T,
     cookie: Option<String>,
+    status: StatusCode,
 }
 
 impl<T> JsonResponse<T>
@@ -39,10 +42,18 @@ where
     T: Serialize + Entity + Send,
 {
     pub fn new(data: T) -> Self {
-        Self { data, cookie: None }
+        Self {
+            data,
+            cookie: None,
+            status: StatusCode::OK,
+        }
     }
     pub fn with_cookie(mut self, cookie: String) -> Self {
         self.cookie = Some(cookie);
+        self
+    }
+    pub fn with_status(mut self, status: StatusCode) -> Self {
+        self.status = status;
         self
     }
 }
@@ -88,10 +99,10 @@ pub async fn login(
     auth_data: Json<AuthRequest>,
 ) -> WarpResult<JsonResponse<LoggedUser>> {
     let (user, jwt) = login_user_jwt(auth_data.into_inner(), &data.pool, &data.config).await?;
-    Ok(JsonResponse {
-        data: user,
-        cookie: Some(jwt),
-    })
+    let resp = JsonResponse::new(user)
+        .with_cookie(jwt)
+        .with_status(StatusCode::CREATED);
+    Ok(resp)
 }
 
 async fn login_user_jwt(
@@ -118,14 +129,13 @@ pub async fn logout(
     #[cookie = "jwt"] logged_user: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<JsonResponse<String>> {
-    Ok(
-        JsonResponse::new(format!("{} has been logged out", logged_user.email)).with_cookie(
-            format!(
-                "jwt=; HttpOnly; Path=/; Domain={}; Max-Age={}",
-                data.config.domain, data.config.expiration_seconds
-            ),
-        ),
-    )
+    let resp = JsonResponse::new(format!("{} has been logged out", logged_user.email))
+        .with_cookie(format!(
+            "jwt=; HttpOnly; Path=/; Domain={}; Max-Age={}",
+            data.config.domain, data.config.expiration_seconds
+        ))
+        .with_status(StatusCode::CREATED);
+    Ok(resp)
 }
 
 #[get("/api/auth")]
@@ -142,15 +152,33 @@ pub struct CreateInvitation {
     pub email: StackString,
 }
 
+#[derive(Serialize, Schema)]
+pub struct InvitationOutput {
+    pub id: StackString,
+    pub email: StackString,
+    pub expires_at: DateTimeWrapper,
+}
+
+impl From<Invitation> for InvitationOutput {
+    fn from(i: Invitation) -> Self {
+        Self {
+            id: i.id.to_string().into(),
+            email: i.email,
+            expires_at: i.expires_at.into(),
+        }
+    }
+}
+
 #[post("/api/invitation")]
 #[openapi(description = "Send invitation to specified email")]
 pub async fn register_email(
     #[data] data: AppState,
     invitation: Json<CreateInvitation>,
-) -> WarpResult<JsonResponse<String>> {
+) -> WarpResult<JsonResponse<InvitationOutput>> {
     let invitation =
         register_email_invitation(invitation.into_inner(), &data.pool, &data.config).await?;
-    Ok(JsonResponse::new(invitation.id.to_string()))
+    let resp = JsonResponse::new(invitation.into()).with_status(StatusCode::CREATED);
+    Ok(resp)
 }
 
 async fn register_email_invitation(
@@ -186,7 +214,8 @@ pub async fn register_user(
         &data.config,
     )
     .await?;
-    Ok(JsonResponse::new(user.into()))
+    let resp = JsonResponse::new(user.into()).with_status(StatusCode::CREATED);
+    Ok(resp)
 }
 
 async fn register_user_object(
@@ -216,7 +245,7 @@ pub async fn change_password_user(
     #[cookie = "jwt"] logged_user: LoggedUser,
     #[data] data: AppState,
     user_data: Json<UserData>,
-) -> WarpResult<String> {
+) -> WarpResult<JsonResponse<&'static str>> {
     let body = change_password_user_body(
         logged_user,
         user_data.into_inner(),
@@ -224,7 +253,8 @@ pub async fn change_password_user(
         &data.config,
     )
     .await?;
-    Ok(body.into())
+    let resp = JsonResponse::new(body).with_status(StatusCode::CREATED);
+    Ok(resp)
 }
 
 async fn change_password_user_body(
@@ -339,7 +369,8 @@ pub async fn test_login(
     #[data] data: AppState,
 ) -> WarpResult<JsonResponse<LoggedUser>> {
     let (user, jwt) = test_login_user_jwt(auth_data.into_inner(), &data.config).await?;
-    Ok(JsonResponse::new(user).with_cookie(jwt))
+    let resp = JsonResponse::new(user).with_cookie(jwt).with_status(StatusCode::CREATED);
+    Ok(resp)
 }
 
 async fn test_login_user_jwt(
