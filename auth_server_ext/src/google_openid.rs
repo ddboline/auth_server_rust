@@ -48,7 +48,7 @@ impl GoogleClient {
             .map(|client| Self(Arc::new(client)))
     }
 
-    pub async fn get_auth_url(&self, final_url: &str) -> Result<Url, Error> {
+    pub async fn get_auth_url(&self, final_url: &str) -> Result<(StackString, Url), Error> {
         let final_url: Url = final_url
             .parse()
             .map_err(|err| format_err!("Failed to parse url {:?}", err))?;
@@ -61,15 +61,19 @@ impl GoogleClient {
         };
         let authorize_url = self.0.auth_url(&options);
         let Options { state, nonce, .. } = options;
-        let csrf_state = state.expect("No CSRF state").into();
+        let csrf_state: StackString = state.expect("No CSRF state").into();
         let nonce = nonce.expect("No nonce");
 
         CSRF_TOKENS.store(Arc::new(
             CSRF_TOKENS
                 .load()
-                .update(csrf_state, CrsfTokenCache::new(&nonce, final_url)),
+                .update(csrf_state.clone(), CrsfTokenCache::new(&nonce, final_url)),
         ));
-        Ok(authorize_url)
+        Ok((csrf_state, authorize_url))
+    }
+
+    pub fn check_csrf(&self, csrf_state: &str) -> bool {
+        CSRF_TOKENS.load().contains_key(csrf_state)
     }
 
     pub async fn run_callback(
@@ -172,7 +176,7 @@ mod tests {
         let config = Config::init_config()?;
 
         let client = GoogleClient::new(&config).await?;
-        let url = client.get_auth_url("https://localhost").await?;
+        let (_, url) = client.get_auth_url("https://localhost").await?;
         let redirect_uri = format!(
             "redirect_uri=https%3A%2F%2F{}%2Fapi%2Fcallback",
             config.domain

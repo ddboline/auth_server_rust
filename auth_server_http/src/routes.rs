@@ -4,7 +4,7 @@ use http::header::SET_COOKIE;
 use log::debug;
 use rweb::{
     delete, get,
-    http::Uri,
+    http::{status::StatusCode, Uri},
     hyper::{Body, Response},
     openapi::{self, Entity, ResponseEntity, Responses},
     post, Json, Query, Rejection, Reply, Schema,
@@ -15,6 +15,7 @@ use url::Url;
 use uuid::Uuid;
 
 use auth_server_ext::{
+    datetime_wrapper::DateTimeWrapper,
     google_openid::GoogleClient,
     invitation::Invitation,
     ses_client::{EmailStats, SesInstance, SesQuotas},
@@ -32,6 +33,7 @@ pub type HttpResult<T> = Result<T, Error>;
 pub struct JsonResponse<T: Serialize + Entity + Send> {
     data: T,
     cookie: Option<String>,
+    status: StatusCode,
 }
 
 impl<T> JsonResponse<T>
@@ -39,10 +41,18 @@ where
     T: Serialize + Entity + Send,
 {
     pub fn new(data: T) -> Self {
-        Self { data, cookie: None }
+        Self {
+            data,
+            cookie: None,
+            status: StatusCode::OK,
+        }
     }
     pub fn with_cookie(mut self, cookie: String) -> Self {
         self.cookie = Some(cookie);
+        self
+    }
+    pub fn with_status(mut self, status: StatusCode) -> Self {
+        self.status = status;
         self
     }
 }
@@ -88,10 +98,10 @@ pub async fn login(
     auth_data: Json<AuthRequest>,
 ) -> WarpResult<JsonResponse<LoggedUser>> {
     let (user, jwt) = login_user_jwt(auth_data.into_inner(), &data.pool, &data.config).await?;
-    Ok(JsonResponse {
-        data: user,
-        cookie: Some(jwt),
-    })
+    let resp = JsonResponse::new(user)
+        .with_cookie(jwt)
+        .with_status(StatusCode::CREATED);
+    Ok(resp)
 }
 
 async fn login_user_jwt(
@@ -118,14 +128,13 @@ pub async fn logout(
     #[cookie = "jwt"] logged_user: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<JsonResponse<String>> {
-    Ok(
-        JsonResponse::new(format!("{} has been logged out", logged_user.email)).with_cookie(
-            format!(
-                "jwt=; HttpOnly; Path=/; Domain={}; Max-Age={}",
-                data.config.domain, data.config.expiration_seconds
-            ),
-        ),
-    )
+    let resp = JsonResponse::new(format!("{} has been logged out", logged_user.email))
+        .with_cookie(format!(
+            "jwt=; HttpOnly; Path=/; Domain={}; Max-Age={}",
+            data.config.domain, data.config.expiration_seconds
+        ))
+        .with_status(StatusCode::CREATED);
+    Ok(resp)
 }
 
 #[get("/api/auth")]
@@ -142,15 +151,36 @@ pub struct CreateInvitation {
     pub email: StackString,
 }
 
+#[derive(Serialize, Schema)]
+pub struct InvitationOutput {
+    #[schema(description = "Invitation ID")]
+    pub id: StackString,
+    #[schema(description = "Email Address")]
+    pub email: StackString,
+    #[schema(description = "Expiration Datetime")]
+    pub expires_at: DateTimeWrapper,
+}
+
+impl From<Invitation> for InvitationOutput {
+    fn from(i: Invitation) -> Self {
+        Self {
+            id: i.id.to_string().into(),
+            email: i.email,
+            expires_at: i.expires_at.into(),
+        }
+    }
+}
+
 #[post("/api/invitation")]
 #[openapi(description = "Send invitation to specified email")]
 pub async fn register_email(
     #[data] data: AppState,
     invitation: Json<CreateInvitation>,
-) -> WarpResult<JsonResponse<String>> {
+) -> WarpResult<JsonResponse<InvitationOutput>> {
     let invitation =
         register_email_invitation(invitation.into_inner(), &data.pool, &data.config).await?;
-    Ok(JsonResponse::new(invitation.id.to_string()))
+    let resp = JsonResponse::new(invitation.into()).with_status(StatusCode::CREATED);
+    Ok(resp)
 }
 
 async fn register_email_invitation(
@@ -186,7 +216,8 @@ pub async fn register_user(
         &data.config,
     )
     .await?;
-    Ok(JsonResponse::new(user.into()))
+    let resp = JsonResponse::new(user.into()).with_status(StatusCode::CREATED);
+    Ok(resp)
 }
 
 async fn register_user_object(
@@ -210,21 +241,28 @@ async fn register_user_object(
     Err(Error::BadRequest("Invalid invitation".into()))
 }
 
+#[derive(Serialize, Deserialize, Debug, Schema)]
+pub struct PasswordChangeOutput {
+    pub message: StackString,
+}
+
 #[post("/api/password_change")]
 #[openapi(description = "Change password for currently logged in user")]
 pub async fn change_password_user(
     #[cookie = "jwt"] logged_user: LoggedUser,
     #[data] data: AppState,
     user_data: Json<UserData>,
-) -> WarpResult<String> {
-    let body = change_password_user_body(
+) -> WarpResult<JsonResponse<PasswordChangeOutput>> {
+    let message = change_password_user_body(
         logged_user,
         user_data.into_inner(),
         &data.pool,
         &data.config,
     )
-    .await?;
-    Ok(body.into())
+    .await?
+    .into();
+    let resp = JsonResponse::new(PasswordChangeOutput { message }).with_status(StatusCode::CREATED);
+    Ok(resp)
 }
 
 async fn change_password_user_body(
@@ -248,16 +286,54 @@ pub struct GetAuthUrlData {
     pub final_url: StackString,
 }
 
-#[post("/api/auth_url")]
-#[openapi(description = "Get Oauth Url")]
-pub async fn auth_url(#[data] data: AppState, payload: Json<GetAuthUrlData>) -> WarpResult<String> {
-    let authorize_url = auth_url_body(payload.into_inner(), &data.google_client).await?;
-    Ok(authorize_url.into_string())
+#[derive(Serialize, Deserialize, Schema)]
+pub struct AuthUrlOutput {
+    pub csrf_state: StackString,
+    pub auth_url: StackString,
 }
 
-async fn auth_url_body(payload: GetAuthUrlData, google_client: &GoogleClient) -> HttpResult<Url> {
+#[post("/api/auth_url")]
+#[openapi(description = "Get Oauth Url")]
+pub async fn auth_url(
+    #[data] data: AppState,
+    query: Json<GetAuthUrlData>,
+) -> WarpResult<JsonResponse<AuthUrlOutput>> {
+    let (csrf_state, authorize_url) =
+        auth_url_body(query.into_inner(), &data.google_client).await?;
+    let resp = JsonResponse::new(AuthUrlOutput {
+        csrf_state,
+        auth_url: authorize_url.into_string().into(),
+    });
+    Ok(resp)
+}
+
+async fn auth_url_body(
+    payload: GetAuthUrlData,
+    google_client: &GoogleClient,
+) -> HttpResult<(StackString, Url)> {
     debug!("{:?}", payload.final_url);
-    Ok(google_client.get_auth_url(&payload.final_url).await?)
+    let (csrf_state, auth_url) = google_client.get_auth_url(&payload.final_url).await?;
+    Ok((csrf_state, auth_url))
+}
+
+#[derive(Schema, Serialize, Deserialize)]
+pub struct AuthAwait {
+    pub state: StackString,
+}
+
+#[get("/api/await")]
+#[openapi(description = "Await completion of auth")]
+pub async fn auth_await(
+    #[data] data: AppState,
+    query: Query<AuthAwait>,
+) -> WarpResult<&'static str> {
+    let state = query.into_inner().state;
+    loop {
+        if !data.google_client.check_csrf(&state) {
+            return Ok("");
+        }
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    }
 }
 
 #[derive(Deserialize, Schema)]
@@ -266,22 +342,69 @@ pub struct CallbackQuery {
     pub state: StackString,
 }
 
+pub struct CallbackResponse<T> {
+    body: T,
+    cookie: String,
+}
+
+impl<T> CallbackResponse<T> {
+    pub fn new(body: T, cookie: String) -> Self {
+        Self { body, cookie }
+    }
+}
+
+impl<T> Reply for CallbackResponse<T>
+where
+    Body: From<T>,
+    T: Entity + Send,
+{
+    fn into_response(self) -> Response<Body> {
+        let reply = rweb::reply::html(self.body);
+        let reply = rweb::reply::with_header(reply, SET_COOKIE, self.cookie);
+        reply.into_response()
+    }
+}
+
+impl<T> Entity for CallbackResponse<T>
+where
+    Body: From<T>,
+    T: Entity + Send,
+{
+    fn describe() -> openapi::Schema {
+        T::describe()
+    }
+}
+
+impl<T> ResponseEntity for CallbackResponse<T>
+where
+    Body: From<T>,
+    T: Entity + Send + ResponseEntity,
+{
+    fn describe_responses() -> Responses {
+        T::describe_responses()
+    }
+}
+
 #[get("/api/callback")]
 #[openapi(description = "Callback method for use in Oauth flow")]
 pub async fn callback(
     #[data] data: AppState,
     query: Query<CallbackQuery>,
-) -> WarpResult<impl Reply> {
-    let (jwt, body) = callback_body(
+) -> WarpResult<CallbackResponse<&'static str>> {
+    let (jwt, _) = callback_body(
         query.into_inner(),
         &data.pool,
         &data.google_client,
         &data.config,
     )
     .await?;
-    let redirect = rweb::redirect(body);
-    let reply = rweb::reply::with_header(redirect, SET_COOKIE, jwt);
-    Ok(reply)
+    let body = r#"
+        <title>Google Oauth Succeeded</title>
+        This window can be closed.
+        <script language="JavaScript" type="text/javascript">window.close()</script>
+    "#;
+    let resp = CallbackResponse::new(body, jwt);
+    Ok(resp)
 }
 
 async fn callback_body(
@@ -339,7 +462,10 @@ pub async fn test_login(
     #[data] data: AppState,
 ) -> WarpResult<JsonResponse<LoggedUser>> {
     let (user, jwt) = test_login_user_jwt(auth_data.into_inner(), &data.config).await?;
-    Ok(JsonResponse::new(user).with_cookie(jwt))
+    let resp = JsonResponse::new(user)
+        .with_cookie(jwt)
+        .with_status(StatusCode::CREATED);
+    Ok(resp)
 }
 
 async fn test_login_user_jwt(

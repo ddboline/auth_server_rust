@@ -1,16 +1,14 @@
+#![allow(clippy::default_trait_access)]
+
 use anyhow::Error;
-use chrono::{DateTime, Utc};
-use derive_more::{Deref, FromStr};
 use rusoto_core::Region;
 use rusoto_ses::{Body, Content, Destination, Message, SendEmailRequest, Ses, SesClient};
-use rweb::{
-    openapi::{Entity, Schema, Type},
-    Schema,
-};
+use rweb::Schema;
 use serde::Serialize;
 use std::fmt;
 use sts_profile_auth::get_client_sts;
 
+use crate::datetime_wrapper::DateTimeWrapper;
 #[derive(Clone)]
 pub struct SesInstance {
     ses_client: SesClient,
@@ -117,7 +115,6 @@ impl SesInstance {
     }
 }
 
-#[allow(clippy::default_trait_access)]
 #[derive(Default, Debug, Schema, Serialize)]
 pub struct SesQuotas {
     pub max_24_hour_send: f64,
@@ -125,7 +122,6 @@ pub struct SesQuotas {
     pub sent_last_24_hours: f64,
 }
 
-#[allow(clippy::default_trait_access)]
 #[derive(Default, Debug, Schema, Serialize)]
 pub struct EmailStats {
     pub bounces: i64,
@@ -134,18 +130,4 @@ pub struct EmailStats {
     pub rejects: i64,
     pub min_timestamp: Option<DateTimeWrapper>,
     pub max_timestamp: Option<DateTimeWrapper>,
-}
-
-#[derive(Serialize, Debug, FromStr, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Deref)]
-pub struct DateTimeWrapper(DateTime<Utc>);
-
-impl Entity for DateTimeWrapper {
-    #[inline]
-    fn describe() -> Schema {
-        Schema {
-            schema_type: Some(Type::String),
-            format: "datetime".into(),
-            ..Schema::default()
-        }
-    }
 }
