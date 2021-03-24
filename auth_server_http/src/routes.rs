@@ -12,6 +12,7 @@ use rweb::{
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use uuid::Uuid;
+use url::Url;
 
 use auth_server_ext::{
     datetime_wrapper::DateTimeWrapper,
@@ -290,21 +291,17 @@ pub struct GetAuthUrlData {
 pub async fn auth_url(
     #[data] data: AppState,
     query: Query<GetAuthUrlData>,
-) -> WarpResult<impl Reply> {
-    let authorize_url: Uri = auth_url_body(query.into_inner(), &data.google_client).await?;
-    let reply = rweb::redirect(authorize_url);
-    let reply = rweb::reply::with_header(reply, "X-Frame-Options", "SAMEORIGIN");
-    Ok(reply)
+) -> WarpResult<String> {
+    let authorize_url = auth_url_body(query.into_inner(), &data.google_client).await?;
+    Ok(authorize_url.into_string())
 }
 
-async fn auth_url_body(payload: GetAuthUrlData, google_client: &GoogleClient) -> HttpResult<Uri> {
+async fn auth_url_body(payload: GetAuthUrlData, google_client: &GoogleClient) -> HttpResult<Url> {
     debug!("{:?}", payload.final_url);
-    let auth_uri = google_client
+    let auth_url = google_client
         .get_auth_url(&payload.final_url)
-        .await?
-        .as_str()
-        .parse()?;
-    Ok(auth_uri)
+        .await?;
+    Ok(auth_url)
 }
 
 #[derive(Deserialize, Schema)]
