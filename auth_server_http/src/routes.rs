@@ -286,22 +286,49 @@ pub struct GetAuthUrlData {
     pub final_url: StackString,
 }
 
+#[derive(Serialize, Deserialize, Schema)]
+pub struct AuthUrlOutput {
+    pub csrf_state: StackString,
+    pub auth_url: StackString,
+}
+
 #[post("/api/auth_url")]
 #[openapi(description = "Get Oauth Url")]
 pub async fn auth_url(
     #[data] data: AppState,
     query: Json<GetAuthUrlData>,
-) -> WarpResult<String> {
-    let authorize_url = auth_url_body(query.into_inner(), &data.google_client).await?;
-    Ok(authorize_url.into_string())
+) -> WarpResult<JsonResponse<AuthUrlOutput>> {
+    let (csrf_state, authorize_url) = auth_url_body(query.into_inner(), &data.google_client).await?;
+    let resp = JsonResponse::new(AuthUrlOutput{
+        csrf_state,
+        auth_url: authorize_url.into_string().into(),
+    });
+    Ok(resp)
 }
 
-async fn auth_url_body(payload: GetAuthUrlData, google_client: &GoogleClient) -> HttpResult<Url> {
+async fn auth_url_body(payload: GetAuthUrlData, google_client: &GoogleClient) -> HttpResult<(StackString, Url)> {
     debug!("{:?}", payload.final_url);
-    let auth_url = google_client
+    let (csrf_state, auth_url) = google_client
         .get_auth_url(&payload.final_url)
         .await?;
-    Ok(auth_url)
+    Ok((csrf_state, auth_url))
+}
+
+#[derive(Schema, Serialize, Deserialize)]
+pub struct AuthAwait {
+    pub state: StackString,
+}
+
+#[get("/api/await")]
+#[openapi(description="Await completion of auth")]
+pub async fn auth_await(#[data] data: AppState, query: Query<AuthAwait>) -> WarpResult<&'static str> {
+    let state = query.into_inner().state;
+    loop {
+        if !data.google_client.check_csrf(&state) {
+            return Ok("finished");
+        }
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    }
 }
 
 #[derive(Deserialize, Schema)]
