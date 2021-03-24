@@ -293,6 +293,7 @@ pub async fn auth_url(
 ) -> WarpResult<impl Reply> {
     let authorize_url: Uri = auth_url_body(query.into_inner(), &data.google_client).await?;
     let reply = rweb::redirect(authorize_url);
+    let reply = rweb::reply::with_header(reply, "X-Frame-Options", "SAMEORIGIN");
     Ok(reply)
 }
 
@@ -327,6 +328,7 @@ pub async fn callback(
     .await?;
     let redirect = rweb::redirect(body);
     let reply = rweb::reply::with_header(redirect, SET_COOKIE, jwt);
+    let reply = rweb::reply::with_header(reply, "X-Frame-Options", "SAMEORIGIN");
     Ok(reply)
 }
 
