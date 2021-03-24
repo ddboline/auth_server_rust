@@ -71,13 +71,11 @@
     xmlhttp.send(data);
   }
   function openIdConnectLogin() {
-    let url = "/api/auth_url";
     let final_url = getFinalUrl();
     if(final_url == null ) {
       final_url = window.location.href;
     }
-    let url = url + "?final_url=" + final_url;
-    let url = encodeURI(url);
+    let url = encodeURI("/api/auth_url" + "?final_url=" + final_url);
     console.log("url ", url);
     location.replace(url);
   }
