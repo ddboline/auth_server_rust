@@ -11,8 +11,8 @@ use rweb::{
 };
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
-use uuid::Uuid;
 use url::Url;
+use uuid::Uuid;
 
 use auth_server_ext::{
     datetime_wrapper::DateTimeWrapper,
@@ -298,19 +298,21 @@ pub async fn auth_url(
     #[data] data: AppState,
     query: Json<GetAuthUrlData>,
 ) -> WarpResult<JsonResponse<AuthUrlOutput>> {
-    let (csrf_state, authorize_url) = auth_url_body(query.into_inner(), &data.google_client).await?;
-    let resp = JsonResponse::new(AuthUrlOutput{
+    let (csrf_state, authorize_url) =
+        auth_url_body(query.into_inner(), &data.google_client).await?;
+    let resp = JsonResponse::new(AuthUrlOutput {
         csrf_state,
         auth_url: authorize_url.into_string().into(),
     });
     Ok(resp)
 }
 
-async fn auth_url_body(payload: GetAuthUrlData, google_client: &GoogleClient) -> HttpResult<(StackString, Url)> {
+async fn auth_url_body(
+    payload: GetAuthUrlData,
+    google_client: &GoogleClient,
+) -> HttpResult<(StackString, Url)> {
     debug!("{:?}", payload.final_url);
-    let (csrf_state, auth_url) = google_client
-        .get_auth_url(&payload.final_url)
-        .await?;
+    let (csrf_state, auth_url) = google_client.get_auth_url(&payload.final_url).await?;
     Ok((csrf_state, auth_url))
 }
 
@@ -320,12 +322,15 @@ pub struct AuthAwait {
 }
 
 #[get("/api/await")]
-#[openapi(description="Await completion of auth")]
-pub async fn auth_await(#[data] data: AppState, query: Query<AuthAwait>) -> WarpResult<&'static str> {
+#[openapi(description = "Await completion of auth")]
+pub async fn auth_await(
+    #[data] data: AppState,
+    query: Query<AuthAwait>,
+) -> WarpResult<&'static str> {
     let state = query.into_inner().state;
     loop {
         if !data.google_client.check_csrf(&state) {
-            return Ok("finished");
+            return Ok("");
         }
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     }
@@ -337,12 +342,55 @@ pub struct CallbackQuery {
     pub state: StackString,
 }
 
+pub struct CallbackResponse<T> {
+    body: T,
+    cookie: String,
+}
+
+impl<T> CallbackResponse<T> {
+    pub fn new(body: T, cookie: String) -> Self {
+        Self { body, cookie }
+    }
+}
+
+impl<T> Reply for CallbackResponse<T>
+where
+    Body: From<T>,
+    T: Entity + Send,
+{
+    fn into_response(self) -> Response<Body> {
+        let reply = rweb::reply::html(self.body);
+        let reply = rweb::reply::with_header(reply, SET_COOKIE, self.cookie);
+        reply.into_response()
+    }
+}
+
+impl<T> Entity for CallbackResponse<T>
+where
+    Body: From<T>,
+    T: Entity + Send,
+{
+    fn describe() -> openapi::Schema {
+        T::describe()
+    }
+}
+
+impl<T> ResponseEntity for CallbackResponse<T>
+where
+    Body: From<T>,
+    T: Entity + Send + ResponseEntity,
+{
+    fn describe_responses() -> Responses {
+        T::describe_responses()
+    }
+}
+
 #[get("/api/callback")]
 #[openapi(description = "Callback method for use in Oauth flow")]
 pub async fn callback(
     #[data] data: AppState,
     query: Query<CallbackQuery>,
-) -> WarpResult<impl Reply> {
+) -> WarpResult<CallbackResponse<&'static str>> {
     let (jwt, _) = callback_body(
         query.into_inner(),
         &data.pool,
@@ -355,9 +403,8 @@ pub async fn callback(
         This window can be closed.
         <script language="JavaScript" type="text/javascript">window.close()</script>
     "#;
-    let reply = rweb::reply::html(body);
-    let reply = rweb::reply::with_header(reply, SET_COOKIE, jwt);
-    Ok(reply)
+    let resp = CallbackResponse::new(body, jwt);
+    Ok(resp)
 }
 
 async fn callback_body(

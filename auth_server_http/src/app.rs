@@ -24,8 +24,8 @@ use authorized_users::{
 use crate::{
     errors::error_response,
     routes::{
-        auth_url, callback, change_password_user, get_me, login, logout, register_email,
-        register_user, status, test_login, auth_await,
+        auth_await, auth_url, callback, change_password_user, get_me, login, logout,
+        register_email, register_user, status, test_login,
     },
 };
 
@@ -92,6 +92,8 @@ fn modify_spec(spec: &mut Spec) {
         ("/api/invitation", "post", StatusCode::CREATED) => "Invitation Object",
         ("/api/register/{invitation_id}", "post", StatusCode::CREATED) => "Registered Email",
         ("/api/password_change", "post", StatusCode::CREATED) => "Success Message",
+        ("/api/callback", "get", StatusCode::OK) => "Callback Response",
+        ("/api/await", "get", StatusCode::OK) => "Finished",
     };
 
     for ((path, method), (old_code, new_code)) in status_codes {
