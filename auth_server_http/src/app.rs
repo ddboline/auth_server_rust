@@ -133,11 +133,12 @@ fn modify_spec(spec: &mut Spec) {
 }
 
 async fn run_app(config: Config) -> Result<(), Error> {
-    async fn _update_db(pool: PgPool) {
+    async fn _update_db(pool: PgPool, client: GoogleClient) {
         let mut i = interval(Duration::from_secs(60));
         loop {
             let p = pool.clone();
             fill_auth_from_db(&p).await.unwrap_or(());
+            client.cleanup_token_map().await;
             i.tick().await;
         }
     }
@@ -145,7 +146,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
     let google_client = GoogleClient::new(&config).await?;
     let pool = PgPool::new(&config.database_url);
 
-    spawn(_update_db(pool.clone()));
+    spawn(_update_db(pool.clone(), google_client.clone()));
 
     let app = AppState {
         config: config.clone(),

@@ -16,12 +16,12 @@ use authorized_users::AuthorizedUser;
 use auth_server_lib::{config::Config, pgpool::PgPool, user::User};
 
 #[derive(Clone)]
-pub struct CrsfTokenCache {
+pub struct CsrfTokenCache {
     pub nonce: StackString,
     pub timestamp: DateTime<Utc>,
 }
 
-impl CrsfTokenCache {
+impl CsrfTokenCache {
     fn new(nonce: &str) -> Self {
         Self {
             nonce: nonce.into(),
@@ -33,7 +33,7 @@ impl CrsfTokenCache {
 #[derive(Clone)]
 pub struct GoogleClient {
     client: Arc<DiscoveredClient>,
-    csrf_tokens: Arc<ArcSwap<HashMap<StackString, CrsfTokenCache>>>,
+    csrf_tokens: Arc<ArcSwap<HashMap<StackString, CsrfTokenCache>>>,
 }
 
 impl GoogleClient {
@@ -61,7 +61,7 @@ impl GoogleClient {
         self.csrf_tokens.store(Arc::new(
             self.csrf_tokens
                 .load()
-                .update(csrf_state.clone(), CrsfTokenCache::new(&nonce)),
+                .update(csrf_state.clone(), CsrfTokenCache::new(&nonce)),
         ));
         Ok((csrf_state, authorize_url))
     }
@@ -76,23 +76,23 @@ impl GoogleClient {
         state: &str,
         pool: &PgPool,
     ) -> Result<Option<AuthorizedUser>, Error> {
-        if let Some((CrsfTokenCache { nonce, .. }, tokens)) = self.csrf_tokens.load().extract(state)
-        {
-            self.csrf_tokens.store(Arc::new(tokens));
-            debug!("Nonce {:?}", nonce);
-
-            let userinfo = self.request_userinfo(code, &nonce).await?;
-
-            if let Some(user_email) = &userinfo.email {
-                if let Some(user) = User::get_by_email(user_email, &pool).await? {
-                    let user: AuthorizedUser = user.into();
-                    return Ok(Some(user));
-                }
-            }
-            Err(format_err!("Oauth failed"))
-        } else {
-            Err(format_err!("Csrf Token invalid"))
+        let (CsrfTokenCache { nonce, timestamp }, tokens) = self
+            .csrf_tokens
+            .load()
+            .extract(state)
+            .ok_or_else(|| format_err!("CSRF Token Invalid"))?;
+        self.csrf_tokens.store(Arc::new(tokens));
+        if (Utc::now() - timestamp).num_seconds() > 3600 {
+            return Err(format_err!("Token expired"));
         }
+        debug!("Nonce {:?}", nonce);
+        let userinfo = self.request_userinfo(code, &nonce).await?;
+        let user_email = &userinfo.email.ok_or_else(|| format_err!("No userinfo"))?;
+        let user = User::get_by_email(user_email, &pool)
+            .await?
+            .ok_or_else(|| format_err!("No User"))?;
+        let user: AuthorizedUser = user.into();
+        Ok(Some(user))
     }
 
     pub async fn request_userinfo(&self, code: &str, nonce: &str) -> Result<Userinfo, Error> {
