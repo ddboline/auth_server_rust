@@ -286,11 +286,11 @@ pub struct GetAuthUrlData {
     pub final_url: StackString,
 }
 
-#[get("/api/auth_url")]
+#[post("/api/auth_url")]
 #[openapi(description = "Get Oauth Url")]
 pub async fn auth_url(
     #[data] data: AppState,
-    query: Query<GetAuthUrlData>,
+    query: Json<GetAuthUrlData>,
 ) -> WarpResult<String> {
     let authorize_url = auth_url_body(query.into_inner(), &data.google_client).await?;
     Ok(authorize_url.into_string())
