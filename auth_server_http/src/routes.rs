@@ -4,7 +4,7 @@ use http::header::SET_COOKIE;
 use log::debug;
 use rweb::{
     delete, get,
-    http::{status::StatusCode, Uri},
+    http::status::StatusCode,
     hyper::{Body, Response},
     openapi::{self, Entity, ResponseEntity, Responses},
     post, Json, Query, Rejection, Reply, Schema,
@@ -312,7 +312,7 @@ async fn auth_url_body(
     google_client: &GoogleClient,
 ) -> HttpResult<(StackString, Url)> {
     debug!("{:?}", payload.final_url);
-    let (csrf_state, auth_url) = google_client.get_auth_url(&payload.final_url).await?;
+    let (csrf_state, auth_url) = google_client.get_auth_url().await?;
     Ok((csrf_state, auth_url))
 }
 
@@ -391,7 +391,7 @@ pub async fn callback(
     #[data] data: AppState,
     query: Query<CallbackQuery>,
 ) -> WarpResult<CallbackResponse<&'static str>> {
-    let (jwt, _) = callback_body(
+    let jwt = callback_body(
         query.into_inner(),
         &data.pool,
         &data.google_client,
@@ -412,14 +412,14 @@ async fn callback_body(
     pool: &PgPool,
     google_client: &GoogleClient,
     config: &Config,
-) -> HttpResult<(String, Uri)> {
-    if let Some((user, body)) = google_client
+) -> HttpResult<String> {
+    if let Some(user) = google_client
         .run_callback(&query.code, &query.state, pool)
         .await?
     {
         let user: LoggedUser = user.into();
         let jwt = user.get_jwt_cookie(&config.domain, config.expiration_seconds)?;
-        Ok((jwt, body.as_str().parse()?))
+        Ok(jwt)
     } else {
         Err(Error::BadRequest("Callback Failed".into()))
     }
