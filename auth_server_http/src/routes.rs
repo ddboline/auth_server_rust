@@ -343,16 +343,20 @@ pub async fn callback(
     #[data] data: AppState,
     query: Query<CallbackQuery>,
 ) -> WarpResult<impl Reply> {
-    let (jwt, body) = callback_body(
+    let (jwt, _) = callback_body(
         query.into_inner(),
         &data.pool,
         &data.google_client,
         &data.config,
     )
     .await?;
-    let redirect = rweb::redirect(body);
-    let reply = rweb::reply::with_header(redirect, SET_COOKIE, jwt);
-    let reply = rweb::reply::with_header(reply, "X-Frame-Options", "SAMEORIGIN");
+    let body = r#"
+        <title>Google Oauth Succeeded</title>
+        This window can be closed.
+        <script language="JavaScript" type="text/javascript">window.close()</script>
+    "#;
+    let reply = rweb::reply::html(body);
+    let reply = rweb::reply::with_header(reply, SET_COOKIE, jwt);
     Ok(reply)
 }
 
