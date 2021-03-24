@@ -76,19 +76,9 @@
     if(final_url == null ) {
       final_url = window.location.href;
     }
-    let data = JSON.stringify({"final_url": final_url});
-    console.log("data ", data);
-    let xmlhttp = new XMLHttpRequest();
-    xmlhttp.onload = function() {
-      if(xmlhttp.responseText.startsWith('https://accounts.google.com')) {
-        window.open(xmlhttp.responseText, '_blank');
-        window.focus();
-      } else {
-        location.replace(xmlhttp.responseText);
-      }
-    }
-    xmlhttp.open("POST", url, true);
-    xmlhttp.setRequestHeader("Content-Type", "application/json");
-    xmlhttp.send(data);
+    let url = url + "?final_url=" + final_url;
+    let url = encodeURI(url);
+    console.log("url ", url);
+    location.replace(url);
   }
 </script>

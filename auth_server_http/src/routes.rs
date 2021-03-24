@@ -11,7 +11,6 @@ use rweb::{
 };
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
-use url::Url;
 use uuid::Uuid;
 
 use auth_server_ext::{
@@ -153,8 +152,11 @@ pub struct CreateInvitation {
 
 #[derive(Serialize, Schema)]
 pub struct InvitationOutput {
+    #[schema(description = "Invitation ID")]
     pub id: StackString,
+    #[schema(description = "Email Address")]
     pub email: StackString,
+    #[schema(description = "Expiration Datetime")]
     pub expires_at: DateTimeWrapper,
 }
 
@@ -283,16 +285,25 @@ pub struct GetAuthUrlData {
     pub final_url: StackString,
 }
 
-#[post("/api/auth_url")]
+#[get("/api/auth_url")]
 #[openapi(description = "Get Oauth Url")]
-pub async fn auth_url(#[data] data: AppState, payload: Json<GetAuthUrlData>) -> WarpResult<String> {
-    let authorize_url = auth_url_body(payload.into_inner(), &data.google_client).await?;
-    Ok(authorize_url.into_string())
+pub async fn auth_url(
+    #[data] data: AppState,
+    query: Query<GetAuthUrlData>,
+) -> WarpResult<impl Reply> {
+    let authorize_url: Uri = auth_url_body(query.into_inner(), &data.google_client).await?;
+    let reply = rweb::redirect(authorize_url);
+    Ok(reply)
 }
 
-async fn auth_url_body(payload: GetAuthUrlData, google_client: &GoogleClient) -> HttpResult<Url> {
+async fn auth_url_body(payload: GetAuthUrlData, google_client: &GoogleClient) -> HttpResult<Uri> {
     debug!("{:?}", payload.final_url);
-    Ok(google_client.get_auth_url(&payload.final_url).await?)
+    let auth_uri = google_client
+        .get_auth_url(&payload.final_url)
+        .await?
+        .as_str()
+        .parse()?;
+    Ok(auth_uri)
 }
 
 #[derive(Deserialize, Schema)]

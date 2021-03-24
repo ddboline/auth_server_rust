@@ -87,6 +87,9 @@ fn modify_spec(spec: &mut Spec) {
         ("/api/auth", "get", StatusCode::OK) => "Current users email",
         ("/api/auth", "post", StatusCode::CREATED) => "Current logged in username",
         ("/api/auth", "delete", StatusCode::CREATED) => "Email of logged in user",
+        ("/api/invitation", "post", StatusCode::CREATED) => "Invitation Object",
+        ("/api/register/{invitation_id}", "post", StatusCode::CREATED) => "Registered Email",
+        ("/api/password_change", "post", StatusCode::CREATED) => "Success Message",
     };
 
     for ((path, method), (old_code, new_code)) in status_codes {
@@ -264,8 +267,8 @@ mod tests {
 
     use crate::{
         app::{get_api_scope, modify_spec, run_app, run_test_app, AppState},
-        routes::PasswordChangeOutput,
         logged_user::LoggedUser,
+        routes::PasswordChangeOutput,
     };
 
     #[test]
