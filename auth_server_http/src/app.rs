@@ -25,7 +25,7 @@ use crate::{
     errors::error_response,
     routes::{
         auth_url, callback, change_password_user, get_me, login, logout, register_email,
-        register_user, status, test_login,
+        register_user, status, test_login, auth_await,
     },
 };
 
@@ -55,6 +55,7 @@ fn get_api_scope(app: &AppState) -> BoxedFilter<(impl Reply,)> {
     let register_path = register_user(app.clone());
     let password_change_path = change_password_user(app.clone());
     let auth_url_path = auth_url(app.clone());
+    let auth_await_path = auth_await(app.clone());
     let callback_path = callback(app.clone());
     let status_path = status(app.clone());
 
@@ -63,6 +64,7 @@ fn get_api_scope(app: &AppState) -> BoxedFilter<(impl Reply,)> {
         .or(register_path)
         .or(password_change_path)
         .or(auth_url_path)
+        .or(auth_await_path)
         .or(callback_path)
         .or(status_path)
         .boxed()
