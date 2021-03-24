@@ -77,7 +77,6 @@
       final_url = window.location.href;
     }
     let data = JSON.stringify({"final_url": final_url});
-    console.log("data ", data);
     let xmlhttp = new XMLHttpRequest();
     xmlhttp.onload = function() {
       js = JSON.parse(xmlhttp.responseText);
