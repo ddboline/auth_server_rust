@@ -1,14 +1,13 @@
 use anyhow::{format_err, Error};
-use arc_swap::ArcSwap;
 use base64::{encode_config, URL_SAFE_NO_PAD};
 use chrono::{DateTime, Utc};
-use im::HashMap;
 use log::debug;
 pub use openid::error::Error as OpenidError;
 use openid::{DiscoveredClient, Options, Userinfo};
 use rand::{thread_rng, Rng};
 use stack_string::StackString;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
+use tokio::sync::Mutex;
 use url::Url;
 
 use authorized_users::AuthorizedUser;
@@ -33,13 +32,13 @@ impl CsrfTokenCache {
 #[derive(Clone)]
 pub struct GoogleClient {
     client: Arc<DiscoveredClient>,
-    csrf_tokens: Arc<ArcSwap<HashMap<StackString, CsrfTokenCache>>>,
+    csrf_tokens: Arc<Mutex<HashMap<StackString, CsrfTokenCache>>>,
 }
 
 impl GoogleClient {
     pub async fn new(config: &Config) -> Result<Self, Error> {
         let client = Arc::new(get_google_client(config).await?);
-        let csrf_tokens = Arc::new(ArcSwap::new(Arc::new(HashMap::new())));
+        let csrf_tokens = Arc::new(Mutex::new(HashMap::new()));
         Ok(Self {
             client,
             csrf_tokens,
@@ -58,16 +57,15 @@ impl GoogleClient {
         let csrf_state: StackString = state.expect("No CSRF state").into();
         let nonce = nonce.expect("No nonce");
 
-        self.csrf_tokens.store(Arc::new(
-            self.csrf_tokens
-                .load()
-                .update(csrf_state.clone(), CsrfTokenCache::new(&nonce)),
-        ));
+        self.csrf_tokens
+            .lock()
+            .await
+            .insert(csrf_state.clone(), CsrfTokenCache::new(&nonce));
         Ok((csrf_state, authorize_url))
     }
 
-    pub fn check_csrf(&self, csrf_state: &str) -> bool {
-        self.csrf_tokens.load().contains_key(csrf_state)
+    pub async fn check_csrf(&self, csrf_state: &str) -> bool {
+        self.csrf_tokens.lock().await.contains_key(csrf_state)
     }
 
     pub async fn run_callback(
@@ -76,12 +74,12 @@ impl GoogleClient {
         state: &str,
         pool: &PgPool,
     ) -> Result<Option<AuthorizedUser>, Error> {
-        let (CsrfTokenCache { nonce, timestamp }, tokens) = self
+        let CsrfTokenCache { nonce, timestamp } = self
             .csrf_tokens
-            .load()
-            .extract(state)
+            .lock()
+            .await
+            .remove(state)
             .ok_or_else(|| format_err!("CSRF Token Invalid"))?;
-        self.csrf_tokens.store(Arc::new(tokens));
         if (Utc::now() - timestamp).num_seconds() > 3600 {
             return Err(format_err!("Token expired"));
         }
@@ -110,8 +108,10 @@ impl GoogleClient {
     }
 
     pub async fn cleanup_token_map(&self) {
-        let mut tokens = (*self.csrf_tokens.load().clone()).clone();
-        let expired_keys: Vec<_> = tokens
+        let expired_keys: Vec<_> = self
+            .csrf_tokens
+            .lock()
+            .await
             .iter()
             .filter_map(|(k, t)| {
                 if (Utc::now() - t.timestamp).num_seconds() > 3600 {
@@ -122,9 +122,8 @@ impl GoogleClient {
             })
             .collect();
         for key in expired_keys {
-            tokens.remove(&key);
+            self.csrf_tokens.lock().await.remove(&key);
         }
-        self.csrf_tokens.store(Arc::new(tokens));
     }
 }
 

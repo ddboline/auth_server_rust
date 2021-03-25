@@ -329,7 +329,7 @@ pub async fn auth_await(
 ) -> WarpResult<&'static str> {
     let state = query.into_inner().state;
     loop {
-        if !data.google_client.check_csrf(&state) {
+        if !data.google_client.check_csrf(&state).await {
             return Ok("");
         }
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
