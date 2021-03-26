@@ -57,6 +57,6 @@ stack-string = { version="0.2", features=["postgres_types", "rweb-openapi"] }
 stdout-channel = "0.4"
 
 [dev-dependencies]
-reqwest = {version = "0.11", features=["cookies", "rustls-tls", "gzip", "json"]}
+reqwest = {version = "0.11", default_features = false, features=["cookies", "rustls-tls", "gzip", "json"]}
 maplit = "1.0"
 env_logger = "0.8"
