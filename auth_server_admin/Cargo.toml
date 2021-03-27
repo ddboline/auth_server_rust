@@ -1,33 +1,15 @@
 [package]
-name = "auth_server_rust"
-version = "0.4.7"
+name = "auth_server_admin"
+version = "0.1.0"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
-[package.metadata.deb]
-name = "auth-server-rust"
-priority = "optional"
-section = "rust"
-provides = "auth-server-rust"
-extended-description = """\
-Authentication service using warp."""
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[workspace]
-members = [
-    "auth_server_http",
-    "auth_server_lib",
-    "auth_server_ext",
-    "authorized_users",
-]
-
 [dependencies]
-auth_server_admin = {path="auth_server_admin"}
-auth_server_http = {path = "auth_server_http"}
-auth_server_lib = {path = "auth_server_lib"}
-auth_server_ext = {path = "auth_server_ext"}
-authorized_users = {path = "authorized_users"}
+auth_server_lib = {path = "../auth_server_lib"}
+authorized_users = {path = "../authorized_users"}
+auth_server_ext = {path = "../auth_server_ext"}
 anyhow = "1.0"
 log = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
@@ -60,23 +42,14 @@ parking_lot = "0.11"
 smallvec = "1.6"
 crossbeam = "0.8"
 structopt = "0.3"
-env_logger = "0.8"
 arc-swap = "1.2"
 im = "15.0"
 toml = "0.5"
 itertools = "0.10"
-stack-string = { version="0.2", features=["postgres_types"] }
+refinery = {version="0.5", features=["tokio-postgres"]}
+stack-string = { version="0.2", features=["postgres_types", "rweb-openapi"] }
 stdout-channel = "0.4"
+rweb = {version="0.6", features=["openapi"]}
 
 [dev-dependencies]
 reqwest = {version = "0.11", default_features = false, features=["cookies", "rustls-tls", "gzip", "json"]}
-
-[[bin]]
-name = "auth-server-rust"
-path = "src/main.rs"
-doc = false
-
-[[bin]]
-name = "auth-server-admin"
-path = "src/auth_server_admin.rs"
-doc = false

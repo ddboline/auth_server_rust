@@ -13,12 +13,10 @@ use structopt::StructOpt;
 use uuid::Uuid;
 
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
-
 use auth_server_lib::{
     auth_user_config::AuthUserConfig, config::Config, pgpool::PgPool, user::User,
 };
-
-use crate::{invitation::Invitation, ses_client::SesInstance};
+use auth_server_ext::{invitation::Invitation, ses_client::SesInstance};
 
 embed_migrations!("../migrations");
 

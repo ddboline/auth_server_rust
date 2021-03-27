@@ -34,7 +34,7 @@ bcrypt = "0.9"
 bytes = "1.0"
 envy = "0.4"
 base64 = "0.13"
-openid = "0.8"
+openid = "0.9"
 rand = "0.8"
 url = "2.2"
 futures = "0.3"
@@ -46,7 +46,6 @@ arc-swap = "1.2"
 im = "15.0"
 toml = "0.5"
 itertools = "0.10"
-refinery = {version="0.5", features=["tokio-postgres"]}
 stack-string = { version="0.2", features=["postgres_types", "rweb-openapi"] }
 stdout-channel = "0.4"
 rweb = {version="0.6", features=["openapi"]}

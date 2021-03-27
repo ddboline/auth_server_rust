@@ -1,6 +1,6 @@
 use anyhow::Error;
 
-use auth_server_ext::auth_server_admin::run_cli;
+use auth_server_admin::run_cli;
 
 #[tokio::main]
 #[cfg(not(tarpaulin_include))]
