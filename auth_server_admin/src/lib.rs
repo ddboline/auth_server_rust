@@ -263,8 +263,9 @@ mod test {
     use uuid::Uuid;
 
     use auth_server_lib::{config::Config, pgpool::PgPool, user::User, AUTH_APP_MUTEX};
+    use auth_server_ext::{invitation::Invitation};
 
-    use crate::{auth_server_admin::AuthServerOptions, invitation::Invitation};
+    use crate::AuthServerOptions;
 
     pub fn get_random_string(n: usize) -> String {
         let mut rng = thread_rng();
