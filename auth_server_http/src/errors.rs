@@ -2,17 +2,20 @@ use anyhow::Error as AnyhowError;
 use auth_server_ext::google_openid::OpenidError;
 use bcrypt::BcryptError;
 use http::{Error as HTTPError, StatusCode};
+use indexmap::IndexMap;
 use log::error;
 use postgres_query::extract::Error as QueryError;
 use rusoto_core::RusotoError;
 use rusoto_ses::{GetSendQuotaError, GetSendStatisticsError, SendEmailError};
 use rweb::{
     http::uri::InvalidUri,
+    openapi::{Schema, Response, ResponseEntity, Responses, Entity},
     reject::{InvalidHeader, MissingCookie, Reject},
     Rejection, Reply,
 };
 use serde::Serialize;
 use serde_json::Error as SerdeJsonError;
+use std::borrow::Cow;
 use std::{
     convert::{From, Infallible},
     fmt::Debug,
@@ -133,6 +136,37 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
     let reply = rweb::reply::with_status(reply, code);
 
     Ok(Box::new(reply))
+}
+
+impl Entity for ServiceError {
+    fn describe() -> Schema {
+        rweb::http::Error::describe()
+    }
+}
+
+impl ResponseEntity for ServiceError {
+    fn describe_responses() -> Responses {
+        let mut map = IndexMap::new();
+
+        let error_responses = [
+            (StatusCode::NOT_FOUND, "Not Found"),
+            (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error"),
+            (StatusCode::BAD_REQUEST, "Bad Request"),
+            (StatusCode::METHOD_NOT_ALLOWED, "Method not allowed"),
+        ];
+
+        for (code, msg) in &error_responses {
+            map.insert(
+                Cow::Owned(code.as_str().into()),
+                Response {
+                    description: Cow::Borrowed(*msg),
+                    ..Response::default()
+                },
+            );
+        }
+
+        map
+    }
 }
 
 #[cfg(test)]

@@ -12,11 +12,11 @@ use stdout_channel::StdoutChannel;
 use structopt::StructOpt;
 use uuid::Uuid;
 
-use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
+use auth_server_ext::{invitation::Invitation, ses_client::SesInstance};
 use auth_server_lib::{
     auth_user_config::AuthUserConfig, config::Config, pgpool::PgPool, user::User,
 };
-use auth_server_ext::{invitation::Invitation, ses_client::SesInstance};
+use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 
 embed_migrations!("../migrations");
 
@@ -262,8 +262,8 @@ mod test {
     use stdout_channel::{MockStdout, StdoutChannel};
     use uuid::Uuid;
 
+    use auth_server_ext::invitation::Invitation;
     use auth_server_lib::{config::Config, pgpool::PgPool, user::User, AUTH_APP_MUTEX};
-    use auth_server_ext::{invitation::Invitation};
 
     use crate::AuthServerOptions;
 
