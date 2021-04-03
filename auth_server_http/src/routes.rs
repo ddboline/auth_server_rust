@@ -78,7 +78,7 @@ where
     T: Serialize + Entity + Send,
 {
     fn describe() -> openapi::Schema {
-        T::describe()
+        Result::<T, Error>::describe()
     }
 }
 
