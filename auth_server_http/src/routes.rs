@@ -87,7 +87,7 @@ where
     T: Serialize + Entity + Send,
 {
     fn describe_responses() -> Responses {
-        Json::<T>::describe_responses()
+        Result::<Json::<T>, Error>::describe_responses()
     }
 }
 
