@@ -10,21 +10,119 @@
   </head>
   <body>
     <div class="login">
-      <h1>Email Invitation</h1>
-
-      <p>Please enter your email receive Invitation (also works to change password)</p>
-      <input class="field" type="text" placeholder="email" id="email" /> <br />
-      <input class="btn" type="submit" value="Send Email" onclick="sendVerificationEmail()" />
+      <input class="field" type="text" placeholder="email" id="email" /><input class="btn" type="submit" value="Register via Email" onclick="registerViaEmail()" /><br />
+      <input class="field" type="password" placeholder="Password" id="password" /><input class="btn" type="submit" value="Login" onclick="login()" /><br />
+      <input class="btn" type="submit" value="Change Password" onclick="sendVerificationEmail()" /><br />
+      <input class="btn" type="submit" value="Login via Google Oauth" onclick="openIdConnectLogin()" />
+    </div>
+    <div>
+      <br><h2><a href="/api/openapi/json" target="_blank">Api Docs</a></h2>
     </div>
   </body>
 </html>
 <script>
+  !function() {
+    let url = "/api/auth";
+    let xmlhttp = new XMLHttpRequest();
+    xmlhttp.onload = function f() {
+      console.log(xmlhttp.getAllResponseHeaders());
+      console.log(xmlhttp.getAllResponseHeaders().includes('application/json'));
+      if (xmlhttp.getAllResponseHeaders().includes('application/json')) {
+        let js = JSON.parse(xmlhttp.response);
+        console.log(js.email);
+        if (js.email) {
+          document.getElementsByClassName("login")['0'].innerHTML = "<H1>Logged in as: " + js.email + "</H1><br>" +
+            '<input type="button" name="logout" value="Logout" onclick="logout();"/>';
+        }
+      }
+    }
+    console.log(url);
+    xmlhttp.open("GET", url, true);
+    xmlhttp.send(null);
+  }();
+  function getFinalUrl() {
+    let params = new URLSearchParams(window.location.search);
+    return params.get('final_url');
+  }
+  function login() {
+    let final_url = getFinalUrl();
+    let email = document.querySelector('#email');
+    let password = document.querySelector('#password');
+    var data = JSON.stringify({"email": email.value, "password": password.value});
+    var xmlhttp = new XMLHttpRequest();
+    xmlhttp.onload = function() {
+      if(final_url) {
+        location.replace(final_url);
+      } else {
+        location.reload();
+      }
+    }
+    xmlhttp.open( "POST", '/api/auth' , true );
+    xmlhttp.setRequestHeader("Content-Type", "application/json");
+    xmlhttp.send(data);
+  }
   function sendVerificationEmail() {
     let email = document.querySelector('#email');
 
-    post('/api/invitation', { email: email.value }).then(data => {
-      document.getElementsByClassName("login").innerHTML = "Please check your email: " + data;
+    var xmlhttp = new XMLHttpRequest();
+    xmlhttp.onload = function() {
       email.value = '';
-    });
+      document.getElementsByClassName("login").innerHTML = "Please check your email.";
+    }
+    var data = JSON.stringify({"email": email.value});
+    xmlhttp.open( "POST", "/api/password_change", true );
+    xmlhttp.setRequestHeader("Content-Type", "application/json");
+    xmlhttp.send(data);
   }
+  function registerViaEmail() {
+    let email = document.querySelector('#email');
+
+    var xmlhttp = new XMLHttpRequest();
+    xmlhttp.onload = function() {
+      email.value = '';
+      document.getElementsByClassName("login").innerHTML = "Please check your email.";
+    }
+    var data = JSON.stringify({"email": email.value});
+    xmlhttp.open( "POST", "/api/invitation", true );
+    xmlhttp.setRequestHeader("Content-Type", "application/json");
+    xmlhttp.send(data);
+  }
+  function openIdConnectLogin() {
+    let url = "/api/auth_url";
+    let final_url = getFinalUrl();
+    if(final_url == null ) {
+      final_url = window.location.href;
+    }
+    let data = JSON.stringify({"final_url": final_url});
+    let xmlhttp = new XMLHttpRequest();
+    xmlhttp.onload = function() {
+      js = JSON.parse(xmlhttp.responseText);
+
+      let xmlhttp2 = new XMLHttpRequest();
+      xmlhttp2.onload = function() {
+        location.replace(final_url);
+      }
+      let url2 = "/api/await?state=" + js.csrf_state;
+      xmlhttp2.open("GET", url2, true);
+      xmlhttp2.send(null);
+
+      window.open(js.auth_url, '_blank');
+      window.focus();
+    }
+    xmlhttp.open("POST", url, true);
+    xmlhttp.setRequestHeader("Content-Type", "application/json");
+    xmlhttp.send(data);
+  }
+  function logout() {
+        let url = "/api/auth";
+        let xmlhttp = new XMLHttpRequest();
+        xmlhttp.onload = function() {
+            let iframe = document.getElementById("main-frame");
+            if (iframe) {
+              iframe.src = url;
+            }
+        }
+        xmlhttp.open("DELETE", url, true);
+        xmlhttp.send(null);
+    }
 </script>
