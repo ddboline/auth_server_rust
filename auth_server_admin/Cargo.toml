@@ -49,7 +49,7 @@ itertools = "0.10"
 refinery = {version="0.5", features=["tokio-postgres"]}
 stack-string = { version="0.2", features=["postgres_types", "rweb-openapi"] }
 stdout-channel = "0.4"
-rweb = {version="0.6", features=["openapi"]}
+rweb = {version="0.10", features=["openapi"]}
 
 [dev-dependencies]
 reqwest = {version = "0.11", default_features = false, features=["cookies", "rustls-tls", "gzip", "json"]}

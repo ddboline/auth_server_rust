@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_ext"
-version = "0.4.9"
+version = "0.4.10"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -48,7 +48,7 @@ toml = "0.5"
 itertools = "0.10"
 stack-string = { version="0.2", features=["postgres_types", "rweb-openapi"] }
 stdout-channel = "0.4"
-rweb = {version="0.6", features=["openapi"]}
+rweb = {version="0.10", features=["openapi"]}
 
 [dev-dependencies]
 reqwest = {version = "0.11", default_features = false, features=["cookies", "rustls-tls", "gzip", "json"]}
