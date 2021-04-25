@@ -9,14 +9,14 @@ use rusoto_core::RusotoError;
 use rusoto_ses::{GetSendQuotaError, GetSendStatisticsError, SendEmailError};
 use rweb::{
     http::uri::InvalidUri,
-    openapi::{Schema, Response, ResponseEntity, Responses, Entity},
+    openapi::{Entity, Response, ResponseEntity, Responses, Schema},
     reject::{InvalidHeader, MissingCookie, Reject},
     Rejection, Reply,
 };
 use serde::Serialize;
 use serde_json::Error as SerdeJsonError;
-use std::borrow::Cow;
 use std::{
+    borrow::Cow,
     convert::{From, Infallible},
     fmt::Debug,
 };

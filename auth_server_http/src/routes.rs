@@ -63,6 +63,7 @@ where
 {
     fn into_response(self) -> Response<Body> {
         let reply = rweb::reply::json(&self.data);
+        let reply = rweb::reply::with_status(reply, self.status);
         #[allow(clippy::option_if_let_else)]
         if let Some(header) = self.cookie {
             let reply = rweb::reply::with_header(reply, SET_COOKIE, header);
@@ -87,7 +88,7 @@ where
     T: Serialize + Entity + Send,
 {
     fn describe_responses() -> Responses {
-        Result::<Json::<T>, Error>::describe_responses()
+        Result::<Json<T>, Error>::describe_responses()
     }
 }
 
