@@ -301,9 +301,10 @@ pub async fn auth_url(
 ) -> WarpResult<JsonResponse<AuthUrlOutput>> {
     let (csrf_state, authorize_url) =
         auth_url_body(query.into_inner(), &data.google_client).await?;
+    let authorize_url: String = authorize_url.into();
     let resp = JsonResponse::new(AuthUrlOutput {
         csrf_state,
-        auth_url: authorize_url.into_string().into(),
+        auth_url: authorize_url.into(),
     });
     Ok(resp)
 }
