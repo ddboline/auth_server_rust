@@ -142,6 +142,7 @@ impl AuthSecret {
         Self(AtomicCell::new(None), cache)
     }
 
+    #[allow(clippy::missing_panics_doc)]
     pub fn get(&'static self) -> SecretKey {
         if let Some(key) = self.1.with(Cell::get) {
             key

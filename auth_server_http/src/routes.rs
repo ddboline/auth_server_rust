@@ -182,12 +182,10 @@ pub async fn get_session(
     key: StackString,
 ) -> WarpResult<JsonResponse<Value>> {
     if let Some(session) = logged_user.session.and_then(|x| x.parse::<Uuid>().ok()) {
-        if let Some(value) = data.session_cache.load().get(&session) {
-            if let Value::Object(session_map) = value {
-                if let Some(value) = session_map.get(key.as_str()) {
-                    debug!("got cache");
-                    return Ok(JsonResponse::new(value.clone()));
-                }
+        if let Some(Value::Object(session_map)) = data.session_cache.load().get(&session) {
+            if let Some(value) = session_map.get(key.as_str()) {
+                debug!("got cache");
+                return Ok(JsonResponse::new(value.clone()));
             }
         }
         if let Some(session_obj) = Session::get_session(&data.pool, &session)

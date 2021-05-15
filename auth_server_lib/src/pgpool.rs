@@ -26,6 +26,7 @@ impl PartialEq for PgPool {
 }
 
 impl PgPool {
+    #[allow(clippy::missing_panics_doc)]
     pub fn new(pgurl: &str) -> Self {
         let pgconf: PgConfig = pgurl.parse().expect("Failed to parse Url");
 
@@ -51,7 +52,7 @@ impl PgPool {
             pool: Some(
                 config
                     .create_pool(NoTls)
-                    .unwrap_or_else(|_| panic!("Failed to create pool {}", pgurl)),
+                    .expect(&format!("Failed to create pool {}", pgurl)),
             ),
         }
     }

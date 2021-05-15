@@ -87,6 +87,7 @@ struct ErrorMessage {
     message: String,
 }
 
+#[allow(clippy::missing_panics_doc)]
 pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible> {
     let code: StatusCode;
     let message: &str;
