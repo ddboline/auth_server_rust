@@ -52,7 +52,7 @@ impl PgPool {
             pool: Some(
                 config
                     .create_pool(NoTls)
-                    .expect(&format!("Failed to create pool {}", pgurl)),
+                    .unwrap_or_else(|_| panic!("Failed to create pool {}", pgurl)),
             ),
         }
     }

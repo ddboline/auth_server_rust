@@ -243,6 +243,7 @@ async fn get_auth_user_app_map(
 }
 
 #[allow(clippy::missing_panics_doc)]
+#[allow(clippy::missing_errors_doc)]
 pub async fn run_cli() -> Result<(), Error> {
     let opts = AuthServerOptions::from_args();
     let config = Config::init_config()?;
