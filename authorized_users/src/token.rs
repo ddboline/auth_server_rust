@@ -88,12 +88,14 @@ mod tests {
         SECRET_KEY.set(secret_key);
         JWT_SECRET.set(secret_key);
 
+        let session = Uuid::new_v4();
+
         let user = AuthorizedUser {
             email: "test@local".into(),
-            session: None,
+            session: Some(session),
         };
 
-        let token = Token::create_token(&user.email, "localhost", 3600, Uuid::new_v4())?;
+        let token = Token::create_token(&user.email, "localhost", 3600, session)?;
 
         debug!("token {}", token);
 
