@@ -11,6 +11,7 @@
 pub mod auth_user_config;
 pub mod config;
 pub mod pgpool;
+pub mod session;
 pub mod static_files;
 pub mod user;
 

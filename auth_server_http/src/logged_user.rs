@@ -6,6 +6,7 @@ use std::{
     convert::{TryFrom, TryInto},
     str::FromStr,
 };
+use uuid::Uuid;
 
 use authorized_users::{token::Token, AuthorizedUser, AUTHORIZED_USERS};
 
@@ -14,11 +15,17 @@ use crate::errors::ServiceError as Error;
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Schema)]
 pub struct LoggedUser {
     pub email: StackString,
+    pub session: Option<StackString>,
 }
 
 impl LoggedUser {
-    pub fn get_jwt_cookie(&self, domain: &str, expiration_seconds: i64) -> Result<String, Error> {
-        let token = Token::create_token(&self.email, domain, expiration_seconds)?;
+    pub fn get_jwt_cookie(
+        &self,
+        domain: &str,
+        expiration_seconds: i64,
+        session: Uuid,
+    ) -> Result<String, Error> {
+        let token = Token::create_token(&self.email, domain, expiration_seconds, session)?;
         Ok(format!(
             "jwt={}; HttpOnly; Path=/; Domain={}; Max-Age={}",
             token, domain, expiration_seconds
@@ -28,13 +35,19 @@ impl LoggedUser {
 
 impl From<AuthorizedUser> for LoggedUser {
     fn from(user: AuthorizedUser) -> Self {
-        Self { email: user.email }
+        Self {
+            email: user.email,
+            session: user.session.map(|x| x.to_string().into()),
+        }
     }
 }
 
 impl From<LoggedUser> for AuthorizedUser {
     fn from(user: LoggedUser) -> Self {
-        Self { email: user.email }
+        Self {
+            email: user.email,
+            session: user.session.and_then(|x| x.parse().ok()),
+        }
     }
 }
 
@@ -70,6 +83,7 @@ mod tests {
         let email = "test@localhost";
         let user = AuthorizedUser {
             email: email.into(),
+            session: None,
         };
 
         let user: LoggedUser = user.into();
