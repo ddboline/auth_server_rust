@@ -106,6 +106,11 @@ pub async fn login(
         .insert(&data.pool)
         .await
         .map_err(Into::<Error>::into)?;
+
+    let mut session_map_cache = (*data.session_cache.load().clone()).clone();
+    session_map_cache.insert(session.id, Value::Object(Map::new()));
+    data.session_cache.store(Arc::new(session_map_cache));
+
     let (user, jwt) = login_user_jwt(auth_data, session.id, &data.pool, &data.config).await?;
     let resp = JsonResponse::new(user)
         .with_cookie(jwt)
@@ -139,15 +144,18 @@ pub async fn logout(
     #[data] data: AppState,
 ) -> WarpResult<JsonResponse<String>> {
     if let Some(session) = logged_user.session.and_then(|x| x.parse::<Uuid>().ok()) {
-        if let Some(session) = Session::get_session(&data.pool, &session)
+        if let Some(session_obj) = Session::get_session(&data.pool, &session)
             .await
             .map_err(Into::<Error>::into)?
         {
-            session
+            session_obj
                 .delete(&data.pool)
                 .await
                 .map_err(Into::<Error>::into)?;
         }
+        let mut session_map_cache = (*data.session_cache.load().clone()).clone();
+        session_map_cache.remove(&session);
+        data.session_cache.store(Arc::new(session_map_cache));
     }
     let resp = JsonResponse::new(format!("{} has been logged out", logged_user.email))
         .with_cookie(format!(
