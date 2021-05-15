@@ -114,10 +114,11 @@ impl Session {
 mod tests {
     use anyhow::Error;
 
-    use crate::{config::Config, pgpool::PgPool, session::Session, user::User};
+    use crate::{config::Config, pgpool::PgPool, session::Session, user::User, AUTH_APP_MUTEX};
 
     #[tokio::test]
     async fn test_session() -> Result<(), Error> {
+        let _lock = AUTH_APP_MUTEX.lock().await;
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
 

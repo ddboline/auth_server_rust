@@ -138,10 +138,11 @@ mod tests {
     use anyhow::Error;
     use log::debug;
 
-    use crate::{config::Config, get_random_string, pgpool::PgPool, user::User};
+    use crate::{config::Config, get_random_string, pgpool::PgPool, user::User, AUTH_APP_MUTEX};
 
     #[tokio::test]
     async fn test_create_delete_user() -> Result<(), Error> {
+        let _lock = AUTH_APP_MUTEX.lock().await;
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
 
@@ -172,6 +173,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_authorized_users_get_number_users() -> Result<(), Error> {
+        let _lock = AUTH_APP_MUTEX.lock().await;
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
         let count = User::get_number_users(&pool).await? as usize;
