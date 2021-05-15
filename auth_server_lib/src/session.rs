@@ -1,5 +1,5 @@
 use anyhow::Error;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use postgres_query::FromSqlRow;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -102,6 +102,17 @@ impl Session {
 
     pub async fn delete(&self, pool: &PgPool) -> Result<(), Error> {
         let query = postgres_query::query!("DELETE FROM sessions WHERE id = $id", id = self.id);
+        pool.get()
+            .await?
+            .execute(query.sql(), query.parameters())
+            .await?;
+        Ok(())
+    }
+
+    pub async fn cleanup(pool: &PgPool, expiration_seconds: i64) -> Result<(), Error> {
+        let time = Utc::now() - Duration::seconds(expiration_seconds);
+        let query =
+            postgres_query::query!("DELETE FROM sessions WHERE created_at < $time", time = time);
         pool.get()
             .await?
             .execute(query.sql(), query.parameters())

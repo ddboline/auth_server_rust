@@ -12,17 +12,19 @@ use std::{borrow::Cow, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{task::spawn, time::interval};
 
 use arc_swap::ArcSwap;
+use im::HashMap;
+use serde_json::Value;
+use uuid::Uuid;
+
 use auth_server_ext::google_openid::GoogleClient;
 use auth_server_lib::{
     config::Config,
     pgpool::PgPool,
+    session::Session,
     static_files::{change_password, index_html, login_html, main_css, main_js, register_html},
     user::User,
 };
 use authorized_users::{get_secrets, update_secret, AUTHORIZED_USERS, TRIGGER_DB_UPDATE};
-use im::HashMap;
-use serde_json::Value;
-use uuid::Uuid;
 
 use crate::{
     errors::error_response,
@@ -141,11 +143,13 @@ fn modify_spec(spec: &mut Spec) {
 }
 
 async fn run_app(config: Config) -> Result<(), Error> {
-    async fn _update_db(pool: PgPool, client: GoogleClient) {
+    async fn _update_db(pool: PgPool, client: GoogleClient, expiration_seconds: i64) {
         let mut i = interval(Duration::from_secs(60));
         loop {
             let p = pool.clone();
-            fill_auth_from_db(&p).await.unwrap_or(());
+            fill_auth_from_db(&p, expiration_seconds)
+                .await
+                .unwrap_or(());
             client.cleanup_token_map().await;
             i.tick().await;
         }
@@ -154,7 +158,11 @@ async fn run_app(config: Config) -> Result<(), Error> {
     let google_client = GoogleClient::new(&config).await?;
     let pool = PgPool::new(&config.database_url);
 
-    spawn(_update_db(pool.clone(), google_client.clone()));
+    spawn(_update_db(
+        pool.clone(),
+        google_client.clone(),
+        config.expiration_seconds,
+    ));
 
     let app = AppState {
         config: config.clone(),
@@ -250,9 +258,13 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
     Ok(())
 }
 
-pub async fn fill_auth_from_db(pool: &PgPool) -> Result<(), anyhow::Error> {
+pub async fn fill_auth_from_db(
+    pool: &PgPool,
+    expiration_seconds: i64,
+) -> Result<(), anyhow::Error> {
     debug!("{:?}", *TRIGGER_DB_UPDATE);
     let users: Vec<StackString> = if TRIGGER_DB_UPDATE.check() {
+        Session::cleanup(&pool, expiration_seconds).await?;
         User::get_authorized_users(pool)
             .await?
             .into_iter()
@@ -458,7 +470,7 @@ mod tests {
         debug!("password changed {:?}", output);
         assert_eq!(output.message.as_str(), "password updated");
 
-        let url = format!("http://localhost:{}/api/session/test_key", test_port);
+        let url = format!("http://localhost:{}/api/session", test_port);
         let data = hashmap! {
             "key" => "value",
         };
