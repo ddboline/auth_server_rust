@@ -11,9 +11,9 @@
 pub mod auth_user_config;
 pub mod config;
 pub mod pgpool;
+pub mod session;
 pub mod static_files;
 pub mod user;
-pub mod session;
 
 use lazy_static::lazy_static;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};

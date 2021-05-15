@@ -103,7 +103,7 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
             return Ok(Box::new(static_files::login_html().unwrap()));
         }
         code = StatusCode::INTERNAL_SERVER_ERROR;
-        message = "Internal Server Error";
+        message = "Internal Server Error (missing cookie)";
     } else if let Some(service_err) = err.find::<ServiceError>() {
         match service_err {
             ServiceError::BadRequest(msg) => {
@@ -126,7 +126,7 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
     } else {
         error!("Unknown error: {:?}", err);
         code = StatusCode::INTERNAL_SERVER_ERROR;
-        message = "Internal Server Error, Please try again later";
+        message = "Internal Server Error, Other";
     };
 
     let reply = rweb::reply::json(&ErrorMessage {

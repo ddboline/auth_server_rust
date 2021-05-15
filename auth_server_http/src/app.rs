@@ -7,9 +7,11 @@ use rweb::{
     openapi::{self, Spec},
     Filter, Reply,
 };
+use stack_string::StackString;
 use std::{borrow::Cow, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{task::spawn, time::interval};
 
+use arc_swap::ArcSwap;
 use auth_server_ext::google_openid::GoogleClient;
 use auth_server_lib::{
     config::Config,
@@ -17,15 +19,16 @@ use auth_server_lib::{
     static_files::{change_password, index_html, login_html, main_css, main_js, register_html},
     user::User,
 };
-use authorized_users::{
-    get_secrets, update_secret, AuthorizedUser, AUTHORIZED_USERS, TRIGGER_DB_UPDATE,
-};
+use authorized_users::{get_secrets, update_secret, AUTHORIZED_USERS, TRIGGER_DB_UPDATE};
+use im::HashMap;
+use serde_json::Value;
+use uuid::Uuid;
 
 use crate::{
     errors::error_response,
     routes::{
-        auth_await, auth_url, callback, change_password_user, get_me, login, logout,
-        register_email, register_user, status, test_login,
+        auth_await, auth_url, callback, change_password_user, get_me, get_session, login, logout,
+        post_session, register_email, register_user, status, test_login,
     },
 };
 
@@ -39,6 +42,7 @@ pub struct AppState {
     pub config: Config,
     pub pool: PgPool,
     pub google_client: GoogleClient,
+    pub session_cache: Arc<ArcSwap<HashMap<Uuid, Value>>>,
 }
 
 pub async fn start_app() -> Result<(), Error> {
@@ -58,6 +62,9 @@ fn get_api_scope(app: &AppState) -> BoxedFilter<(impl Reply,)> {
     let auth_await_path = auth_await(app.clone());
     let callback_path = callback(app.clone());
     let status_path = status(app.clone());
+    let session_path = get_session(app.clone())
+        .or(post_session(app.clone()))
+        .boxed();
 
     auth_path
         .or(invitation_path)
@@ -67,6 +74,7 @@ fn get_api_scope(app: &AppState) -> BoxedFilter<(impl Reply,)> {
         .or(auth_await_path)
         .or(callback_path)
         .or(status_path)
+        .or(session_path)
         .boxed()
 }
 
@@ -152,6 +160,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
         config: config.clone(),
         pool: pool.clone(),
         google_client: google_client.clone(),
+        session_cache: Arc::new(ArcSwap::new(Arc::new(HashMap::new()))),
     };
 
     let (mut spec, api_scope) = openapi::spec().build(|| get_api_scope(&app));
@@ -219,6 +228,7 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
         config: config.clone(),
         pool: pool.clone(),
         google_client: google_client.clone(),
+        session_cache: Arc::new(ArcSwap::new(Arc::new(HashMap::new()))),
     };
 
     let port = config.port;
@@ -242,11 +252,11 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
 
 pub async fn fill_auth_from_db(pool: &PgPool) -> Result<(), anyhow::Error> {
     debug!("{:?}", *TRIGGER_DB_UPDATE);
-    let users: Vec<AuthorizedUser> = if TRIGGER_DB_UPDATE.check() {
+    let users: Vec<StackString> = if TRIGGER_DB_UPDATE.check() {
         User::get_authorized_users(pool)
             .await?
             .into_iter()
-            .map(|user| AuthorizedUser { email: user.email })
+            .map(|user| user.email)
             .collect()
     } else {
         AUTHORIZED_USERS.get_users()
@@ -259,14 +269,17 @@ pub async fn fill_auth_from_db(pool: &PgPool) -> Result<(), anyhow::Error> {
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
+    use arc_swap::ArcSwap;
+    use im::HashMap;
     use log::debug;
     use maplit::hashmap;
     use rweb::openapi;
-    use std::env;
+    use std::{env, sync::Arc};
 
     use auth_server_ext::{google_openid::GoogleClient, invitation::Invitation};
     use auth_server_lib::{
-        config::Config, get_random_string, pgpool::PgPool, user::User, AUTH_APP_MUTEX,
+        config::Config, get_random_string, pgpool::PgPool, session::Session, user::User,
+        AUTH_APP_MUTEX,
     };
     use authorized_users::{get_random_key, JWT_SECRET, KEY_LENGTH, SECRET_KEY};
 
@@ -416,6 +429,7 @@ mod tests {
         assert_eq!(resp.email.as_str(), email.as_str());
 
         debug!("get me");
+
         let resp: LoggedUser = client
             .get(&url)
             .send()
@@ -444,6 +458,43 @@ mod tests {
         debug!("password changed {:?}", output);
         assert_eq!(output.message.as_str(), "password updated");
 
+        let url = format!("http://localhost:{}/api/session/test_key", test_port);
+        let data = hashmap! {
+            "key" => "value",
+        };
+        debug!("POST session");
+        let resp = client
+            .post(&url)
+            .json(&data)
+            .send()
+            .await?
+            .error_for_status()?;
+        debug!("{:?}", resp);
+        debug!("GET session");
+        let resp: std::collections::HashMap<String, String> = client
+            .get(&url)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?;
+        debug!("{:?}", resp);
+        assert_eq!(resp.len(), 1);
+        let url = format!("http://localhost:{}/api/auth", test_port);
+        let resp: String = client
+            .delete(&url)
+            .send()
+            .await?
+            .error_for_status()?
+            .text()
+            .await?;
+        assert_eq!(resp, format!(r#""{} has been logged out""#, email));
+
+        let sessions = Session::get_by_email(&pool, &email).await?;
+        for session in sessions {
+            session.delete(&pool).await?;
+        }
+
         let user = User::get_by_email(&email, &pool).await?.unwrap();
         assert!(user.verify_password(&new_password)?);
 
@@ -463,13 +514,14 @@ mod tests {
             config: config.clone(),
             pool: pool.clone(),
             google_client: google_client.clone(),
+            session_cache: Arc::new(ArcSwap::new(Arc::new(HashMap::new()))),
         };
 
         let (mut spec, _) = openapi::spec().build(|| get_api_scope(&app));
         modify_spec(&mut spec);
         let spec_yaml = serde_yaml::to_string(&spec)?;
 
-        println!("{}", spec_yaml);
+        debug!("{}", spec_yaml);
         Ok(())
     }
 }

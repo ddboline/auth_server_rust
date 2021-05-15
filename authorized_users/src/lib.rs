@@ -21,6 +21,7 @@ use im::HashMap;
 use lazy_static::lazy_static;
 use rand::{thread_rng, Rng};
 use smallvec::SmallVec;
+use stack_string::StackString;
 use std::{
     cell::Cell,
     path::Path,
@@ -58,7 +59,7 @@ enum AuthStatus {
 }
 
 #[derive(Debug, Default)]
-pub struct AuthorizedUsers(ArcSwap<HashMap<AuthorizedUser, AuthStatus>>);
+pub struct AuthorizedUsers(ArcSwap<HashMap<StackString, AuthStatus>>);
 
 impl AuthorizedUsers {
     pub fn new() -> Self {
@@ -66,7 +67,7 @@ impl AuthorizedUsers {
     }
 
     pub fn is_authorized(&self, user: &AuthorizedUser) -> bool {
-        if let Some(AuthStatus::Authorized(last_time)) = self.0.load().get(user) {
+        if let Some(AuthStatus::Authorized(last_time)) = self.0.load().get(user.email.as_str()) {
             let current_time = Utc::now();
             if (current_time - *last_time).num_minutes() < 15 {
                 return true;
@@ -82,12 +83,12 @@ impl AuthorizedUsers {
         } else {
             AuthStatus::NotAuthorized
         };
-        let auth_map = Arc::new(self.0.load().update(user, status));
+        let auth_map = Arc::new(self.0.load().update(user.email, status));
         self.0.store(auth_map);
         Ok(())
     }
 
-    pub fn merge_users(&self, users: &[AuthorizedUser]) -> Result<(), anyhow::Error> {
+    pub fn merge_users(&self, users: &[StackString]) -> Result<(), anyhow::Error> {
         let mut auth_map = (*self.0.load().clone()).clone();
         let not_auth_users: Vec<_> = auth_map
             .keys()
@@ -104,7 +105,7 @@ impl AuthorizedUsers {
         Ok(())
     }
 
-    pub fn get_users(&self) -> Vec<AuthorizedUser> {
+    pub fn get_users(&self) -> Vec<StackString> {
         self.0.load().keys().cloned().collect()
     }
 }

@@ -126,7 +126,10 @@ impl User {
 
 impl From<User> for AuthorizedUser {
     fn from(user: User) -> Self {
-        Self { email: user.email }
+        Self {
+            email: user.email,
+            session: None,
+        }
     }
 }
 

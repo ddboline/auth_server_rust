@@ -7,6 +7,7 @@ use biscuit::{
 };
 use derive_more::{Display, From, Into};
 use log::debug;
+use uuid::Uuid;
 
 use crate::{claim::Claim, get_random_nonce, JWT_SECRET, SECRET_KEY};
 
@@ -19,8 +20,13 @@ pub struct Token(String);
 
 impl Token {
     #[allow(clippy::similar_names)]
-    pub fn create_token(email: &str, domain: &str, expiration_seconds: i64) -> Result<Self, Error> {
-        let claims = Claim::with_email(email, domain, expiration_seconds);
+    pub fn create_token(
+        email: &str,
+        domain: &str,
+        expiration_seconds: i64,
+        session: Uuid,
+    ) -> Result<Self, Error> {
+        let claims = Claim::with_email(email, domain, expiration_seconds, session);
         let claimset = ClaimsSet {
             registered: claims.get_registered_claims(),
             private: claims,
@@ -70,6 +76,7 @@ impl Token {
 mod tests {
     use anyhow::Error;
     use log::debug;
+    use uuid::Uuid;
 
     use crate::{get_random_key, token::Token, AuthorizedUser, JWT_SECRET, KEY_LENGTH, SECRET_KEY};
 
@@ -83,9 +90,10 @@ mod tests {
 
         let user = AuthorizedUser {
             email: "test@local".into(),
+            session: None,
         };
 
-        let token = Token::create_token(&user.email, "localhost", 3600)?;
+        let token = Token::create_token(&user.email, "localhost", 3600, Uuid::new_v4())?;
 
         debug!("token {}", token);
 
