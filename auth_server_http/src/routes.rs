@@ -177,23 +177,21 @@ pub async fn get_me(
 #[get("/api/session")]
 #[openapi(description = "Get Session")]
 pub async fn get_session(
-    #[cookie = "jwt"] logged_user: LoggedUser,
+    #[header = "session"] session: Uuid,
     #[data] data: AppState,
 ) -> WarpResult<JsonResponse<Value>> {
-    if let Some(session) = logged_user.session.and_then(|x| x.parse::<Uuid>().ok()) {
-        if let Some(value) = data.session_cache.load().get(&session) {
-            debug!("got cache");
-            return Ok(JsonResponse::new(value.clone()));
-        }
-        if let Some(session_obj) = Session::get_session(&data.pool, &session)
-            .await
-            .map_err(Into::<Error>::into)?
-        {
-            let mut session_map_cache = (*data.session_cache.load().clone()).clone();
-            session_map_cache.insert(session, session_obj.session_data.clone());
-            data.session_cache.store(Arc::new(session_map_cache));
-            return Ok(JsonResponse::new(session_obj.session_data.clone()));
-        }
+    if let Some(value) = data.session_cache.load().get(&session) {
+        debug!("got cache");
+        return Ok(JsonResponse::new(value.clone()));
+    }
+    if let Some(session_obj) = Session::get_session(&data.pool, &session)
+        .await
+        .map_err(Into::<Error>::into)?
+    {
+        let mut session_map_cache = (*data.session_cache.load().clone()).clone();
+        session_map_cache.insert(session, session_obj.session_data.clone());
+        data.session_cache.store(Arc::new(session_map_cache));
+        return Ok(JsonResponse::new(session_obj.session_data.clone()));
     }
     Ok(JsonResponse::new(Value::Null))
 }
@@ -201,30 +199,28 @@ pub async fn get_session(
 #[post("/api/session")]
 #[openapi(description = "Set session value")]
 pub async fn post_session(
-    #[cookie = "jwt"] logged_user: LoggedUser,
+    #[header = "session"] session: Uuid,
     #[data] data: AppState,
     payload: Json<Value>,
-) -> WarpResult<JsonResponse<()>> {
+) -> WarpResult<JsonResponse<Value>> {
     let payload = payload.into_inner();
-    debug!("payload {} {:?}", payload, logged_user.session);
-    if let Some(session) = logged_user.session.and_then(|x| x.parse::<Uuid>().ok()) {
-        debug!("session {}", session);
-        if let Some(mut session_obj) = Session::get_session(&data.pool, &session)
+    debug!("payload {} {}", payload, session);
+    debug!("session {}", session);
+    if let Some(mut session_obj) = Session::get_session(&data.pool, &session)
+        .await
+        .map_err(Into::<Error>::into)?
+    {
+        debug!("session_obj {:?}", session_obj.session_data);
+        session_obj.session_data = payload.clone();
+        session_obj
+            .update(&data.pool)
             .await
-            .map_err(Into::<Error>::into)?
-        {
-            debug!("session_obj {:?}", session_obj.session_data);
-            session_obj.session_data = payload;
-            session_obj
-                .update(&data.pool)
-                .await
-                .map_err(Into::<Error>::into)?;
-            let mut session_map_cache = (*data.session_cache.load().clone()).clone();
-            *session_map_cache.entry(session).or_default() = session_obj.session_data;
-            data.session_cache.store(Arc::new(session_map_cache));
-        }
+            .map_err(Into::<Error>::into)?;
+        let mut session_map_cache = (*data.session_cache.load().clone()).clone();
+        *session_map_cache.entry(session).or_default() = session_obj.session_data;
+        data.session_cache.store(Arc::new(session_map_cache));
     }
-    Ok(JsonResponse::new(()))
+    Ok(JsonResponse::new(payload))
 }
 
 #[derive(Deserialize, Schema)]
