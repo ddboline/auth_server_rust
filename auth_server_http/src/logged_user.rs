@@ -10,21 +10,17 @@ use uuid::Uuid;
 
 use authorized_users::{token::Token, AuthorizedUser, AUTHORIZED_USERS};
 
-use crate::errors::ServiceError as Error;
+use crate::{errors::ServiceError as Error, uuid_wrapper::UuidWrapper};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Schema)]
 pub struct LoggedUser {
     pub email: StackString,
-    pub session: Option<StackString>,
+    pub session: Option<UuidWrapper>,
 }
 
 impl LoggedUser {
-    pub fn get_jwt_cookie(
-        &self,
-        domain: &str,
-        expiration_seconds: i64,
-        session: Uuid,
-    ) -> Result<String, Error> {
+    pub fn get_jwt_cookie(&self, domain: &str, expiration_seconds: i64) -> Result<String, Error> {
+        let session = self.session.map_or_else(|| Uuid::new_v4(), Into::into);
         let token = Token::create_token(&self.email, domain, expiration_seconds, session)?;
         Ok(format!(
             "jwt={}; HttpOnly; Path=/; Domain={}; Max-Age={}",
@@ -37,7 +33,7 @@ impl From<AuthorizedUser> for LoggedUser {
     fn from(user: AuthorizedUser) -> Self {
         Self {
             email: user.email,
-            session: user.session.map(|x| x.to_string().into()),
+            session: user.session.map(Into::into),
         }
     }
 }
@@ -46,7 +42,7 @@ impl From<LoggedUser> for AuthorizedUser {
     fn from(user: LoggedUser) -> Self {
         Self {
             email: user.email,
-            session: user.session.and_then(|x| x.parse().ok()),
+            session: user.session.map(Into::into),
         }
     }
 }

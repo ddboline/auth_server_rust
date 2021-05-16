@@ -126,8 +126,9 @@ async fn login_user_jwt(
 ) -> HttpResult<(LoggedUser, String)> {
     let message = if let Some(user) = auth_data.authenticate(pool).await? {
         let user: AuthorizedUser = user.into();
-        let user: LoggedUser = user.into();
-        match user.get_jwt_cookie(&config.domain, config.expiration_seconds, session) {
+        let mut user: LoggedUser = user.into();
+        user.session = Some(session.into());
+        match user.get_jwt_cookie(&config.domain, config.expiration_seconds) {
             Ok(jwt) => return Ok((user, jwt)),
             Err(e) => format!("Failed to create_token {}", e),
         }
@@ -143,7 +144,7 @@ pub async fn logout(
     #[cookie = "jwt"] logged_user: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<JsonResponse<String>> {
-    if let Some(session) = logged_user.session.and_then(|x| x.parse::<Uuid>().ok()) {
+    if let Some(session) = logged_user.session.map(Into::into) {
         if let Some(session_obj) = Session::get_session(&data.pool, &session)
             .await
             .map_err(Into::<Error>::into)?
@@ -496,12 +497,14 @@ async fn callback_body(
         .run_callback(&query.code, &query.state, pool)
         .await?
     {
-        let user: LoggedUser = user.into();
+        let mut user: LoggedUser = user.into();
 
         let session = Session::new(user.email.as_str());
         session.insert(&pool).await?;
 
-        let jwt = user.get_jwt_cookie(&config.domain, config.expiration_seconds, session.id)?;
+        user.session = Some(session.id.into());
+
+        let jwt = user.get_jwt_cookie(&config.domain, config.expiration_seconds)?;
         Ok(jwt)
     } else {
         Err(Error::BadRequest("Callback Failed".into()))
@@ -565,8 +568,9 @@ async fn test_login_user_jwt(
                 session: Some(session),
             };
             AUTHORIZED_USERS.merge_users(&[user.email.clone()])?;
-            let user: LoggedUser = user.into();
-            let jwt = user.get_jwt_cookie(&config.domain, config.expiration_seconds, session)?;
+            let mut user: LoggedUser = user.into();
+            user.session = Some(session.into());
+            let jwt = user.get_jwt_cookie(&config.domain, config.expiration_seconds)?;
             return Ok((user, jwt));
         }
     }

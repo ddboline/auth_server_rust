@@ -285,6 +285,7 @@ mod tests {
     use im::HashMap;
     use log::debug;
     use maplit::hashmap;
+    use reqwest::header::HeaderValue;
     use rweb::openapi;
     use std::{env, sync::Arc};
 
@@ -439,6 +440,7 @@ mod tests {
             .await?;
         debug!("logged in {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
+        let session = resp.session.unwrap();
 
         debug!("get me");
 
@@ -475,9 +477,11 @@ mod tests {
             "key" => "value",
         };
         debug!("POST session");
+        let value = HeaderValue::from_str(&session.to_string())?;
         let resp = client
             .post(&url)
             .json(&data)
+            .header("session", value.clone())
             .send()
             .await?
             .error_for_status()?;
@@ -485,6 +489,7 @@ mod tests {
         debug!("GET session");
         let resp: std::collections::HashMap<String, String> = client
             .get(&url)
+            .header("session", value)
             .send()
             .await?
             .error_for_status()?
