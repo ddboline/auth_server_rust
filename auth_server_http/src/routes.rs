@@ -192,7 +192,7 @@ pub async fn get_session(
         let mut session_map_cache = (*data.session_cache.load().clone()).clone();
         session_map_cache.insert(session, session_obj.session_data.clone());
         data.session_cache.store(Arc::new(session_map_cache));
-        return Ok(JsonResponse::new(session_obj.session_data.clone()));
+        return Ok(JsonResponse::new(session_obj.session_data));
     }
     Ok(JsonResponse::new(Value::Null))
 }

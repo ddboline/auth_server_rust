@@ -20,7 +20,7 @@ pub struct LoggedUser {
 
 impl LoggedUser {
     pub fn get_jwt_cookie(&self, domain: &str, expiration_seconds: i64) -> Result<String, Error> {
-        let session = self.session.map_or_else(|| Uuid::new_v4(), Into::into);
+        let session = self.session.map_or_else(Uuid::new_v4, Into::into);
         let token = Token::create_token(&self.email, domain, expiration_seconds, session)?;
         Ok(format!(
             "jwt={}; HttpOnly; Path=/; Domain={}; Max-Age={}",
