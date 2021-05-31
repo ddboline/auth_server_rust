@@ -11,11 +11,14 @@
 
 pub mod app;
 pub mod auth;
+pub mod content_type_trait;
 pub mod errors;
 pub mod html_response;
 pub mod json_response;
 pub mod logged_user;
+pub mod response_description_trait;
 pub mod routes;
+pub mod status_code_trait;
 pub mod uuid_wrapper;
 
 #[cfg(test)]

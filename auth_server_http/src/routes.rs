@@ -1,13 +1,9 @@
 use chrono::Utc;
 use futures::try_join;
-use http::header::SET_COOKIE;
 use log::debug;
 use rweb::{
     delete, get,
-    http::status::StatusCode,
-    hyper::{Body, Response},
-    openapi::{self, Entity, ResponseEntity, Responses},
-    post, Json, Query, Rejection, Reply, Schema,
+    post, Json, Query, Rejection, Schema,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{map::Map, Value};
@@ -26,8 +22,15 @@ use auth_server_lib::{config::Config, pgpool::PgPool, session::Session, user::Us
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 
 use crate::{
-    app::AppState, auth::AuthRequest, errors::ServiceError as Error, html_response::HtmlResponse,
-    json_response::JsonResponse, logged_user::LoggedUser,
+    app::AppState,
+    auth::AuthRequest,
+    content_type_trait::{ContentTypeCss, ContentTypeHtml, ContentTypeJs},
+    errors::ServiceError as Error,
+    html_response::HtmlResponse,
+    json_response::JsonResponse,
+    logged_user::LoggedUser,
+    response_description_trait::ResponseDescriptionTrait,
+    status_code_trait::{StatusCodeCreated, StatusCodeOk},
 };
 
 pub type WarpResult<T> = Result<T, Rejection>;
@@ -41,9 +44,8 @@ pub async fn index_html() -> WarpResult<HtmlResponse<&'static str>> {
 }
 
 #[get("/auth/main.css")]
-pub async fn main_css() -> WarpResult<HtmlResponse<&'static str>> {
-    Ok(HtmlResponse::new(include_str!("../../templates/main.css"))
-        .with_content_type("text/css; charset=utf-8"))
+pub async fn main_css() -> WarpResult<HtmlResponse<&'static str, StatusCodeOk, ContentTypeCss>> {
+    Ok(HtmlResponse::new(include_str!("../../templates/main.css")))
 }
 
 #[get("/auth/register.html")]
@@ -54,9 +56,8 @@ pub async fn register_html() -> WarpResult<HtmlResponse<&'static str>> {
 }
 
 #[get("/auth/main.js")]
-pub async fn main_js() -> WarpResult<HtmlResponse<&'static str>> {
-    Ok(HtmlResponse::new(include_str!("../../templates/main.js"))
-        .with_content_type("text/javascript; charset=utf-8"))
+pub async fn main_js() -> WarpResult<HtmlResponse<&'static str, StatusCodeOk, ContentTypeJs>> {
+    Ok(HtmlResponse::new(include_str!("../../templates/main.js")))
 }
 
 #[get("/auth/login.html")]
@@ -73,12 +74,20 @@ pub async fn change_password() -> WarpResult<HtmlResponse<&'static str>> {
     )))
 }
 
+struct ApiAuthPostDescription {}
+
+impl ResponseDescriptionTrait for ApiAuthPostDescription {
+    fn description() -> &'static str {
+        "Current logged in username"
+    }
+}
+
 #[post("/api/auth")]
 #[openapi(description = "Login with username and password")]
 pub async fn login(
     #[data] data: AppState,
     auth_data: Json<AuthRequest>,
-) -> WarpResult<JsonResponse<LoggedUser>> {
+) -> WarpResult<JsonResponse<LoggedUser, StatusCodeCreated, ApiAuthPostDescription>> {
     let auth_data = auth_data.into_inner();
     let session = Session::new(auth_data.email.as_str());
     session
@@ -91,9 +100,7 @@ pub async fn login(
     data.session_cache.store(Arc::new(session_map_cache));
 
     let (user, jwt) = login_user_jwt(auth_data, session.id, &data.pool, &data.config).await?;
-    let resp = JsonResponse::new(user)
-        .with_cookie(jwt)
-        .with_status(StatusCode::CREATED);
+    let resp = JsonResponse::new(user).with_cookie(jwt);
     Ok(resp)
 }
 
@@ -117,12 +124,20 @@ async fn login_user_jwt(
     Err(Error::BadRequest(message))
 }
 
+struct ApiAuthDeleteDescription {}
+
+impl ResponseDescriptionTrait for ApiAuthDeleteDescription {
+    fn description() -> &'static str {
+        "Status Message"
+    }
+}
+
 #[delete("/api/auth")]
 #[openapi(description = "Log out")]
 pub async fn logout(
     #[cookie = "jwt"] logged_user: LoggedUser,
     #[data] data: AppState,
-) -> WarpResult<JsonResponse<String>> {
+) -> WarpResult<JsonResponse<String, StatusCodeCreated, ApiAuthDeleteDescription>> {
     if let Some(session) = logged_user.session.map(Into::into) {
         if let Some(session_obj) = Session::get_session(&data.pool, &session)
             .await
@@ -137,20 +152,28 @@ pub async fn logout(
         session_map_cache.remove(&session);
         data.session_cache.store(Arc::new(session_map_cache));
     }
-    let resp = JsonResponse::new(format!("{} has been logged out", logged_user.email))
-        .with_cookie(format!(
+    let resp = JsonResponse::new(format!("{} has been logged out", logged_user.email)).with_cookie(
+        format!(
             "jwt=; HttpOnly; Path=/; Domain={}; Max-Age={}",
             data.config.domain, data.config.expiration_seconds
-        ))
-        .with_status(StatusCode::CREATED);
+        ),
+    );
     Ok(resp)
+}
+
+struct ApiAuthGetDescription {}
+
+impl ResponseDescriptionTrait for ApiAuthGetDescription {
+    fn description() -> &'static str {
+        "Current users email"
+    }
 }
 
 #[get("/api/auth")]
 #[openapi(description = "Get current username if logged in")]
 pub async fn get_me(
     #[cookie = "jwt"] logged_user: LoggedUser,
-) -> WarpResult<JsonResponse<LoggedUser>> {
+) -> WarpResult<JsonResponse<LoggedUser, StatusCodeOk, ApiAuthGetDescription>> {
     Ok(JsonResponse::new(logged_user))
 }
 
@@ -229,15 +252,23 @@ impl From<Invitation> for InvitationOutput {
     }
 }
 
+struct ApiInvitationDescription {}
+
+impl ResponseDescriptionTrait for ApiInvitationDescription {
+    fn description() -> &'static str {
+        "Invitation Object"
+    }
+}
+
 #[post("/api/invitation")]
 #[openapi(description = "Send invitation to specified email")]
 pub async fn register_email(
     #[data] data: AppState,
     invitation: Json<CreateInvitation>,
-) -> WarpResult<JsonResponse<InvitationOutput>> {
+) -> WarpResult<JsonResponse<InvitationOutput, StatusCodeCreated, ApiInvitationDescription>> {
     let invitation =
         register_email_invitation(invitation.into_inner(), &data.pool, &data.config).await?;
-    let resp = JsonResponse::new(invitation.into()).with_status(StatusCode::CREATED);
+    let resp = JsonResponse::new(invitation.into());
     Ok(resp)
 }
 
@@ -260,13 +291,21 @@ pub struct UserData {
     pub password: StackString,
 }
 
+struct ApiRegisterDescription {}
+
+impl ResponseDescriptionTrait for ApiRegisterDescription {
+    fn description() -> &'static str {
+        "Registered Email"
+    }
+}
+
 #[post("/api/register/{invitation_id}")]
 #[openapi(description = "Set password using link from email")]
 pub async fn register_user(
     invitation_id: StackString,
     #[data] data: AppState,
     user_data: Json<UserData>,
-) -> WarpResult<JsonResponse<LoggedUser>> {
+) -> WarpResult<JsonResponse<LoggedUser, StatusCodeCreated, ApiRegisterDescription>> {
     let user = register_user_object(
         invitation_id,
         user_data.into_inner(),
@@ -274,7 +313,7 @@ pub async fn register_user(
         &data.config,
     )
     .await?;
-    let resp = JsonResponse::new(user.into()).with_status(StatusCode::CREATED);
+    let resp = JsonResponse::new(user.into());
     Ok(resp)
 }
 
@@ -304,13 +343,21 @@ pub struct PasswordChangeOutput {
     pub message: StackString,
 }
 
+struct ApiPasswordChangeDescription {}
+
+impl ResponseDescriptionTrait for ApiPasswordChangeDescription {
+    fn description() -> &'static str {
+        "Success Message"
+    }
+}
+
 #[post("/api/password_change")]
 #[openapi(description = "Change password for currently logged in user")]
 pub async fn change_password_user(
     #[cookie = "jwt"] logged_user: LoggedUser,
     #[data] data: AppState,
     user_data: Json<UserData>,
-) -> WarpResult<JsonResponse<PasswordChangeOutput>> {
+) -> WarpResult<JsonResponse<PasswordChangeOutput, StatusCodeCreated, ApiPasswordChangeDescription>> {
     let message = change_password_user_body(
         logged_user,
         user_data.into_inner(),
@@ -319,7 +366,7 @@ pub async fn change_password_user(
     )
     .await?
     .into();
-    let resp = JsonResponse::new(PasswordChangeOutput { message }).with_status(StatusCode::CREATED);
+    let resp = JsonResponse::new(PasswordChangeOutput { message });
     Ok(resp)
 }
 
@@ -350,12 +397,20 @@ pub struct AuthUrlOutput {
     pub auth_url: StackString,
 }
 
+struct ApiAuthUrlDescription {}
+
+impl ResponseDescriptionTrait for ApiAuthUrlDescription {
+    fn description() -> &'static str {
+        "Authorization Url"
+    }
+}
+
 #[post("/api/auth_url")]
 #[openapi(description = "Get Oauth Url")]
 pub async fn auth_url(
     #[data] data: AppState,
     query: Json<GetAuthUrlData>,
-) -> WarpResult<JsonResponse<AuthUrlOutput>> {
+) -> WarpResult<JsonResponse<AuthUrlOutput, StatusCodeOk, ApiAuthUrlDescription>> {
     let (csrf_state, authorize_url) =
         auth_url_body(query.into_inner(), &data.google_client).await?;
     let authorize_url: String = authorize_url.into();
@@ -380,16 +435,24 @@ pub struct AuthAwait {
     pub state: StackString,
 }
 
+struct ApiAwaitDescription {}
+
+impl ResponseDescriptionTrait for ApiAwaitDescription {
+    fn description() -> &'static str {
+        "Finished"
+    }
+}
+
 #[get("/api/await")]
 #[openapi(description = "Await completion of auth")]
 pub async fn auth_await(
     #[data] data: AppState,
     query: Query<AuthAwait>,
-) -> WarpResult<&'static str> {
+) -> WarpResult<HtmlResponse<&'static str, StatusCodeOk, ContentTypeHtml, ApiAwaitDescription>> {
     let state = query.into_inner().state;
     loop {
         if !data.google_client.check_csrf(&state).await {
-            return Ok("");
+            return Ok(HtmlResponse::new(""));
         }
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     }
@@ -401,46 +464,11 @@ pub struct CallbackQuery {
     pub state: StackString,
 }
 
-pub struct CallbackResponse<T> {
-    body: T,
-    cookie: String,
-}
+struct ApiCallbackDescription {}
 
-impl<T> CallbackResponse<T> {
-    pub fn new(body: T, cookie: String) -> Self {
-        Self { body, cookie }
-    }
-}
-
-impl<T> Reply for CallbackResponse<T>
-where
-    Body: From<T>,
-    T: Entity + Send,
-{
-    fn into_response(self) -> Response<Body> {
-        let reply = rweb::reply::html(self.body);
-        let reply = rweb::reply::with_header(reply, SET_COOKIE, self.cookie);
-        reply.into_response()
-    }
-}
-
-impl<T> Entity for CallbackResponse<T>
-where
-    Body: From<T>,
-    T: Entity + Send,
-{
-    fn describe() -> openapi::Schema {
-        T::describe()
-    }
-}
-
-impl<T> ResponseEntity for CallbackResponse<T>
-where
-    Body: From<T>,
-    T: Entity + Send + ResponseEntity,
-{
-    fn describe_responses() -> Responses {
-        T::describe_responses()
+impl ResponseDescriptionTrait for ApiCallbackDescription {
+    fn description() -> &'static str {
+        "Callback Response"
     }
 }
 
@@ -449,7 +477,7 @@ where
 pub async fn callback(
     #[data] data: AppState,
     query: Query<CallbackQuery>,
-) -> WarpResult<CallbackResponse<&'static str>> {
+) -> WarpResult<HtmlResponse<&'static str, StatusCodeOk, ContentTypeHtml, ApiCallbackDescription>> {
     let jwt = callback_body(
         query.into_inner(),
         &data.pool,
@@ -462,8 +490,7 @@ pub async fn callback(
         This window can be closed.
         <script language="JavaScript" type="text/javascript">window.close()</script>
     "#;
-    let resp = CallbackResponse::new(body, jwt);
-    Ok(resp)
+    Ok(HtmlResponse::new(body).with_cookie(&jwt))
 }
 
 async fn callback_body(
@@ -525,13 +552,11 @@ async fn status_body(pool: &PgPool) -> HttpResult<StatusOutput> {
 pub async fn test_login(
     auth_data: Json<AuthRequest>,
     #[data] data: AppState,
-) -> WarpResult<JsonResponse<LoggedUser>> {
+) -> WarpResult<JsonResponse<LoggedUser, StatusCodeCreated>> {
     let auth_data = auth_data.into_inner();
     let session = Session::new(auth_data.email.as_str());
     let (user, jwt) = test_login_user_jwt(auth_data, session.id, &data.config).await?;
-    let resp = JsonResponse::new(user)
-        .with_cookie(jwt)
-        .with_status(StatusCode::CREATED);
+    let resp = JsonResponse::new(user).with_cookie(jwt);
     Ok(resp)
 }
 
