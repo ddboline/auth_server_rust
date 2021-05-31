@@ -4,7 +4,6 @@ use rweb::{
     openapi::{self, Entity, ResponseEntity, Responses},
     Reply,
 };
-use stack_string::StackString;
 use std::{borrow::Cow, marker::PhantomData};
 
 use crate::{
@@ -16,7 +15,7 @@ use crate::{
 
 pub struct HtmlResponse<T, S = StatusCodeOk, C = ContentTypeHtml, D = DefaultDescription>
 where
-    T: Send,
+    T: ResponseEntity + Send,
     Body: From<T>,
     S: StatusCodeTrait,
     C: ContentTypeTrait,
@@ -31,7 +30,7 @@ where
 
 impl<T, S, C, D> HtmlResponse<T, S, C, D>
 where
-    T: Send,
+    T: ResponseEntity + Send,
     Body: From<T>,
     S: StatusCodeTrait,
     C: ContentTypeTrait,
@@ -54,7 +53,7 @@ where
 
 impl<T, S, C, D> Reply for HtmlResponse<T, S, C, D>
 where
-    T: Send,
+    T: ResponseEntity + Send,
     Body: From<T>,
     S: StatusCodeTrait,
     C: ContentTypeTrait,
@@ -76,27 +75,27 @@ where
 
 impl<T, S, C, D> Entity for HtmlResponse<T, S, C, D>
 where
-    T: Send,
+    T: ResponseEntity + Send,
     Body: From<T>,
     S: StatusCodeTrait,
     C: ContentTypeTrait,
     D: ResponseDescriptionTrait,
 {
     fn describe() -> openapi::Schema {
-        Result::<StackString, Error>::describe()
+        Result::<T, Error>::describe()
     }
 }
 
 impl<T, S, C, D> ResponseEntity for HtmlResponse<T, S, C, D>
 where
-    T: Send,
+    T: ResponseEntity + Send,
     Body: From<T>,
     S: StatusCodeTrait,
     C: ContentTypeTrait,
     D: ResponseDescriptionTrait,
 {
     fn describe_responses() -> Responses {
-        let mut responses = Result::<String, Error>::describe_responses();
+        let mut responses = Result::<T, Error>::describe_responses();
         let old_code: Cow<'static, str> = "200".into();
         let new_code: Cow<'static, str> = S::status_code().as_u16().to_string().into();
         if let Some(mut old) = responses.remove(&old_code) {
