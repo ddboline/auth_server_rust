@@ -48,6 +48,17 @@ impl Session {
         Ok(session)
     }
 
+    pub async fn get_all_sessions(pool: &PgPool) -> Result<Vec<Self>, Error> {
+        let query = postgres_query::query!("SELECT * FROM sessions");
+        pool.get()
+            .await?
+            .query(query.sql(), query.parameters())
+            .await?
+            .into_iter()
+            .map(|row| Self::from_row(&row).map_err(Into::into))
+            .collect()
+    }
+
     pub async fn get_by_email(pool: &PgPool, email: &str) -> Result<Vec<Self>, Error> {
         let query =
             postgres_query::query!("SELECT * FROM sessions WHERE email = $email", email = email);

@@ -15,6 +15,7 @@ use uuid::Uuid;
 use auth_server_ext::{invitation::Invitation, ses_client::SesInstance};
 use auth_server_lib::{
     auth_user_config::AuthUserConfig, config::Config, pgpool::PgPool, user::User,
+    session::Session,
 };
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 
@@ -30,9 +31,9 @@ enum AuthServerOptions {
         #[structopt(short = "u", long)]
         email: StackString,
     },
-    RmInvite {
+    RmInvites {
         #[structopt(short="u", long, parse(try_from_str=parse_uuid))]
-        id: Uuid,
+        ids: Vec<Uuid>,
     },
     /// Add new user
     Add {
@@ -84,6 +85,16 @@ enum AuthServerOptions {
         app: StackString,
     },
     RunMigrations,
+    /// List Sessions
+    ListSessions {
+        #[structopt(short, long)]
+        email: Option<StackString>,
+    },
+    /// Delete Sessions
+    RmSessions {
+        #[structopt(short, long, parse(try_from_str=parse_uuid))]
+        ids: Vec<Uuid>,
+    }
 }
 
 impl AuthServerOptions {
@@ -121,9 +132,11 @@ impl AuthServerOptions {
                     .await?;
                 stdout.send(format!("Invitation {} sent to {}", invitation.id, email));
             }
-            AuthServerOptions::RmInvite { id } => {
-                if let Some(invitation) = Invitation::get_by_uuid(&id, &pool).await? {
-                    invitation.delete(&pool).await?;
+            AuthServerOptions::RmInvites { ids } => {
+                for id in ids {
+                    if let Some(invitation) = Invitation::get_by_uuid(&id, &pool).await? {
+                        invitation.delete(&pool).await?;
+                    }
                 }
             }
             AuthServerOptions::Add { email, password } => {
@@ -214,6 +227,23 @@ impl AuthServerOptions {
                 migrations::runner()
                     .run_async(client.deref_mut().deref_mut())
                     .await?;
+            }
+            AuthServerOptions::ListSessions { email } => {
+                let sessions = if let Some(email) = email {
+                    Session::get_by_email(pool, email).await?
+                } else {
+                    Session::get_all_sessions(pool).await?
+                };
+                for session in sessions {
+                    stdout.send(serde_json::to_string(&session)?);
+                }
+            }
+            AuthServerOptions::RmSessions { ids} => {
+                for id in ids {
+                    if let Some(session) = Session::get_session(pool, id).await? {
+                        session.delete(pool).await?;
+                    }
+                }
             }
         }
         Ok(())
