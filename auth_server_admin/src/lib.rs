@@ -14,8 +14,7 @@ use uuid::Uuid;
 
 use auth_server_ext::{invitation::Invitation, ses_client::SesInstance};
 use auth_server_lib::{
-    auth_user_config::AuthUserConfig, config::Config, pgpool::PgPool, user::User,
-    session::Session,
+    auth_user_config::AuthUserConfig, config::Config, pgpool::PgPool, session::Session, user::User,
 };
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 
@@ -94,7 +93,7 @@ enum AuthServerOptions {
     RmSessions {
         #[structopt(short, long, parse(try_from_str=parse_uuid))]
         ids: Vec<Uuid>,
-    }
+    },
 }
 
 impl AuthServerOptions {
@@ -238,7 +237,7 @@ impl AuthServerOptions {
                     stdout.send(serde_json::to_string(&session)?);
                 }
             }
-            AuthServerOptions::RmSessions { ids} => {
+            AuthServerOptions::RmSessions { ids } => {
                 for id in ids {
                     if let Some(session) = Session::get_session(pool, id).await? {
                         session.delete(pool).await?;
