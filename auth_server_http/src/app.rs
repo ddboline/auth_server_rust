@@ -17,20 +17,15 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use auth_server_ext::google_openid::GoogleClient;
-use auth_server_lib::{
-    config::Config,
-    pgpool::PgPool,
-    session::Session,
-    static_files::{change_password, index_html, login_html, main_css, main_js, register_html},
-    user::User,
-};
+use auth_server_lib::{config::Config, pgpool::PgPool, session::Session, user::User};
 use authorized_users::{get_secrets, update_secret, AUTHORIZED_USERS, TRIGGER_DB_UPDATE};
 
 use crate::{
     errors::error_response,
     routes::{
-        auth_await, auth_url, callback, change_password_user, get_me, get_session, login, logout,
-        post_session, register_email, register_user, status, test_login,
+        auth_await, auth_url, callback, change_password, change_password_user, get_me, get_session,
+        index_html, login, login_html, logout, main_css, main_js, post_session, register_email,
+        register_html, register_user, status, test_login,
     },
 };
 
@@ -68,6 +63,13 @@ fn get_api_scope(app: &AppState) -> BoxedFilter<(impl Reply,)> {
         .or(post_session(app.clone()))
         .boxed();
 
+    let index_html_path = index_html();
+    let main_css_path = main_css();
+    let main_js_path = main_js();
+    let register_html_path = register_html();
+    let login_html_path = login_html();
+    let change_password_path = change_password();
+
     auth_path
         .or(invitation_path)
         .or(register_path)
@@ -77,6 +79,12 @@ fn get_api_scope(app: &AppState) -> BoxedFilter<(impl Reply,)> {
         .or(callback_path)
         .or(status_path)
         .or(session_path)
+        .or(index_html_path)
+        .or(main_css_path)
+        .or(main_js_path)
+        .or(register_html_path)
+        .or(login_html_path)
+        .or(change_password_path)
         .boxed()
 }
 
@@ -189,24 +197,6 @@ async fn run_app(config: Config) -> Result<(), Error> {
             rweb::reply::with_header(reply, CONTENT_TYPE, "text/yaml")
         });
 
-    let index_html_path = rweb::path("index.html").and(rweb::get()).map(index_html);
-    let main_css_path = rweb::path("main.css").and(rweb::get()).map(main_css);
-    let main_js_path = rweb::path("main.js").and(rweb::get()).map(main_js);
-    let register_html_path = rweb::path("register.html")
-        .and(rweb::get())
-        .map(register_html);
-    let login_html_path = rweb::path("login.html").and(rweb::get()).map(login_html);
-    let change_password_path = rweb::path("change_password.html")
-        .and(rweb::get())
-        .map(change_password);
-    let auth_scope = rweb::path("auth").and(
-        index_html_path
-            .or(main_css_path)
-            .or(main_js_path)
-            .or(register_html_path)
-            .or(login_html_path)
-            .or(change_password_path),
-    );
     let cors = rweb::cors()
         .allow_methods(vec!["GET", "POST", "DELETE"])
         .allow_header("content-type")
@@ -215,7 +205,6 @@ async fn run_app(config: Config) -> Result<(), Error> {
         .build();
 
     let routes = api_scope
-        .or(auth_scope)
         .or(spec_json_path)
         .or(spec_yaml_path)
         .recover(error_response)

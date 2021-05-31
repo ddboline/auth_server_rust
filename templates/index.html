@@ -117,10 +117,7 @@
         let url = "/api/auth";
         let xmlhttp = new XMLHttpRequest();
         xmlhttp.onload = function() {
-            let iframe = document.getElementById("main-frame");
-            if (iframe) {
-              iframe.src = url;
-            }
+            location.reload()
         }
         xmlhttp.open("DELETE", url, true);
         xmlhttp.send(null);

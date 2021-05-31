@@ -26,72 +26,51 @@ use auth_server_lib::{config::Config, pgpool::PgPool, session::Session, user::Us
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 
 use crate::{
-    app::AppState, auth::AuthRequest, errors::ServiceError as Error, logged_user::LoggedUser,
+    app::AppState, auth::AuthRequest, errors::ServiceError as Error, html_response::HtmlResponse,
+    json_response::JsonResponse, logged_user::LoggedUser,
 };
 
 pub type WarpResult<T> = Result<T, Rejection>;
 pub type HttpResult<T> = Result<T, Error>;
 
-pub struct JsonResponse<T: Serialize + Entity + Send> {
-    data: T,
-    cookie: Option<String>,
-    status: StatusCode,
+#[get("/auth/index.html")]
+pub async fn index_html() -> WarpResult<HtmlResponse<&'static str>> {
+    Ok(HtmlResponse::new(include_str!(
+        "../../templates/index.html"
+    )))
 }
 
-impl<T> JsonResponse<T>
-where
-    T: Serialize + Entity + Send,
-{
-    pub fn new(data: T) -> Self {
-        Self {
-            data,
-            cookie: None,
-            status: StatusCode::OK,
-        }
-    }
-    pub fn with_cookie(mut self, cookie: String) -> Self {
-        self.cookie = Some(cookie);
-        self
-    }
-    pub fn with_status(mut self, status: StatusCode) -> Self {
-        self.status = status;
-        self
-    }
+#[get("/auth/main.css")]
+pub async fn main_css() -> WarpResult<HtmlResponse<&'static str>> {
+    Ok(HtmlResponse::new(include_str!("../../templates/main.css"))
+        .with_content_type("text/css; charset=utf-8"))
 }
 
-impl<T> Reply for JsonResponse<T>
-where
-    T: Serialize + Entity + Send,
-{
-    fn into_response(self) -> Response<Body> {
-        let reply = rweb::reply::json(&self.data);
-        let reply = rweb::reply::with_status(reply, self.status);
-        #[allow(clippy::option_if_let_else)]
-        if let Some(header) = self.cookie {
-            let reply = rweb::reply::with_header(reply, SET_COOKIE, header);
-            reply.into_response()
-        } else {
-            reply.into_response()
-        }
-    }
+#[get("/auth/register.html")]
+pub async fn register_html() -> WarpResult<HtmlResponse<&'static str>> {
+    Ok(HtmlResponse::new(include_str!(
+        "../../templates/register.html"
+    )))
 }
 
-impl<T> Entity for JsonResponse<T>
-where
-    T: Serialize + Entity + Send,
-{
-    fn describe() -> openapi::Schema {
-        Result::<T, Error>::describe()
-    }
+#[get("/auth/main.js")]
+pub async fn main_js() -> WarpResult<HtmlResponse<&'static str>> {
+    Ok(HtmlResponse::new(include_str!("../../templates/main.js"))
+        .with_content_type("text/javascript; charset=utf-8"))
 }
 
-impl<T> ResponseEntity for JsonResponse<T>
-where
-    T: Serialize + Entity + Send,
-{
-    fn describe_responses() -> Responses {
-        Result::<Json<T>, Error>::describe_responses()
-    }
+#[get("/auth/login.html")]
+pub async fn login_html() -> WarpResult<HtmlResponse<&'static str>> {
+    Ok(HtmlResponse::new(include_str!(
+        "../../templates/login.html"
+    )))
+}
+
+#[get("/auth/change_password.html")]
+pub async fn change_password() -> WarpResult<HtmlResponse<&'static str>> {
+    Ok(HtmlResponse::new(include_str!(
+        "../../templates/change_password.html"
+    )))
 }
 
 #[post("/api/auth")]

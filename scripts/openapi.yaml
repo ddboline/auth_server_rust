@@ -1,0 +1,458 @@
+---
+openapi: 3.0.1
+info:
+  title: Rust Auth Server
+  description: Authorization Server written in rust using jwt/jws/jwe and featuring integration with Google OAuth
+  version: 0.5.1
+paths:
+  /api/auth:
+    get:
+      description: Get current username if logged in
+      responses:
+        "200":
+          description: Current users email
+          content:
+            application/json:
+              schema:
+                properties:
+                  email:
+                    type: string
+                  session:
+                    format: datetime
+                    nullable: true
+                    type: string
+                type: object
+                required:
+                  - email
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+        "400":
+          description: Bad Request
+        "405":
+          description: Method not allowed
+    post:
+      description: Login with username and password
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+              type: object
+              required:
+                - email
+                - password
+        required: true
+      responses:
+        "405":
+          description: Method not allowed
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+        "400":
+          description: Bad Request
+        "201":
+          description: Current logged in username
+          content:
+            application/json:
+              schema:
+                properties:
+                  email:
+                    type: string
+                  session:
+                    format: datetime
+                    nullable: true
+                    type: string
+                type: object
+                required:
+                  - email
+    delete:
+      description: Log out
+      responses:
+        "405":
+          description: Method not allowed
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+        "400":
+          description: Bad Request
+        "201":
+          description: Email of logged in user
+          content:
+            application/json:
+              schema:
+                type: string
+  /api/invitation:
+    post:
+      description: Send invitation to specified email
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                email:
+                  description: Email to send invitation to
+                  type: string
+              type: object
+              required:
+                - email
+        required: true
+      responses:
+        "405":
+          description: Method not allowed
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+        "400":
+          description: Bad Request
+        "201":
+          description: Invitation Object
+          content:
+            application/json:
+              schema:
+                properties:
+                  id:
+                    description: Invitation ID
+                    type: string
+                  email:
+                    description: Email Address
+                    type: string
+                  expires_at:
+                    description: Expiration Datetime
+                    format: datetime
+                    type: string
+                type: object
+                required:
+                  - id
+                  - email
+                  - expires_at
+  "/api/register/{invitation_id}":
+    post:
+      description: Set password using link from email
+      parameters:
+        - name: invitation_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                password:
+                  type: string
+              type: object
+              required:
+                - password
+        required: true
+      responses:
+        "405":
+          description: Method not allowed
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+        "400":
+          description: Bad Request
+        "201":
+          description: Registered Email
+          content:
+            application/json:
+              schema:
+                properties:
+                  email:
+                    type: string
+                  session:
+                    format: datetime
+                    nullable: true
+                    type: string
+                type: object
+                required:
+                  - email
+  /api/password_change:
+    post:
+      description: Change password for currently logged in user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                password:
+                  type: string
+              type: object
+              required:
+                - password
+        required: true
+      responses:
+        "405":
+          description: Method not allowed
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+        "400":
+          description: Bad Request
+        "201":
+          description: Success Message
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                type: object
+                required:
+                  - message
+  /api/auth_url:
+    post:
+      description: Get Oauth Url
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                final_url:
+                  description: Url to redirect to after completion of authorization
+                  type: string
+              type: object
+              required:
+                - final_url
+        required: true
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                properties:
+                  csrf_state:
+                    type: string
+                  auth_url:
+                    type: string
+                type: object
+                required:
+                  - csrf_state
+                  - auth_url
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+        "400":
+          description: Bad Request
+        "405":
+          description: Method not allowed
+  /api/await:
+    get:
+      description: Await completion of auth
+      parameters:
+        - name: state
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Finished
+          content:
+            text/plain:
+              schema:
+                type: string
+  /api/callback:
+    get:
+      description: Callback method for use in Oauth flow
+      parameters:
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Callback Response
+          content:
+            text/plain:
+              schema:
+                type: string
+  /api/status:
+    get:
+      description: Status endpoint
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                properties:
+                  number_of_users:
+                    type: integer
+                  number_of_invitations:
+                    type: integer
+                  quota:
+                    properties:
+                      max_24_hour_send:
+                        type: number
+                      max_send_rate:
+                        type: number
+                      sent_last_24_hours:
+                        type: number
+                    type: object
+                    required:
+                      - max_24_hour_send
+                      - max_send_rate
+                      - sent_last_24_hours
+                  stats:
+                    properties:
+                      bounces:
+                        type: integer
+                      complaints:
+                        type: integer
+                      delivery_attempts:
+                        type: integer
+                      rejects:
+                        type: integer
+                      min_timestamp:
+                        format: datetime
+                        nullable: true
+                        type: string
+                      max_timestamp:
+                        format: datetime
+                        nullable: true
+                        type: string
+                    type: object
+                    required:
+                      - bounces
+                      - complaints
+                      - delivery_attempts
+                      - rejects
+                type: object
+                required:
+                  - number_of_users
+                  - number_of_invitations
+                  - quota
+                  - stats
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+        "400":
+          description: Bad Request
+        "405":
+          description: Method not allowed
+  /api/session:
+    get:
+      description: Get Session
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+        "400":
+          description: Bad Request
+        "405":
+          description: Method not allowed
+    post:
+      description: Set session value
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+        required: true
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          description: Not Found
+        "500":
+          description: Internal Server Error
+        "400":
+          description: Bad Request
+        "405":
+          description: Method not allowed
+  /auth/index.html:
+    get:
+      responses:
+        "200":
+          description: ""
+          content:
+            text/html:
+              schema:
+                oneOf:
+                  - type: string
+                  - type: object
+  /auth/main.css:
+    get:
+      responses:
+        "200":
+          description: ""
+          content:
+            text/html:
+              schema:
+                oneOf:
+                  - type: string
+                  - type: object
+  /auth/main.js:
+    get:
+      responses:
+        "200":
+          description: ""
+          content:
+            text/html:
+              schema:
+                oneOf:
+                  - type: string
+                  - type: object
+  /auth/register.html:
+    get:
+      responses:
+        "200":
+          description: ""
+          content:
+            text/html:
+              schema:
+                oneOf:
+                  - type: string
+                  - type: object
+  /auth/login.html:
+    get:
+      responses:
+        "200":
+          description: ""
+          content:
+            text/html:
+              schema:
+                oneOf:
+                  - type: string
+                  - type: object
+  /auth/change_password.html:
+    get:
+      responses:
+        "200":
+          description: ""
+          content:
+            text/html:
+              schema:
+                oneOf:
+                  - type: string
+                  - type: object

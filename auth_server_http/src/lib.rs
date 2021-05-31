@@ -12,6 +12,8 @@
 pub mod app;
 pub mod auth;
 pub mod errors;
+pub mod html_response;
+pub mod json_response;
 pub mod logged_user;
 pub mod routes;
 pub mod uuid_wrapper;

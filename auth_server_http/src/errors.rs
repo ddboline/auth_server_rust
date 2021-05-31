@@ -26,7 +26,6 @@ use tokio_postgres::Error as PostgresError;
 use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
 
-use auth_server_lib::static_files;
 use authorized_users::TRIGGER_DB_UPDATE;
 
 #[derive(Debug, Error)]
@@ -87,6 +86,19 @@ struct ErrorMessage {
     message: String,
 }
 
+fn login_html() -> impl Reply {
+    rweb::reply::html(
+        "
+            <script>
+                !function() {
+                    let final_url = location.href;
+                    location.replace('/auth/login.html?final_url=' + final_url);
+                }()
+            </script>
+        ",
+    )
+}
+
 #[allow(clippy::missing_panics_doc)]
 pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible> {
     let code: StatusCode;
@@ -97,11 +109,11 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
         message = "NOT FOUND";
     } else if err.find::<InvalidHeader>().is_some() {
         TRIGGER_DB_UPDATE.set();
-        return Ok(Box::new(static_files::login_html().unwrap()));
+        return Ok(Box::new(login_html()));
     } else if let Some(missing_cookie) = err.find::<MissingCookie>() {
         if missing_cookie.name() == "jwt" {
             TRIGGER_DB_UPDATE.set();
-            return Ok(Box::new(static_files::login_html().unwrap()));
+            return Ok(Box::new(login_html()));
         }
         code = StatusCode::INTERNAL_SERVER_ERROR;
         message = "Internal Server Error (missing cookie)";
@@ -113,7 +125,7 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
             }
             ServiceError::Unauthorized => {
                 TRIGGER_DB_UPDATE.set();
-                return Ok(Box::new(static_files::login_html().unwrap()));
+                return Ok(Box::new(login_html()));
             }
             _ => {
                 error!("Other error: {:?}", service_err);
