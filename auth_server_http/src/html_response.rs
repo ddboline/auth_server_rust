@@ -5,13 +5,14 @@ use rweb::{
     Reply,
 };
 use stack_string::StackString;
-use std::borrow::Cow;
-use std::marker::PhantomData;
+use std::{borrow::Cow, marker::PhantomData};
 
-use crate::content_type_trait::{ContentTypeHtml, ContentTypeTrait};
-use crate::errors::ServiceError as Error;
-use crate::response_description_trait::{DefaultDescription, ResponseDescriptionTrait};
-use crate::status_code_trait::{StatusCodeOk, StatusCodeTrait};
+use crate::{
+    content_type_trait::{ContentTypeHtml, ContentTypeTrait},
+    errors::ServiceError as Error,
+    response_description_trait::{DefaultDescription, ResponseDescriptionTrait},
+    status_code_trait::{StatusCodeOk, StatusCodeTrait},
+};
 
 pub struct HtmlResponse<T, S = StatusCodeOk, C = ContentTypeHtml, D = DefaultDescription>
 where

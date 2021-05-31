@@ -2,7 +2,7 @@ use anyhow::Error;
 use log::debug;
 use rweb::{
     filters::BoxedFilter,
-    http::{header::CONTENT_TYPE},
+    http::header::CONTENT_TYPE,
     openapi::{self, Spec},
     Filter, Reply,
 };

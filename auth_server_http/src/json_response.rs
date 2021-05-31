@@ -5,12 +5,13 @@ use rweb::{
     Json, Reply,
 };
 use serde::Serialize;
-use std::borrow::Cow;
-use std::marker::PhantomData;
+use std::{borrow::Cow, marker::PhantomData};
 
-use crate::errors::ServiceError as Error;
-use crate::response_description_trait::{DefaultDescription, ResponseDescriptionTrait};
-use crate::status_code_trait::{StatusCodeOk, StatusCodeTrait};
+use crate::{
+    errors::ServiceError as Error,
+    response_description_trait::{DefaultDescription, ResponseDescriptionTrait},
+    status_code_trait::{StatusCodeOk, StatusCodeTrait},
+};
 
 pub struct JsonResponse<T, S = StatusCodeOk, D = DefaultDescription>
 where

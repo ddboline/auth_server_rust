@@ -1,10 +1,7 @@
 use chrono::Utc;
 use futures::try_join;
 use log::debug;
-use rweb::{
-    delete, get,
-    post, Json, Query, Rejection, Schema,
-};
+use rweb::{delete, get, post, Json, Query, Rejection, Schema};
 use serde::{Deserialize, Serialize};
 use serde_json::{map::Map, Value};
 use stack_string::StackString;
@@ -357,7 +354,8 @@ pub async fn change_password_user(
     #[cookie = "jwt"] logged_user: LoggedUser,
     #[data] data: AppState,
     user_data: Json<UserData>,
-) -> WarpResult<JsonResponse<PasswordChangeOutput, StatusCodeCreated, ApiPasswordChangeDescription>> {
+) -> WarpResult<JsonResponse<PasswordChangeOutput, StatusCodeCreated, ApiPasswordChangeDescription>>
+{
     let message = change_password_user_body(
         logged_user,
         user_data.into_inner(),
