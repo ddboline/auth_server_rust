@@ -518,8 +518,8 @@ mod test {
             .unwrap()
             .parse()?;
 
-        let opts = AuthServerOptions::RmInvite {
-            id: invitation_uuid.clone(),
+        let opts = AuthServerOptions::RmInvites {
+            ids: vec![invitation_uuid.clone()],
         };
         opts.process_args(&pool, &stdout).await?;
         stdout.close().await?;

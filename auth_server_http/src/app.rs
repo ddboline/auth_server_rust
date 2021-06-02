@@ -1,14 +1,13 @@
 use anyhow::Error;
 use log::debug;
-use maplit::hashmap;
 use rweb::{
     filters::BoxedFilter,
-    http::{header::CONTENT_TYPE, status::StatusCode},
+    http::header::CONTENT_TYPE,
     openapi::{self, Spec},
     Filter, Reply,
 };
 use stack_string::StackString;
-use std::{borrow::Cow, net::SocketAddr, sync::Arc, time::Duration};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{task::spawn, time::interval};
 
 use arc_swap::ArcSwap;
@@ -94,60 +93,6 @@ fn modify_spec(spec: &mut Spec) {
                              integration with Google OAuth"
         .into();
     spec.info.version = env!("CARGO_PKG_VERSION").into();
-
-    let status_codes = hashmap! {
-        ("/api/auth", "post") => (StatusCode::OK, StatusCode::CREATED),
-        ("/api/auth", "delete") => (StatusCode::OK, StatusCode::CREATED),
-        ("/api/invitation", "post") => (StatusCode::OK, StatusCode::CREATED),
-        ("/api/register/{invitation_id}", "post") => (StatusCode::OK, StatusCode::CREATED),
-        ("/api/password_change", "post") => (StatusCode::OK, StatusCode::CREATED),
-    };
-
-    let response_descriptions = hashmap! {
-        ("/api/auth", "get", StatusCode::OK) => "Current users email",
-        ("/api/auth", "post", StatusCode::CREATED) => "Current logged in username",
-        ("/api/auth", "delete", StatusCode::CREATED) => "Email of logged in user",
-        ("/api/invitation", "post", StatusCode::CREATED) => "Invitation Object",
-        ("/api/register/{invitation_id}", "post", StatusCode::CREATED) => "Registered Email",
-        ("/api/password_change", "post", StatusCode::CREATED) => "Success Message",
-        ("/api/callback", "get", StatusCode::OK) => "Callback Response",
-        ("/api/await", "get", StatusCode::OK) => "Finished",
-    };
-
-    for ((path, method), (old_code, new_code)) in status_codes {
-        if let Some(path) = spec.paths.get_mut(path) {
-            if let Some(method) = match method {
-                "get" => path.get.as_mut(),
-                "post" => path.post.as_mut(),
-                "patch" => path.patch.as_mut(),
-                "delete" => path.delete.as_mut(),
-                _ => panic!("Unsupported"),
-            } {
-                let old_code: Cow<'static, str> = old_code.as_u16().to_string().into();
-                let new_code = new_code.as_u16().to_string();
-                if let Some(old) = method.responses.remove(&old_code) {
-                    method.responses.insert(new_code.into(), old);
-                }
-            }
-        }
-    }
-
-    for ((path, method, code), description) in response_descriptions {
-        let code: Cow<'static, str> = code.as_u16().to_string().into();
-        if let Some(path) = spec.paths.get_mut(path) {
-            if let Some(method) = match method {
-                "get" => path.get.as_mut(),
-                "patch" => path.patch.as_mut(),
-                "post" => path.post.as_mut(),
-                "delete" => path.delete.as_mut(),
-                _ => panic!("Unsupported"),
-            } {
-                if let Some(resp) = method.responses.get_mut(&code) {
-                    resp.description = description.into();
-                }
-            }
-        }
-    }
 }
 
 async fn run_app(config: Config) -> Result<(), Error> {
