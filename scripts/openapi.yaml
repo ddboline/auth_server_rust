@@ -3,7 +3,7 @@ openapi: 3.0.1
 info:
   title: Rust Auth Server
   description: Authorization Server written in rust using jwt/jws/jwe and featuring integration with Google OAuth
-  version: 0.5.1
+  version: 0.5.2
 paths:
   /api/auth:
     get:
@@ -24,14 +24,14 @@ paths:
                 type: object
                 required:
                   - email
-        "404":
-          description: Not Found
-        "500":
-          description: Internal Server Error
         "400":
           description: Bad Request
+        "404":
+          description: Not Found
         "405":
           description: Method not allowed
+        "500":
+          description: Internal Server Error
     post:
       description: Login with username and password
       requestBody:
@@ -49,14 +49,6 @@ paths:
                 - password
         required: true
       responses:
-        "405":
-          description: Method not allowed
-        "404":
-          description: Not Found
-        "500":
-          description: Internal Server Error
-        "400":
-          description: Bad Request
         "201":
           description: Current logged in username
           content:
@@ -72,23 +64,31 @@ paths:
                 type: object
                 required:
                   - email
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "405":
+          description: Method not allowed
+        "500":
+          description: Internal Server Error
     delete:
       description: Log out
       responses:
-        "405":
-          description: Method not allowed
-        "404":
-          description: Not Found
-        "500":
-          description: Internal Server Error
-        "400":
-          description: Bad Request
         "201":
-          description: Email of logged in user
+          description: Status Message
           content:
             application/json:
               schema:
                 type: string
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "405":
+          description: Method not allowed
+        "500":
+          description: Internal Server Error
   /api/invitation:
     post:
       description: Send invitation to specified email
@@ -105,14 +105,6 @@ paths:
                 - email
         required: true
       responses:
-        "405":
-          description: Method not allowed
-        "404":
-          description: Not Found
-        "500":
-          description: Internal Server Error
-        "400":
-          description: Bad Request
         "201":
           description: Invitation Object
           content:
@@ -134,6 +126,14 @@ paths:
                   - id
                   - email
                   - expires_at
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "405":
+          description: Method not allowed
+        "500":
+          description: Internal Server Error
   "/api/register/{invitation_id}":
     post:
       description: Set password using link from email
@@ -155,14 +155,6 @@ paths:
                 - password
         required: true
       responses:
-        "405":
-          description: Method not allowed
-        "404":
-          description: Not Found
-        "500":
-          description: Internal Server Error
-        "400":
-          description: Bad Request
         "201":
           description: Registered Email
           content:
@@ -178,6 +170,14 @@ paths:
                 type: object
                 required:
                   - email
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "405":
+          description: Method not allowed
+        "500":
+          description: Internal Server Error
   /api/password_change:
     post:
       description: Change password for currently logged in user
@@ -193,14 +193,6 @@ paths:
                 - password
         required: true
       responses:
-        "405":
-          description: Method not allowed
-        "404":
-          description: Not Found
-        "500":
-          description: Internal Server Error
-        "400":
-          description: Bad Request
         "201":
           description: Success Message
           content:
@@ -212,6 +204,14 @@ paths:
                 type: object
                 required:
                   - message
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "405":
+          description: Method not allowed
+        "500":
+          description: Internal Server Error
   /api/auth_url:
     post:
       description: Get Oauth Url
@@ -229,7 +229,7 @@ paths:
         required: true
       responses:
         "200":
-          description: ""
+          description: Authorization Url
           content:
             application/json:
               schema:
@@ -242,14 +242,14 @@ paths:
                 required:
                   - csrf_state
                   - auth_url
-        "404":
-          description: Not Found
-        "500":
-          description: Internal Server Error
         "400":
           description: Bad Request
+        "404":
+          description: Not Found
         "405":
           description: Method not allowed
+        "500":
+          description: Internal Server Error
   /api/await:
     get:
       description: Await completion of auth
@@ -262,9 +262,17 @@ paths:
         "200":
           description: Finished
           content:
-            text/plain:
+            text/html:
               schema:
                 type: string
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "405":
+          description: Method not allowed
+        "500":
+          description: Internal Server Error
   /api/callback:
     get:
       description: Callback method for use in Oauth flow
@@ -281,15 +289,23 @@ paths:
         "200":
           description: Callback Response
           content:
-            text/plain:
+            text/html:
               schema:
                 type: string
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "405":
+          description: Method not allowed
+        "500":
+          description: Internal Server Error
   /api/status:
     get:
       description: Status endpoint
       responses:
         "200":
-          description: ""
+          description: Status output
           content:
             application/json:
               schema:
@@ -341,32 +357,32 @@ paths:
                   - number_of_invitations
                   - quota
                   - stats
-        "404":
-          description: Not Found
-        "500":
-          description: Internal Server Error
         "400":
           description: Bad Request
+        "404":
+          description: Not Found
         "405":
           description: Method not allowed
+        "500":
+          description: Internal Server Error
   /api/session:
     get:
       description: Get Session
       responses:
         "200":
-          description: ""
+          description: Get Session Object
           content:
             application/json:
               schema:
                 type: object
-        "404":
-          description: Not Found
-        "500":
-          description: Internal Server Error
         "400":
           description: Bad Request
+        "404":
+          description: Not Found
         "405":
           description: Method not allowed
+        "500":
+          description: Internal Server Error
     post:
       description: Set session value
       requestBody:
@@ -376,20 +392,20 @@ paths:
               type: object
         required: true
       responses:
-        "200":
-          description: ""
+        "201":
+          description: Set Session Object
           content:
             application/json:
               schema:
                 type: object
-        "404":
-          description: Not Found
-        "500":
-          description: Internal Server Error
         "400":
           description: Bad Request
+        "404":
+          description: Not Found
         "405":
           description: Method not allowed
+        "500":
+          description: Internal Server Error
   /auth/index.html:
     get:
       responses:
@@ -398,31 +414,49 @@ paths:
           content:
             text/html:
               schema:
-                oneOf:
-                  - type: string
-                  - type: object
+                type: string
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "405":
+          description: Method not allowed
+        "500":
+          description: Internal Server Error
   /auth/main.css:
     get:
       responses:
         "200":
           description: ""
           content:
-            text/html:
+            text/css:
               schema:
-                oneOf:
-                  - type: string
-                  - type: object
+                type: string
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "405":
+          description: Method not allowed
+        "500":
+          description: Internal Server Error
   /auth/main.js:
     get:
       responses:
         "200":
           description: ""
           content:
-            text/html:
+            text/javascript:
               schema:
-                oneOf:
-                  - type: string
-                  - type: object
+                type: string
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "405":
+          description: Method not allowed
+        "500":
+          description: Internal Server Error
   /auth/register.html:
     get:
       responses:
@@ -431,9 +465,15 @@ paths:
           content:
             text/html:
               schema:
-                oneOf:
-                  - type: string
-                  - type: object
+                type: string
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "405":
+          description: Method not allowed
+        "500":
+          description: Internal Server Error
   /auth/login.html:
     get:
       responses:
@@ -442,9 +482,15 @@ paths:
           content:
             text/html:
               schema:
-                oneOf:
-                  - type: string
-                  - type: object
+                type: string
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "405":
+          description: Method not allowed
+        "500":
+          description: Internal Server Error
   /auth/change_password.html:
     get:
       responses:
@@ -453,6 +499,12 @@ paths:
           content:
             text/html:
               schema:
-                oneOf:
-                  - type: string
-                  - type: object
+                type: string
+        "400":
+          description: Bad Request
+        "404":
+          description: Not Found
+        "405":
+          description: Method not allowed
+        "500":
+          description: Internal Server Error
