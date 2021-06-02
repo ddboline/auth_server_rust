@@ -18,18 +18,15 @@ use auth_server_ext::{
 use auth_server_lib::{config::Config, pgpool::PgPool, session::Session, user::User};
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 use rweb_helper::{
-    derive_response_description,
     content_type_trait::{ContentTypeCss, ContentTypeHtml, ContentTypeJs},
-    status_code_trait::{StatusCodeCreated, StatusCodeOk},
+    derive_response_description,
     html_response::HtmlResponse as HtmlBase,
     json_response::JsonResponse as JsonBase,
+    status_code_trait::{StatusCodeCreated, StatusCodeOk},
 };
 
 use crate::{
-    app::AppState,
-    auth::AuthRequest,
-    errors::ServiceError as Error,
-    logged_user::LoggedUser,
+    app::AppState, auth::AuthRequest, errors::ServiceError as Error, logged_user::LoggedUser,
 };
 
 pub type WarpResult<T> = Result<T, Rejection>;
@@ -39,9 +36,7 @@ type HtmlResponse = HtmlBase<&'static str, Error>;
 
 #[get("/auth/index.html")]
 pub async fn index_html() -> WarpResult<HtmlResponse> {
-    Ok(HtmlBase::new(include_str!(
-        "../../templates/index.html"
-    )))
+    Ok(HtmlBase::new(include_str!("../../templates/index.html")))
 }
 
 type CssResponse = HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeCss>;
@@ -53,9 +48,7 @@ pub async fn main_css() -> WarpResult<CssResponse> {
 
 #[get("/auth/register.html")]
 pub async fn register_html() -> WarpResult<HtmlResponse> {
-    Ok(HtmlBase::new(include_str!(
-        "../../templates/register.html"
-    )))
+    Ok(HtmlBase::new(include_str!("../../templates/register.html")))
 }
 
 type JsResponse = HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeJs>;
@@ -67,9 +60,7 @@ pub async fn main_js() -> WarpResult<JsResponse> {
 
 #[get("/auth/login.html")]
 pub async fn login_html() -> WarpResult<HtmlResponse> {
-    Ok(HtmlBase::new(include_str!(
-        "../../templates/login.html"
-    )))
+    Ok(HtmlBase::new(include_str!("../../templates/login.html")))
 }
 
 #[get("/auth/change_password.html")]
@@ -153,12 +144,11 @@ pub async fn logout(
         session_map_cache.remove(&session);
         data.session_cache.store(Arc::new(session_map_cache));
     }
-    let resp = JsonBase::new(format!("{} has been logged out", logged_user.email)).with_cookie(
-        format!(
+    let resp =
+        JsonBase::new(format!("{} has been logged out", logged_user.email)).with_cookie(format!(
             "jwt=; HttpOnly; Path=/; Domain={}; Max-Age={}",
             data.config.domain, data.config.expiration_seconds
-        ),
-    );
+        ));
     Ok(resp)
 }
 
@@ -170,9 +160,7 @@ type ApiAuthGetResponse = JsonBase<LoggedUser, Error, StatusCodeOk, ApiAuthGetDe
 
 #[get("/api/auth")]
 #[openapi(description = "Get current username if logged in")]
-pub async fn get_me(
-    #[cookie = "jwt"] logged_user: LoggedUser,
-) -> WarpResult<ApiAuthGetResponse> {
+pub async fn get_me(#[cookie = "jwt"] logged_user: LoggedUser) -> WarpResult<ApiAuthGetResponse> {
     Ok(JsonBase::new(logged_user))
 }
 
@@ -264,7 +252,8 @@ impl From<Invitation> for InvitationOutput {
 struct ApiInvitationDescription {}
 derive_response_description!(ApiInvitationDescription, "Invitation Object");
 
-type ApiInvitationResponse = JsonBase<InvitationOutput, Error, StatusCodeCreated, ApiInvitationDescription>;
+type ApiInvitationResponse =
+    JsonBase<InvitationOutput, Error, StatusCodeCreated, ApiInvitationDescription>;
 
 #[post("/api/invitation")]
 #[openapi(description = "Send invitation to specified email")]
@@ -349,7 +338,8 @@ pub struct PasswordChangeOutput {
 struct ApiPasswordChangeDescription {}
 derive_response_description!(ApiPasswordChangeDescription, "Success Message");
 
-type ApiPasswordChangeResponse = JsonBase<PasswordChangeOutput, Error, StatusCodeCreated, ApiPasswordChangeDescription>;
+type ApiPasswordChangeResponse =
+    JsonBase<PasswordChangeOutput, Error, StatusCodeCreated, ApiPasswordChangeDescription>;
 
 #[post("/api/password_change")]
 #[openapi(description = "Change password for currently logged in user")]
@@ -357,8 +347,7 @@ pub async fn change_password_user(
     #[cookie = "jwt"] logged_user: LoggedUser,
     #[data] data: AppState,
     user_data: Json<UserData>,
-) -> WarpResult<ApiPasswordChangeResponse>
-{
+) -> WarpResult<ApiPasswordChangeResponse> {
     let message = change_password_user_body(
         logged_user,
         user_data.into_inner(),
@@ -436,7 +425,8 @@ pub struct AuthAwait {
 struct ApiAwaitDescription {}
 derive_response_description!(ApiAwaitDescription, "Finished");
 
-type ApiAwaitResponse = HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeHtml, ApiAwaitDescription>;
+type ApiAwaitResponse =
+    HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeHtml, ApiAwaitDescription>;
 
 #[get("/api/await")]
 #[openapi(description = "Await completion of auth")]
@@ -462,7 +452,8 @@ pub struct CallbackQuery {
 struct ApiCallbackDescription {}
 derive_response_description!(ApiCallbackDescription, "Callback Response");
 
-type ApiCallbackResponse = HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeHtml, ApiCallbackDescription>;
+type ApiCallbackResponse =
+    HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeHtml, ApiCallbackDescription>;
 
 #[get("/api/callback")]
 #[openapi(description = "Callback method for use in Oauth flow")]
@@ -516,7 +507,7 @@ pub struct StatusOutput {
     quota: SesQuotas,
     stats: EmailStats,
 }
- 
+
 struct StatusOutputDescription {}
 derive_response_description!(StatusOutputDescription, "Status output");
 
