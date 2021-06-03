@@ -162,10 +162,8 @@ impl ResponseEntity for ServiceError {
         let mut map = IndexMap::new();
 
         let error_responses = [
-            (StatusCode::NOT_FOUND, "Not Found"),
             (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error"),
             (StatusCode::BAD_REQUEST, "Bad Request"),
-            (StatusCode::METHOD_NOT_ALLOWED, "Method not allowed"),
         ];
 
         for (code, msg) in &error_responses {

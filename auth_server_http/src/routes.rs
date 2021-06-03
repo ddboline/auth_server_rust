@@ -8,6 +8,7 @@ use stack_string::StackString;
 use std::sync::Arc;
 use url::Url;
 use uuid::Uuid;
+use std::convert::Infallible;
 
 use auth_server_ext::{
     datetime_wrapper::DateTimeWrapper,
@@ -35,7 +36,7 @@ pub type HttpResult<T> = Result<T, Error>;
 struct AuthIndexDescription {}
 derive_response_description!(AuthIndexDescription, "Main page");
 type AuthIndexResponse =
-    HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeHtml, AuthIndexDescription>;
+    HtmlBase<&'static str, Infallible, StatusCodeOk, ContentTypeHtml, AuthIndexDescription>;
 
 #[get("/auth/index.html")]
 pub async fn index_html() -> WarpResult<AuthIndexResponse> {
@@ -44,7 +45,7 @@ pub async fn index_html() -> WarpResult<AuthIndexResponse> {
 
 struct CssDescription {}
 derive_response_description!(CssDescription, "CSS");
-type CssResponse = HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeCss, CssDescription>;
+type CssResponse = HtmlBase<&'static str, Infallible, StatusCodeOk, ContentTypeCss, CssDescription>;
 
 #[get("/auth/main.css")]
 pub async fn main_css() -> WarpResult<CssResponse> {
@@ -54,7 +55,7 @@ pub async fn main_css() -> WarpResult<CssResponse> {
 struct RegisterDescription {}
 derive_response_description!(RegisterDescription, "Main page");
 type RegisterResponse =
-    HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeHtml, RegisterDescription>;
+    HtmlBase<&'static str, Infallible, StatusCodeOk, ContentTypeHtml, RegisterDescription>;
 
 #[get("/auth/register.html")]
 pub async fn register_html() -> WarpResult<RegisterResponse> {
@@ -62,8 +63,8 @@ pub async fn register_html() -> WarpResult<RegisterResponse> {
 }
 
 struct JsDescription {}
-derive_response_description!(JsDescription, "CSS");
-type JsResponse = HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeJs, JsDescription>;
+derive_response_description!(JsDescription, "Javascript");
+type JsResponse = HtmlBase<&'static str, Infallible, StatusCodeOk, ContentTypeJs, JsDescription>;
 
 #[get("/auth/main.js")]
 pub async fn main_js() -> WarpResult<JsResponse> {
@@ -73,7 +74,7 @@ pub async fn main_js() -> WarpResult<JsResponse> {
 struct AuthLoginDescription {}
 derive_response_description!(AuthLoginDescription, "Login Page");
 type AuthLoginResponse =
-    HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeHtml, AuthLoginDescription>;
+    HtmlBase<&'static str, Infallible, StatusCodeOk, ContentTypeHtml, AuthLoginDescription>;
 
 #[get("/auth/login.html")]
 pub async fn login_html() -> WarpResult<AuthLoginResponse> {
@@ -83,7 +84,7 @@ pub async fn login_html() -> WarpResult<AuthLoginResponse> {
 struct PwChangeDescription {}
 derive_response_description!(PwChangeDescription, "Change Password");
 type PwChangeResponse =
-    HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeHtml, PwChangeDescription>;
+    HtmlBase<&'static str, Infallible, StatusCodeOk, ContentTypeHtml, PwChangeDescription>;
 
 #[get("/auth/change_password.html")]
 pub async fn change_password() -> WarpResult<PwChangeResponse> {
@@ -448,7 +449,7 @@ struct ApiAwaitDescription {}
 derive_response_description!(ApiAwaitDescription, "Finished");
 
 type ApiAwaitResponse =
-    HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeHtml, ApiAwaitDescription>;
+    HtmlBase<&'static str, Infallible, StatusCodeOk, ContentTypeHtml, ApiAwaitDescription>;
 
 #[get("/api/await")]
 #[openapi(description = "Await completion of auth")]
