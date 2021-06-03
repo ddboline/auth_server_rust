@@ -32,39 +32,61 @@ use crate::{
 pub type WarpResult<T> = Result<T, Rejection>;
 pub type HttpResult<T> = Result<T, Error>;
 
-type HtmlResponse = HtmlBase<&'static str, Error>;
+struct AuthIndexDescription {}
+derive_response_description!(AuthIndexDescription, "Main page");
+type AuthIndexResponse =
+    HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeHtml, AuthIndexDescription>;
 
 #[get("/auth/index.html")]
-pub async fn index_html() -> WarpResult<HtmlResponse> {
+pub async fn index_html() -> WarpResult<AuthIndexResponse> {
     Ok(HtmlBase::new(include_str!("../../templates/index.html")))
 }
 
-type CssResponse = HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeCss>;
+struct CssDescription {}
+derive_response_description!(CssDescription, "CSS");
+type CssResponse = HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeCss, CssDescription>;
 
 #[get("/auth/main.css")]
 pub async fn main_css() -> WarpResult<CssResponse> {
     Ok(HtmlBase::new(include_str!("../../templates/main.css")))
 }
 
+struct RegisterDescription {}
+derive_response_description!(RegisterDescription, "Main page");
+type RegisterResponse =
+    HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeHtml, RegisterDescription>;
+
 #[get("/auth/register.html")]
-pub async fn register_html() -> WarpResult<HtmlResponse> {
+pub async fn register_html() -> WarpResult<RegisterResponse> {
     Ok(HtmlBase::new(include_str!("../../templates/register.html")))
 }
 
-type JsResponse = HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeJs>;
+struct JsDescription {}
+derive_response_description!(JsDescription, "CSS");
+type JsResponse = HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeJs, JsDescription>;
 
 #[get("/auth/main.js")]
 pub async fn main_js() -> WarpResult<JsResponse> {
     Ok(HtmlBase::new(include_str!("../../templates/main.js")))
 }
 
+struct AuthLoginDescription {}
+derive_response_description!(AuthLoginDescription, "Login Page");
+type AuthLoginResponse =
+    HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeHtml, AuthLoginDescription>;
+
 #[get("/auth/login.html")]
-pub async fn login_html() -> WarpResult<HtmlResponse> {
+pub async fn login_html() -> WarpResult<AuthLoginResponse> {
     Ok(HtmlBase::new(include_str!("../../templates/login.html")))
 }
 
+struct PwChangeDescription {}
+derive_response_description!(PwChangeDescription, "Change Password");
+type PwChangeResponse =
+    HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeHtml, PwChangeDescription>;
+
 #[get("/auth/change_password.html")]
-pub async fn change_password() -> WarpResult<HtmlResponse> {
+pub async fn change_password() -> WarpResult<PwChangeResponse> {
     Ok(HtmlBase::new(include_str!(
         "../../templates/change_password.html"
     )))

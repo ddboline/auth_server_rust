@@ -3,7 +3,7 @@ use log::debug;
 use rweb::{
     filters::BoxedFilter,
     http::header::CONTENT_TYPE,
-    openapi::{self, Spec},
+    openapi::{self, Info},
     Filter, Reply,
 };
 use stack_string::StackString;
@@ -87,14 +87,6 @@ fn get_api_scope(app: &AppState) -> BoxedFilter<(impl Reply,)> {
         .boxed()
 }
 
-fn modify_spec(spec: &mut Spec) {
-    spec.info.title = "Rust Auth Server".into();
-    spec.info.description = "Authorization Server written in rust using jwt/jws/jwe and featuring \
-                             integration with Google OAuth"
-        .into();
-    spec.info.version = env!("CARGO_PKG_VERSION").into();
-}
-
 async fn run_app(config: Config) -> Result<(), Error> {
     async fn _update_db(pool: PgPool, client: GoogleClient, expiration_seconds: i64) {
         let mut i = interval(Duration::from_secs(60));
@@ -124,8 +116,16 @@ async fn run_app(config: Config) -> Result<(), Error> {
         session_cache: Arc::new(ArcSwap::new(Arc::new(HashMap::new()))),
     };
 
-    let (mut spec, api_scope) = openapi::spec().build(|| get_api_scope(&app));
-    modify_spec(&mut spec);
+    let (spec, api_scope) = openapi::spec()
+        .info(Info {
+            title: "Rust Auth Server".into(),
+            description: "Authorization Server written in rust using jwt/jws/jwe and featuring \
+                          integration with Google OAuth"
+                .into(),
+            version: env!("CARGO_PKG_VERSION").into(),
+            ..Info::default()
+        })
+        .build(|| get_api_scope(&app));
     let spec = Arc::new(spec);
     let spec_json_path = rweb::path!("api" / "openapi" / "json")
         .and(rweb::path::end())
@@ -231,7 +231,7 @@ mod tests {
     use authorized_users::{get_random_key, JWT_SECRET, KEY_LENGTH, SECRET_KEY};
 
     use crate::{
-        app::{get_api_scope, modify_spec, run_app, run_test_app, AppState},
+        app::{get_api_scope, run_app, run_test_app, AppState},
         logged_user::LoggedUser,
         routes::PasswordChangeOutput,
     };
@@ -468,8 +468,7 @@ mod tests {
             session_cache: Arc::new(ArcSwap::new(Arc::new(HashMap::new()))),
         };
 
-        let (mut spec, _) = openapi::spec().build(|| get_api_scope(&app));
-        modify_spec(&mut spec);
+        let (spec, _) = openapi::spec().build(|| get_api_scope(&app));
         let spec_yaml = serde_yaml::to_string(&spec)?;
 
         debug!("{}", spec_yaml);
