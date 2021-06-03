@@ -9,7 +9,7 @@ use tokio_postgres::{Config as PgConfig, NoTls};
 #[derive(Clone, Default)]
 pub struct PgPool {
     pgurl: String,
-    pool: Option<Pool<NoTls>>,
+    pool: Option<Pool>,
 }
 
 impl fmt::Debug for PgPool {
@@ -56,7 +56,7 @@ impl PgPool {
         }
     }
 
-    pub async fn get(&self) -> Result<Client<NoTls>, Error> {
+    pub async fn get(&self) -> Result<Client, Error> {
         self.pool
             .as_ref()
             .ok_or_else(|| format_err!("No Pool Exists"))?
