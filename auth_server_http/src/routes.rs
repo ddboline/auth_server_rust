@@ -19,11 +19,9 @@ use auth_server_ext::{
 use auth_server_lib::{config::Config, pgpool::PgPool, session::Session, user::User};
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 use rweb_helper::{
-    content_type_trait::{ContentTypeCss, ContentTypeHtml, ContentTypeJs},
-    derive_response_description,
+    RwebResponse,
     html_response::HtmlResponse as HtmlBase,
     json_response::JsonResponse as JsonBase,
-    status_code_trait::{StatusCodeCreated, StatusCodeOk},
 };
 
 use crate::{
@@ -33,71 +31,65 @@ use crate::{
 pub type WarpResult<T> = Result<T, Rejection>;
 pub type HttpResult<T> = Result<T, Error>;
 
-struct AuthIndexDescription {}
-derive_response_description!(AuthIndexDescription, "Main page");
-type AuthIndexResponse =
-    HtmlBase<&'static str, Infallible, StatusCodeOk, ContentTypeHtml, AuthIndexDescription>;
+#[derive(RwebResponse)]
+#[response(description="Main Page", content="html")]
+struct AuthIndexResponse(HtmlBase<&'static str, Infallible>);
 
 #[get("/auth/index.html")]
 pub async fn index_html() -> WarpResult<AuthIndexResponse> {
-    Ok(HtmlBase::new(include_str!("../../templates/index.html")))
+    Ok(HtmlBase::new(include_str!("../../templates/index.html")).into())
 }
 
-struct CssDescription {}
-derive_response_description!(CssDescription, "CSS");
-type CssResponse = HtmlBase<&'static str, Infallible, StatusCodeOk, ContentTypeCss, CssDescription>;
+#[derive(RwebResponse)]
+#[response(description="CSS", content="css")]
+struct CssResponse(HtmlBase<&'static str, Infallible>);
 
 #[get("/auth/main.css")]
 pub async fn main_css() -> WarpResult<CssResponse> {
-    Ok(HtmlBase::new(include_str!("../../templates/main.css")))
+    Ok(HtmlBase::new(include_str!("../../templates/main.css")).into())
 }
 
-struct RegisterDescription {}
-derive_response_description!(RegisterDescription, "Main page");
-type RegisterResponse =
-    HtmlBase<&'static str, Infallible, StatusCodeOk, ContentTypeHtml, RegisterDescription>;
+#[derive(RwebResponse)]
+#[response(description="Registration", content="html")]
+struct RegisterResponse(HtmlBase<&'static str, Infallible>);
 
 #[get("/auth/register.html")]
 pub async fn register_html() -> WarpResult<RegisterResponse> {
-    Ok(HtmlBase::new(include_str!("../../templates/register.html")))
+    Ok(HtmlBase::new(include_str!("../../templates/register.html")).into())
 }
 
-struct JsDescription {}
-derive_response_description!(JsDescription, "Javascript");
-type JsResponse = HtmlBase<&'static str, Infallible, StatusCodeOk, ContentTypeJs, JsDescription>;
+#[derive(RwebResponse)]
+#[response(description="Javascript", content="js")]
+struct JsResponse(HtmlBase<&'static str, Infallible>);
 
 #[get("/auth/main.js")]
 pub async fn main_js() -> WarpResult<JsResponse> {
-    Ok(HtmlBase::new(include_str!("../../templates/main.js")))
+    Ok(HtmlBase::new(include_str!("../../templates/main.js")).into())
 }
 
-struct AuthLoginDescription {}
-derive_response_description!(AuthLoginDescription, "Login Page");
-type AuthLoginResponse =
-    HtmlBase<&'static str, Infallible, StatusCodeOk, ContentTypeHtml, AuthLoginDescription>;
+#[derive(RwebResponse)]
+#[response(description="Login Page", content="html")]
+struct AuthLoginResponse(HtmlBase<&'static str, Infallible>);
 
 #[get("/auth/login.html")]
 pub async fn login_html() -> WarpResult<AuthLoginResponse> {
-    Ok(HtmlBase::new(include_str!("../../templates/login.html")))
+    Ok(HtmlBase::new(include_str!("../../templates/login.html")).into())
 }
 
-struct PwChangeDescription {}
-derive_response_description!(PwChangeDescription, "Change Password");
-type PwChangeResponse =
-    HtmlBase<&'static str, Infallible, StatusCodeOk, ContentTypeHtml, PwChangeDescription>;
+#[derive(RwebResponse)]
+#[response(description="Change Password", content="html")]
+struct PwChangeResponse(HtmlBase<&'static str, Infallible>);
 
 #[get("/auth/change_password.html")]
 pub async fn change_password() -> WarpResult<PwChangeResponse> {
     Ok(HtmlBase::new(include_str!(
         "../../templates/change_password.html"
-    )))
+    )).into())
 }
 
-struct ApiAuthPostDescription {}
-
-derive_response_description!(ApiAuthPostDescription, "Current logged in username");
-
-type ApiAuthResponse = JsonBase<LoggedUser, Error, StatusCodeCreated, ApiAuthPostDescription>;
+#[derive(RwebResponse)]
+#[response(description="Current logged in username", status="CREATED")]
+struct ApiAuthResponse(JsonBase<LoggedUser, Error>);
 
 #[post("/api/auth")]
 #[openapi(description = "Login with username and password")]
@@ -118,7 +110,7 @@ pub async fn login(
 
     let (user, jwt) = login_user_jwt(auth_data, session.id, &data.pool, &data.config).await?;
     let resp = JsonBase::new(user).with_cookie(jwt);
-    Ok(resp)
+    Ok(resp.into())
 }
 
 async fn login_user_jwt(
@@ -141,11 +133,9 @@ async fn login_user_jwt(
     Err(Error::BadRequest(message))
 }
 
-struct ApiAuthDeleteDescription {}
-
-derive_response_description!(ApiAuthDeleteDescription, "Status Message");
-
-type ApiAuthDeleteResponse = JsonBase<String, Error, StatusCodeCreated, ApiAuthDeleteDescription>;
+#[derive(RwebResponse)]
+#[response(description="Status Message", status="CREATED")]
+struct ApiAuthDeleteResponse(JsonBase<String, Error>);
 
 #[delete("/api/auth")]
 #[openapi(description = "Log out")]
@@ -172,25 +162,22 @@ pub async fn logout(
             "jwt=; HttpOnly; Path=/; Domain={}; Max-Age={}",
             data.config.domain, data.config.expiration_seconds
         ));
-    Ok(resp)
+    Ok(resp.into())
 }
 
-struct ApiAuthGetDescription {}
-
-derive_response_description!(ApiAuthGetDescription, "Current users email");
-
-type ApiAuthGetResponse = JsonBase<LoggedUser, Error, StatusCodeOk, ApiAuthGetDescription>;
+#[derive(RwebResponse)]
+#[response(description="Current users email")]
+struct ApiAuthGetResponse(JsonBase<LoggedUser, Error>);
 
 #[get("/api/auth")]
 #[openapi(description = "Get current username if logged in")]
 pub async fn get_me(#[cookie = "jwt"] logged_user: LoggedUser) -> WarpResult<ApiAuthGetResponse> {
-    Ok(JsonBase::new(logged_user))
+    Ok(JsonBase::new(logged_user).into())
 }
 
-struct GetSessionDescription {}
-derive_response_description!(GetSessionDescription, "Get Session Object");
-
-type GetSessionResponse = JsonBase<Value, Error, StatusCodeOk, GetSessionDescription>;
+#[derive(RwebResponse)]
+#[response(description="Get Session Object")]
+struct GetSessionResponse(JsonBase<Value, Error>);
 
 #[get("/api/session")]
 #[openapi(description = "Get Session")]
@@ -200,7 +187,7 @@ pub async fn get_session(
 ) -> WarpResult<GetSessionResponse> {
     if let Some(value) = data.session_cache.load().get(&session) {
         debug!("got cache");
-        return Ok(JsonBase::new(value.clone()));
+        return Ok(JsonBase::new(value.clone()).into());
     }
     if let Some(session_obj) = Session::get_session(&data.pool, &session)
         .await
@@ -209,15 +196,14 @@ pub async fn get_session(
         let mut session_map_cache = (*data.session_cache.load().clone()).clone();
         session_map_cache.insert(session, session_obj.session_data.clone());
         data.session_cache.store(Arc::new(session_map_cache));
-        return Ok(JsonBase::new(session_obj.session_data));
+        return Ok(JsonBase::new(session_obj.session_data).into());
     }
-    Ok(JsonBase::new(Value::Null))
+    Ok(JsonBase::new(Value::Null).into())
 }
 
-struct PostSessionDescription {}
-derive_response_description!(PostSessionDescription, "Set Session Object");
-
-type PostSessionResponse = JsonBase<Value, Error, StatusCodeCreated, PostSessionDescription>;
+#[derive(RwebResponse)]
+#[response(description="Set Session Object", status="CREATED")]
+struct PostSessionResponse(JsonBase<Value, Error>);
 
 #[post("/api/session")]
 #[openapi(description = "Set session value")]
@@ -243,7 +229,7 @@ pub async fn post_session(
         *session_map_cache.entry(session).or_default() = session_obj.session_data;
         data.session_cache.store(Arc::new(session_map_cache));
     }
-    Ok(JsonBase::new(payload))
+    Ok(JsonBase::new(payload).into())
 }
 
 #[derive(Deserialize, Schema)]
@@ -272,11 +258,9 @@ impl From<Invitation> for InvitationOutput {
     }
 }
 
-struct ApiInvitationDescription {}
-derive_response_description!(ApiInvitationDescription, "Invitation Object");
-
-type ApiInvitationResponse =
-    JsonBase<InvitationOutput, Error, StatusCodeCreated, ApiInvitationDescription>;
+#[derive(RwebResponse)]
+#[response(description="Invitation Object", status="CREATED")]
+struct ApiInvitationResponse(JsonBase<InvitationOutput, Error>);
 
 #[post("/api/invitation")]
 #[openapi(description = "Send invitation to specified email")]
@@ -287,7 +271,7 @@ pub async fn register_email(
     let invitation =
         register_email_invitation(invitation.into_inner(), &data.pool, &data.config).await?;
     let resp = JsonBase::new(invitation.into());
-    Ok(resp)
+    Ok(resp.into())
 }
 
 async fn register_email_invitation(
@@ -309,10 +293,9 @@ pub struct UserData {
     pub password: StackString,
 }
 
-struct ApiRegisterDescription {}
-derive_response_description!(ApiRegisterDescription, "Registered Email");
-
-type ApiRegisterResponse = JsonBase<LoggedUser, Error, StatusCodeCreated, ApiRegisterDescription>;
+#[derive(RwebResponse)]
+#[response(description="Registered Email", status="CREATED")]
+struct ApiRegisterResponse(JsonBase<LoggedUser, Error>);
 
 #[post("/api/register/{invitation_id}")]
 #[openapi(description = "Set password using link from email")]
@@ -329,7 +312,7 @@ pub async fn register_user(
     )
     .await?;
     let resp = JsonBase::new(user.into());
-    Ok(resp)
+    Ok(resp.into())
 }
 
 async fn register_user_object(
@@ -358,11 +341,9 @@ pub struct PasswordChangeOutput {
     pub message: StackString,
 }
 
-struct ApiPasswordChangeDescription {}
-derive_response_description!(ApiPasswordChangeDescription, "Success Message");
-
-type ApiPasswordChangeResponse =
-    JsonBase<PasswordChangeOutput, Error, StatusCodeCreated, ApiPasswordChangeDescription>;
+#[derive(RwebResponse)]
+#[response(description="Success Message", status="CREATED")]
+struct ApiPasswordChangeResponse(JsonBase<PasswordChangeOutput, Error>);
 
 #[post("/api/password_change")]
 #[openapi(description = "Change password for currently logged in user")]
@@ -380,7 +361,7 @@ pub async fn change_password_user(
     .await?
     .into();
     let resp = JsonBase::new(PasswordChangeOutput { message });
-    Ok(resp)
+    Ok(resp.into())
 }
 
 async fn change_password_user_body(
@@ -410,10 +391,9 @@ pub struct AuthUrlOutput {
     pub auth_url: StackString,
 }
 
-struct ApiAuthUrlDescription {}
-derive_response_description!(ApiAuthUrlDescription, "Authorization Url");
-
-type ApiAuthUrlResponse = JsonBase<AuthUrlOutput, Error, StatusCodeOk, ApiAuthUrlDescription>;
+#[derive(RwebResponse)]
+#[response(description="Authorization Url")]
+struct ApiAuthUrlResponse(JsonBase<AuthUrlOutput, Error>);
 
 #[post("/api/auth_url")]
 #[openapi(description = "Get Oauth Url")]
@@ -428,7 +408,7 @@ pub async fn auth_url(
         csrf_state,
         auth_url: authorize_url.into(),
     });
-    Ok(resp)
+    Ok(resp.into())
 }
 
 async fn auth_url_body(
@@ -445,11 +425,9 @@ pub struct AuthAwait {
     pub state: StackString,
 }
 
-struct ApiAwaitDescription {}
-derive_response_description!(ApiAwaitDescription, "Finished");
-
-type ApiAwaitResponse =
-    HtmlBase<&'static str, Infallible, StatusCodeOk, ContentTypeHtml, ApiAwaitDescription>;
+#[derive(RwebResponse)]
+#[response(description="Finished", content="html")]
+struct ApiAwaitResponse(HtmlBase<&'static str, Infallible>);
 
 #[get("/api/await")]
 #[openapi(description = "Await completion of auth")]
@@ -460,7 +438,7 @@ pub async fn auth_await(
     let state = query.into_inner().state;
     loop {
         if !data.google_client.check_csrf(&state).await {
-            return Ok(HtmlBase::new(""));
+            return Ok(HtmlBase::new("").into());
         }
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     }
@@ -472,11 +450,9 @@ pub struct CallbackQuery {
     pub state: StackString,
 }
 
-struct ApiCallbackDescription {}
-derive_response_description!(ApiCallbackDescription, "Callback Response");
-
-type ApiCallbackResponse =
-    HtmlBase<&'static str, Error, StatusCodeOk, ContentTypeHtml, ApiCallbackDescription>;
+#[derive(RwebResponse)]
+#[response(description="Callback Response", content="html")]
+struct ApiCallbackResponse(HtmlBase<&'static str, Error>);
 
 #[get("/api/callback")]
 #[openapi(description = "Callback method for use in Oauth flow")]
@@ -496,7 +472,7 @@ pub async fn callback(
         This window can be closed.
         <script language="JavaScript" type="text/javascript">window.close()</script>
     "#;
-    Ok(HtmlBase::new(body).with_cookie(&jwt))
+    Ok(HtmlBase::new(body).with_cookie(&jwt).into())
 }
 
 async fn callback_body(
@@ -531,16 +507,15 @@ pub struct StatusOutput {
     stats: EmailStats,
 }
 
-struct StatusOutputDescription {}
-derive_response_description!(StatusOutputDescription, "Status output");
-
-type StatusResponse = JsonBase<StatusOutput, Error, StatusCodeOk, StatusOutputDescription>;
+#[derive(RwebResponse)]
+#[response(description="Status output")]
+struct StatusResponse(JsonBase<StatusOutput, Error>);
 
 #[get("/api/status")]
 #[openapi(description = "Status endpoint")]
 pub async fn status(#[data] data: AppState) -> WarpResult<StatusResponse> {
     let result = status_body(&data.pool).await?;
-    Ok(JsonBase::new(result))
+    Ok(JsonBase::new(result).into())
 }
 
 async fn status_body(pool: &PgPool) -> HttpResult<StatusOutput> {
@@ -559,16 +534,20 @@ async fn status_body(pool: &PgPool) -> HttpResult<StatusOutput> {
     Ok(result)
 }
 
+#[derive(RwebResponse)]
+#[response(status="CREATED")]
+struct TestLoginResponse(JsonBase<LoggedUser, Error>);
+
 #[post("/api/auth")]
 pub async fn test_login(
     auth_data: Json<AuthRequest>,
     #[data] data: AppState,
-) -> WarpResult<JsonBase<LoggedUser, Error, StatusCodeCreated>> {
+) -> WarpResult<TestLoginResponse> {
     let auth_data = auth_data.into_inner();
     let session = Session::new(auth_data.email.as_str());
     let (user, jwt) = test_login_user_jwt(auth_data, session.id, &data.config).await?;
     let resp = JsonBase::new(user).with_cookie(jwt);
-    Ok(resp)
+    Ok(resp.into())
 }
 
 async fn test_login_user_jwt(
