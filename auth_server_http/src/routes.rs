@@ -5,10 +5,9 @@ use rweb::{delete, get, post, Json, Query, Rejection, Schema};
 use serde::{Deserialize, Serialize};
 use serde_json::{map::Map, Value};
 use stack_string::StackString;
-use std::sync::Arc;
+use std::{convert::Infallible, sync::Arc};
 use url::Url;
 use uuid::Uuid;
-use std::convert::Infallible;
 
 use auth_server_ext::{
     datetime_wrapper::DateTimeWrapper,
@@ -19,9 +18,7 @@ use auth_server_ext::{
 use auth_server_lib::{config::Config, pgpool::PgPool, session::Session, user::User};
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 use rweb_helper::{
-    RwebResponse,
-    html_response::HtmlResponse as HtmlBase,
-    json_response::JsonResponse as JsonBase,
+    html_response::HtmlResponse as HtmlBase, json_response::JsonResponse as JsonBase, RwebResponse,
 };
 
 use crate::{
@@ -32,7 +29,7 @@ pub type WarpResult<T> = Result<T, Rejection>;
 pub type HttpResult<T> = Result<T, Error>;
 
 #[derive(RwebResponse)]
-#[response(description="Main Page", content="html")]
+#[response(description = "Main Page", content = "html")]
 struct AuthIndexResponse(HtmlBase<&'static str, Infallible>);
 
 #[get("/auth/index.html")]
@@ -41,7 +38,7 @@ pub async fn index_html() -> WarpResult<AuthIndexResponse> {
 }
 
 #[derive(RwebResponse)]
-#[response(description="CSS", content="css")]
+#[response(description = "CSS", content = "css")]
 struct CssResponse(HtmlBase<&'static str, Infallible>);
 
 #[get("/auth/main.css")]
@@ -50,7 +47,7 @@ pub async fn main_css() -> WarpResult<CssResponse> {
 }
 
 #[derive(RwebResponse)]
-#[response(description="Registration", content="html")]
+#[response(description = "Registration", content = "html")]
 struct RegisterResponse(HtmlBase<&'static str, Infallible>);
 
 #[get("/auth/register.html")]
@@ -59,7 +56,7 @@ pub async fn register_html() -> WarpResult<RegisterResponse> {
 }
 
 #[derive(RwebResponse)]
-#[response(description="Javascript", content="js")]
+#[response(description = "Javascript", content = "js")]
 struct JsResponse(HtmlBase<&'static str, Infallible>);
 
 #[get("/auth/main.js")]
@@ -68,7 +65,7 @@ pub async fn main_js() -> WarpResult<JsResponse> {
 }
 
 #[derive(RwebResponse)]
-#[response(description="Login Page", content="html")]
+#[response(description = "Login Page", content = "html")]
 struct AuthLoginResponse(HtmlBase<&'static str, Infallible>);
 
 #[get("/auth/login.html")]
@@ -77,18 +74,16 @@ pub async fn login_html() -> WarpResult<AuthLoginResponse> {
 }
 
 #[derive(RwebResponse)]
-#[response(description="Change Password", content="html")]
+#[response(description = "Change Password", content = "html")]
 struct PwChangeResponse(HtmlBase<&'static str, Infallible>);
 
 #[get("/auth/change_password.html")]
 pub async fn change_password() -> WarpResult<PwChangeResponse> {
-    Ok(HtmlBase::new(include_str!(
-        "../../templates/change_password.html"
-    )).into())
+    Ok(HtmlBase::new(include_str!("../../templates/change_password.html")).into())
 }
 
 #[derive(RwebResponse)]
-#[response(description="Current logged in username", status="CREATED")]
+#[response(description = "Current logged in username", status = "CREATED")]
 struct ApiAuthResponse(JsonBase<LoggedUser, Error>);
 
 #[post("/api/auth")]
@@ -134,7 +129,7 @@ async fn login_user_jwt(
 }
 
 #[derive(RwebResponse)]
-#[response(description="Status Message", status="CREATED")]
+#[response(description = "Status Message", status = "CREATED")]
 struct ApiAuthDeleteResponse(JsonBase<String, Error>);
 
 #[delete("/api/auth")]
@@ -166,7 +161,7 @@ pub async fn logout(
 }
 
 #[derive(RwebResponse)]
-#[response(description="Current users email")]
+#[response(description = "Current users email")]
 struct ApiAuthGetResponse(JsonBase<LoggedUser, Error>);
 
 #[get("/api/auth")]
@@ -176,7 +171,7 @@ pub async fn get_me(#[cookie = "jwt"] logged_user: LoggedUser) -> WarpResult<Api
 }
 
 #[derive(RwebResponse)]
-#[response(description="Get Session Object")]
+#[response(description = "Get Session Object")]
 struct GetSessionResponse(JsonBase<Value, Error>);
 
 #[get("/api/session")]
@@ -202,7 +197,7 @@ pub async fn get_session(
 }
 
 #[derive(RwebResponse)]
-#[response(description="Set Session Object", status="CREATED")]
+#[response(description = "Set Session Object", status = "CREATED")]
 struct PostSessionResponse(JsonBase<Value, Error>);
 
 #[post("/api/session")]
@@ -259,7 +254,7 @@ impl From<Invitation> for InvitationOutput {
 }
 
 #[derive(RwebResponse)]
-#[response(description="Invitation Object", status="CREATED")]
+#[response(description = "Invitation Object", status = "CREATED")]
 struct ApiInvitationResponse(JsonBase<InvitationOutput, Error>);
 
 #[post("/api/invitation")]
@@ -294,7 +289,7 @@ pub struct UserData {
 }
 
 #[derive(RwebResponse)]
-#[response(description="Registered Email", status="CREATED")]
+#[response(description = "Registered Email", status = "CREATED")]
 struct ApiRegisterResponse(JsonBase<LoggedUser, Error>);
 
 #[post("/api/register/{invitation_id}")]
@@ -342,7 +337,7 @@ pub struct PasswordChangeOutput {
 }
 
 #[derive(RwebResponse)]
-#[response(description="Success Message", status="CREATED")]
+#[response(description = "Success Message", status = "CREATED")]
 struct ApiPasswordChangeResponse(JsonBase<PasswordChangeOutput, Error>);
 
 #[post("/api/password_change")]
@@ -392,7 +387,7 @@ pub struct AuthUrlOutput {
 }
 
 #[derive(RwebResponse)]
-#[response(description="Authorization Url")]
+#[response(description = "Authorization Url")]
 struct ApiAuthUrlResponse(JsonBase<AuthUrlOutput, Error>);
 
 #[post("/api/auth_url")]
@@ -426,7 +421,7 @@ pub struct AuthAwait {
 }
 
 #[derive(RwebResponse)]
-#[response(description="Finished", content="html")]
+#[response(description = "Finished", content = "html")]
 struct ApiAwaitResponse(HtmlBase<&'static str, Infallible>);
 
 #[get("/api/await")]
@@ -451,7 +446,7 @@ pub struct CallbackQuery {
 }
 
 #[derive(RwebResponse)]
-#[response(description="Callback Response", content="html")]
+#[response(description = "Callback Response", content = "html")]
 struct ApiCallbackResponse(HtmlBase<&'static str, Error>);
 
 #[get("/api/callback")]
@@ -508,7 +503,7 @@ pub struct StatusOutput {
 }
 
 #[derive(RwebResponse)]
-#[response(description="Status output")]
+#[response(description = "Status output")]
 struct StatusResponse(JsonBase<StatusOutput, Error>);
 
 #[get("/api/status")]
@@ -535,7 +530,7 @@ async fn status_body(pool: &PgPool) -> HttpResult<StatusOutput> {
 }
 
 #[derive(RwebResponse)]
-#[response(status="CREATED")]
+#[response(status = "CREATED")]
 struct TestLoginResponse(JsonBase<LoggedUser, Error>);
 
 #[post("/api/auth")]

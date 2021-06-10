@@ -1,6 +1,6 @@
 use anyhow::Error;
 use chrono::{DateTime, Duration, Utc};
-use postgres_query::FromSqlRow;
+use postgres_query::{query, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use stack_string::StackString;
@@ -38,41 +38,25 @@ impl Session {
     }
 
     pub async fn get_session(pool: &PgPool, id: &Uuid) -> Result<Option<Self>, Error> {
-        let query = postgres_query::query!("SELECT * FROM sessions WHERE id = $id", id = id);
-        let row = pool
-            .get()
-            .await?
-            .query_opt(query.sql(), query.parameters())
-            .await?;
-        let session = row.map(|r| Self::from_row(&r)).transpose()?;
-        Ok(session)
+        let query = query!("SELECT * FROM sessions WHERE id = $id", id = id);
+        let conn = pool.get().await?;
+        query.fetch_opt(&conn).await.map_err(Into::into)
     }
 
     pub async fn get_all_sessions(pool: &PgPool) -> Result<Vec<Self>, Error> {
-        let query = postgres_query::query!("SELECT * FROM sessions");
-        pool.get()
-            .await?
-            .query(query.sql(), query.parameters())
-            .await?
-            .into_iter()
-            .map(|row| Self::from_row(&row).map_err(Into::into))
-            .collect()
+        let query = query!("SELECT * FROM sessions");
+        let conn = pool.get().await?;
+        query.fetch(&conn).await.map_err(Into::into)
     }
 
     pub async fn get_by_email(pool: &PgPool, email: &str) -> Result<Vec<Self>, Error> {
-        let query =
-            postgres_query::query!("SELECT * FROM sessions WHERE email = $email", email = email);
-        pool.get()
-            .await?
-            .query(query.sql(), query.parameters())
-            .await?
-            .into_iter()
-            .map(|row| Self::from_row(&row).map_err(Into::into))
-            .collect()
+        let query = query!("SELECT * FROM sessions WHERE email = $email", email = email);
+        let conn = pool.get().await?;
+        query.fetch(&conn).await.map_err(Into::into)
     }
 
     pub async fn insert(&self, pool: &PgPool) -> Result<(), Error> {
-        let query = postgres_query::query!(
+        let query = query!(
             "
             INSERT INTO sessions (id, email, session_data)
             VALUES ($id, $email, $session_data)",
@@ -80,15 +64,13 @@ impl Session {
             email = self.email,
             session_data = self.session_data
         );
-        pool.get()
-            .await?
-            .execute(query.sql(), query.parameters())
-            .await?;
+        let conn = pool.get().await?;
+        query.execute(&conn).await?;
         Ok(())
     }
 
     pub async fn update(&self, pool: &PgPool) -> Result<(), Error> {
-        let query = postgres_query::query!(
+        let query = query!(
             "
             UPDATE sessions SET session_data = $session_data
             WHERE id=$id AND email=$email",
@@ -96,10 +78,8 @@ impl Session {
             email = self.email,
             session_data = self.session_data,
         );
-        pool.get()
-            .await?
-            .execute(query.sql(), query.parameters())
-            .await?;
+        let conn = pool.get().await?;
+        query.execute(&conn).await?;
         Ok(())
     }
 
@@ -112,22 +92,17 @@ impl Session {
     }
 
     pub async fn delete(&self, pool: &PgPool) -> Result<(), Error> {
-        let query = postgres_query::query!("DELETE FROM sessions WHERE id = $id", id = self.id);
-        pool.get()
-            .await?
-            .execute(query.sql(), query.parameters())
-            .await?;
+        let query = query!("DELETE FROM sessions WHERE id = $id", id = self.id);
+        let conn = pool.get().await?;
+        query.execute(&conn).await?;
         Ok(())
     }
 
     pub async fn cleanup(pool: &PgPool, expiration_seconds: i64) -> Result<(), Error> {
         let time = Utc::now() - Duration::seconds(expiration_seconds);
-        let query =
-            postgres_query::query!("DELETE FROM sessions WHERE created_at < $time", time = time);
-        pool.get()
-            .await?
-            .execute(query.sql(), query.parameters())
-            .await?;
+        let query = query!("DELETE FROM sessions WHERE created_at < $time", time = time);
+        let conn = pool.get().await?;
+        query.execute(&conn).await?;
         Ok(())
     }
 }

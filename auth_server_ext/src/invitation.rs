@@ -1,7 +1,7 @@
 use anyhow::Error;
 use chrono::{DateTime, Duration, Utc};
 use log::debug;
-use postgres_query::FromSqlRow;
+use postgres_query::{query, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use uuid::Uuid;
@@ -27,40 +27,26 @@ impl Invitation {
     }
 
     pub async fn get_all(pool: &PgPool) -> Result<Vec<Self>, Error> {
-        let query = postgres_query::query!("SELECT * FROM invitations");
-        pool.get()
-            .await?
-            .query(query.sql(), query.parameters())
-            .await?
-            .into_iter()
-            .map(|row| Self::from_row(&row).map_err(Into::into))
-            .collect()
+        let query = query!("SELECT * FROM invitations");
+        let conn = pool.get().await?;
+        query.fetch(&conn).await.map_err(Into::into)
     }
 
     pub async fn get_number_invitations(pool: &PgPool) -> Result<i64, Error> {
-        let query = postgres_query::query!("SELECT count(*) FROM invitations");
-        let count = pool
-            .get()
-            .await?
-            .query_one(query.sql(), query.parameters())
-            .await?
-            .try_get(0)?;
+        let query = query!("SELECT count(*) FROM invitations");
+        let conn = pool.get().await?;
+        let (count,) = query.fetch_one(&conn).await?;
         Ok(count)
     }
 
     pub async fn get_by_uuid(uuid: &Uuid, pool: &PgPool) -> Result<Option<Self>, Error> {
-        let query = postgres_query::query!("SELECT * FROM invitations WHERE id = $id", id = uuid);
-        pool.get()
-            .await?
-            .query_opt(query.sql(), query.parameters())
-            .await?
-            .map(|row| Self::from_row(&row))
-            .transpose()
-            .map_err(Into::into)
+        let query = query!("SELECT * FROM invitations WHERE id = $id", id = uuid);
+        let conn = pool.get().await?;
+        query.fetch_opt(&conn).await.map_err(Into::into)
     }
 
     pub async fn insert(&self, pool: &PgPool) -> Result<(), Error> {
-        let query = postgres_query::query!(
+        let query = query!(
             "
             INSERT INTO invitations (id, email, expires_at)
             VALUES ($id, $email, $expires_at)",
@@ -68,19 +54,15 @@ impl Invitation {
             email = self.email,
             expires_at = self.expires_at,
         );
-        pool.get()
-            .await?
-            .execute(query.sql(), query.parameters())
-            .await?;
+        let conn = pool.get().await?;
+        query.execute(&conn).await?;
         Ok(())
     }
 
     pub async fn delete(&self, pool: &PgPool) -> Result<(), Error> {
-        let query = postgres_query::query!("DELETE FROM invitations WHERE id = $id", id = self.id);
-        pool.get()
-            .await?
-            .execute(query.sql(), query.parameters())
-            .await?;
+        let query = query!("DELETE FROM invitations WHERE id = $id", id = self.id);
+        let conn = pool.get().await?;
+        query.execute(&conn).await?;
         Ok(())
     }
 

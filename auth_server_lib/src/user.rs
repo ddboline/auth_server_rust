@@ -1,7 +1,7 @@
 use anyhow::Error;
 use bcrypt::{hash, verify};
 use chrono::{DateTime, Utc};
-use postgres_query::FromSqlRow;
+use postgres_query::{query, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 
@@ -43,41 +43,26 @@ impl User {
     }
 
     pub async fn get_authorized_users(pool: &PgPool) -> Result<Vec<Self>, Error> {
-        let query = postgres_query::query!("SELECT * FROM users");
-        pool.get()
-            .await?
-            .query(query.sql(), query.parameters())
-            .await?
-            .into_iter()
-            .map(|row| Self::from_row(&row).map_err(Into::into))
-            .collect()
+        let query = query!("SELECT * FROM users");
+        let conn = pool.get().await?;
+        query.fetch(&conn).await.map_err(Into::into)
     }
 
     pub async fn get_number_users(pool: &PgPool) -> Result<i64, Error> {
-        let query = postgres_query::query!("SELECT count(*) FROM users");
-        let count = pool
-            .get()
-            .await?
-            .query_one(query.sql(), query.parameters())
-            .await?
-            .try_get(0)?;
+        let query = query!("SELECT count(*) FROM users");
+        let conn = pool.get().await?;
+        let (count,) = query.fetch_one(&conn).await?;
         Ok(count)
     }
 
     pub async fn get_by_email(email: &str, pool: &PgPool) -> Result<Option<Self>, Error> {
-        let query =
-            postgres_query::query!("SELECT * FROM users WHERE email = $email", email = email);
-        pool.get()
-            .await?
-            .query_opt(query.sql(), query.parameters())
-            .await?
-            .map(|row| Self::from_row(&row))
-            .transpose()
-            .map_err(Into::into)
+        let query = query!("SELECT * FROM users WHERE email = $email", email = email);
+        let conn = pool.get().await?;
+        query.fetch_opt(&conn).await.map_err(Into::into)
     }
 
     pub async fn insert(&self, pool: &PgPool) -> Result<(), Error> {
-        let query = postgres_query::query!(
+        let query = query!(
             "
             INSERT INTO users (email, password, created_at)
             VALUES ($email, $password, $created_at)",
@@ -85,23 +70,19 @@ impl User {
             password = self.password,
             created_at = self.created_at
         );
-        pool.get()
-            .await?
-            .execute(query.sql(), query.parameters())
-            .await?;
+        let conn = pool.get().await?;
+        query.execute(&conn).await?;
         Ok(())
     }
 
     pub async fn update(&self, pool: &PgPool) -> Result<(), Error> {
-        let query = postgres_query::query!(
+        let query = query!(
             "UPDATE users set password = $password WHERE email = $email",
             password = self.password,
             email = self.email,
         );
-        pool.get()
-            .await?
-            .execute(query.sql(), query.parameters())
-            .await?;
+        let conn = pool.get().await?;
+        query.execute(&conn).await?;
         Ok(())
     }
 
@@ -114,12 +95,9 @@ impl User {
     }
 
     pub async fn delete(&self, pool: &PgPool) -> Result<(), Error> {
-        let query =
-            postgres_query::query!("DELETE FROM users WHERE email = $email", email = self.email);
-        pool.get()
-            .await?
-            .execute(query.sql(), query.parameters())
-            .await?;
+        let query = query!("DELETE FROM users WHERE email = $email", email = self.email);
+        let conn = pool.get().await?;
+        query.execute(&conn).await?;
         Ok(())
     }
 }

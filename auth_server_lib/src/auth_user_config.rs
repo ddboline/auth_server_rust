@@ -1,4 +1,5 @@
 use anyhow::{format_err, Error};
+use postgres_query::query_dyn;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::{
@@ -106,11 +107,9 @@ impl Entry {
             table = self.table,
             email_field = self.email_field,
         );
-        let query = postgres_query::query_dyn!(&query, email = email)?;
-        pool.get()
-            .await?
-            .execute(query.sql(), query.parameters())
-            .await?;
+        let query = query_dyn!(&query, email = email)?;
+        let conn = pool.get().await?;
+        query.execute(&conn).await?;
         Ok(())
     }
 
@@ -121,11 +120,9 @@ impl Entry {
             table = self.table,
             email_field = self.email_field
         );
-        let query = postgres_query::query_dyn!(&query, email = email)?;
-        pool.get()
-            .await?
-            .execute(query.sql(), query.parameters())
-            .await?;
+        let query = query_dyn!(&query, email = email)?;
+        let conn = pool.get().await?;
+        query.execute(&conn).await?;
         Ok(())
     }
 }
