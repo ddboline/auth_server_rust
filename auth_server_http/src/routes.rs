@@ -1,11 +1,12 @@
 use chrono::Utc;
 use futures::try_join;
-use log::debug;
+use log::{debug, error};
 use rweb::{delete, get, post, Json, Query, Rejection, Schema};
 use serde::{Deserialize, Serialize};
 use serde_json::{map::Map, Value};
 use stack_string::StackString;
-use std::{convert::Infallible, sync::Arc};
+use std::{convert::Infallible, sync::Arc, time::Duration};
+use tokio::time::timeout;
 use url::Url;
 use uuid::Uuid;
 
@@ -431,12 +432,19 @@ pub async fn auth_await(
     query: Query<AuthAwait>,
 ) -> WarpResult<ApiAwaitResponse> {
     let state = query.into_inner().state;
-    loop {
-        if !data.google_client.check_csrf(&state).await {
-            return Ok(HtmlBase::new("").into());
-        }
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    }
+    timeout(
+        Duration::from_secs(60),
+        data.google_client.wait_csrf(&state),
+    )
+    .await
+    .map_or_else(
+        |_| {
+            error!("await timed out");
+            Ok(())
+        },
+        |r| r.map_err(Into::<Error>::into),
+    )?;
+    Ok(HtmlBase::new("").into())
 }
 
 #[derive(Deserialize, Schema)]
