@@ -21,7 +21,7 @@ use std::{
     fmt::Debug,
 };
 use thiserror::Error;
-use tokio::task::JoinError;
+use tokio::{task::JoinError, time::error::Elapsed};
 use tokio_postgres::Error as PostgresError;
 use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
@@ -62,6 +62,8 @@ pub enum ServiceError {
     SerdeJsonError(#[from] SerdeJsonError),
     #[error("InvalidUri {0}")]
     InvalidUri(#[from] InvalidUri),
+    #[error("TimeoutElapsed {0}")]
+    TimeoutElapsed(#[from] Elapsed),
 }
 
 // we can return early in our handlers if UUID provided by the user is not valid
