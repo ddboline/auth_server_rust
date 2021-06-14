@@ -1,16 +1,14 @@
 use anyhow::{format_err, Error};
 use base64::{encode_config, URL_SAFE_NO_PAD};
 use chrono::{DateTime, Utc};
+use crossbeam::atomic::AtomicCell;
 use log::debug;
 pub use openid::error::Error as OpenidError;
 use openid::{DiscoveredClient, Options, Userinfo};
 use rand::{thread_rng, Rng};
 use stack_string::StackString;
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{
-    watch::{channel, Receiver, Sender},
-    Mutex,
-};
+use tokio::sync::{Mutex, Notify};
 use url::Url;
 
 use authorized_users::AuthorizedUser;
@@ -28,19 +26,19 @@ enum TokenState {
 pub struct CsrfTokenCache {
     nonce: StackString,
     timestamp: DateTime<Utc>,
-    send: Arc<Sender<TokenState>>,
-    recv: Receiver<TokenState>,
+    notify: Arc<Notify>,
+    is_ready: Arc<AtomicCell<TokenState>>,
 }
 
 impl CsrfTokenCache {
     fn new(nonce: &str) -> Self {
-        let (send, recv) = channel(TokenState::New);
-        let send = Arc::new(send);
+        let notify = Arc::new(Notify::new());
+        let is_ready = Arc::new(AtomicCell::new(TokenState::New));
         Self {
             nonce: nonce.into(),
             timestamp: Utc::now(),
-            send,
-            recv,
+            notify,
+            is_ready,
         }
     }
 }
@@ -81,15 +79,16 @@ impl GoogleClient {
     }
 
     pub async fn wait_csrf(&self, csrf_state: &str) -> Result<(), Error> {
-        let mut recv = if let Some(state) = self.csrf_tokens.lock().await.get(csrf_state) {
-            state.recv.clone()
+        let (notify, is_ready) = if let Some(state) = self.csrf_tokens.lock().await.get(csrf_state)
+        {
+            (state.notify.clone(), state.is_ready.clone())
         } else {
             return Ok(());
         };
-        if *recv.borrow() != TokenState::New {
+        if is_ready.load() != TokenState::New {
             return Ok(());
         }
-        recv.changed().await?;
+        notify.notified().await;
         Ok(())
     }
 
@@ -102,8 +101,8 @@ impl GoogleClient {
         let CsrfTokenCache {
             nonce,
             timestamp,
-            send,
-            ..
+            notify,
+            is_ready,
         } = self
             .csrf_tokens
             .lock()
@@ -111,7 +110,8 @@ impl GoogleClient {
             .remove(state)
             .ok_or_else(|| format_err!("CSRF Token Invalid"))?;
         if (Utc::now() - timestamp).num_seconds() > 3600 {
-            send.send(TokenState::Expired)?;
+            notify.notify_waiters();
+            is_ready.store(TokenState::Expired);
             return Err(format_err!("Token expired"));
         }
         debug!("Nonce {:?}", nonce);
@@ -121,7 +121,8 @@ impl GoogleClient {
             .await?
             .ok_or_else(|| format_err!("No User"))?;
         let user: AuthorizedUser = user.into();
-        send.send(TokenState::Authorized)?;
+        notify.notify_waiters();
+        is_ready.store(TokenState::Authorized);
         Ok(Some(user))
     }
 
