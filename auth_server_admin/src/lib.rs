@@ -4,10 +4,7 @@ use futures::{future::try_join_all, try_join};
 use itertools::Itertools;
 use refinery::embed_migrations;
 use stack_string::StackString;
-use std::{
-    collections::{BTreeSet, HashMap},
-    ops::DerefMut,
-};
+use std::collections::{BTreeSet, HashMap};
 use stdout_channel::StdoutChannel;
 use structopt::StructOpt;
 use uuid::Uuid;
@@ -223,9 +220,7 @@ impl AuthServerOptions {
             }
             AuthServerOptions::RunMigrations => {
                 let mut client = pool.get().await?;
-                migrations::runner()
-                    .run_async(client.deref_mut().deref_mut())
-                    .await?;
+                migrations::runner().run_async(&mut **client).await?;
             }
             AuthServerOptions::ListSessions { email } => {
                 let sessions = if let Some(email) = email {
