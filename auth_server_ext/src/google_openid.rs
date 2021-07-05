@@ -110,8 +110,8 @@ impl GoogleClient {
             .remove(state)
             .ok_or_else(|| format_err!("CSRF Token Invalid"))?;
         if (Utc::now() - timestamp).num_seconds() > 3600 {
-            notify.notify_waiters();
             is_ready.store(TokenState::Expired);
+            notify.notify_waiters();
             return Err(format_err!("Token expired"));
         }
         debug!("Nonce {:?}", nonce);
@@ -121,8 +121,8 @@ impl GoogleClient {
             .await?
             .ok_or_else(|| format_err!("No User"))?;
         let user: AuthorizedUser = user.into();
-        notify.notify_waiters();
         is_ready.store(TokenState::Authorized);
+        notify.notify_waiters();
         Ok(Some(user))
     }
 
