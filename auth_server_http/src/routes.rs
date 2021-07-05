@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{map::Map, Value};
 use stack_string::StackString;
 use std::{convert::Infallible, sync::Arc, time::Duration};
-use tokio::time::timeout;
+use tokio::time::{timeout, sleep};
 use url::Url;
 use uuid::Uuid;
 
@@ -443,6 +443,7 @@ pub async fn auth_await(
         },
         |r| r.map_err(Into::<Error>::into),
     )?;
+    sleep(Duration::from_secs(1)).await;
     Ok(HtmlBase::new("").into())
 }
 
