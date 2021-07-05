@@ -52,7 +52,7 @@ impl From<Claim> for AuthorizedUser {
     fn from(claim: Claim) -> Self {
         Self {
             email: claim.get_email().into(),
-            session: Some(claim.session),
+            session: claim.session,
         }
     }
 }

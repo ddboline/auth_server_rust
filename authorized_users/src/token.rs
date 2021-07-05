@@ -92,7 +92,7 @@ mod tests {
 
         let user = AuthorizedUser {
             email: "test@local".into(),
-            session: Some(session),
+            session,
         };
 
         let token = Token::create_token(&user.email, "localhost", 3600, session)?;

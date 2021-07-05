@@ -374,7 +374,6 @@ mod tests {
             .await?;
         debug!("logged in {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
-        let session = resp.session.unwrap();
 
         debug!("get me");
 
@@ -411,7 +410,7 @@ mod tests {
             "key" => "value",
         };
         debug!("POST session");
-        let value = HeaderValue::from_str(&session.to_string())?;
+        let value = HeaderValue::from_str(&resp.session.to_string())?;
         let resp = client
             .post(&url)
             .json(&data)

@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use postgres_query::{query, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
+use uuid::Uuid;
 
 use authorized_users::AuthorizedUser;
 
@@ -106,7 +107,7 @@ impl From<User> for AuthorizedUser {
     fn from(user: User) -> Self {
         Self {
             email: user.email,
-            session: None,
+            session: Uuid::new_v4(),
         }
     }
 }

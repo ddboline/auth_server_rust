@@ -118,7 +118,7 @@ async fn login_user_jwt(
     let message = if let Some(user) = auth_data.authenticate(pool).await? {
         let user: AuthorizedUser = user.into();
         let mut user: LoggedUser = user.into();
-        user.session = Some(session.into());
+        user.session = session.into();
         match user.get_jwt_cookie(&config.domain, config.expiration_seconds) {
             Ok(jwt) => return Ok((user, jwt)),
             Err(e) => format!("Failed to create_token {}", e),
@@ -139,20 +139,19 @@ pub async fn logout(
     #[cookie = "jwt"] logged_user: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<ApiAuthDeleteResponse> {
-    if let Some(session) = logged_user.session.map(Into::into) {
-        if let Some(session_obj) = Session::get_session(&data.pool, &session)
+    let session = logged_user.session.into();
+    if let Some(session_obj) = Session::get_session(&data.pool, &session)
+        .await
+        .map_err(Into::<Error>::into)?
+    {
+        session_obj
+            .delete(&data.pool)
             .await
-            .map_err(Into::<Error>::into)?
-        {
-            session_obj
-                .delete(&data.pool)
-                .await
-                .map_err(Into::<Error>::into)?;
-        }
-        let mut session_map_cache = (*data.session_cache.load().clone()).clone();
-        session_map_cache.remove(&session);
-        data.session_cache.store(Arc::new(session_map_cache));
+            .map_err(Into::<Error>::into)?;
     }
+    let mut session_map_cache = (*data.session_cache.load().clone()).clone();
+    session_map_cache.remove(&session);
+    data.session_cache.store(Arc::new(session_map_cache));
     let resp =
         JsonBase::new(format!("{} has been logged out", logged_user.email)).with_cookie(format!(
             "jwt=; HttpOnly; Path=/; Domain={}; Max-Age={}",
@@ -493,7 +492,7 @@ async fn callback_body(
         let session = Session::new(user.email.as_str());
         session.insert(&pool).await?;
 
-        user.session = Some(session.id.into());
+        user.session = session.id.into();
 
         let jwt = user.get_jwt_cookie(&config.domain, config.expiration_seconds)?;
         Ok(jwt)
@@ -562,11 +561,11 @@ async fn test_login_user_jwt(
         if &s == "true" {
             let user = AuthorizedUser {
                 email: auth_data.email.into(),
-                session: Some(session),
+                session,
             };
             AUTHORIZED_USERS.merge_users(&[user.email.clone()])?;
             let mut user: LoggedUser = user.into();
-            user.session = Some(session.into());
+            user.session = session.into();
             let jwt = user.get_jwt_cookie(&config.domain, config.expiration_seconds)?;
             return Ok((user, jwt));
         }

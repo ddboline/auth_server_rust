@@ -13,6 +13,7 @@ pub struct Session {
     pub id: Uuid,
     pub email: StackString,
     pub created_at: DateTime<Utc>,
+    pub last_accessed: DateTime<Utc>,
     pub session_data: Value,
 }
 
@@ -22,6 +23,7 @@ impl Session {
             id: Uuid::new_v4(),
             email: email.into(),
             created_at: Utc::now(),
+            last_accessed: Utc::now(),
             session_data: Value::Null,
         }
     }
@@ -72,7 +74,8 @@ impl Session {
     pub async fn update(&self, pool: &PgPool) -> Result<(), Error> {
         let query = query!(
             "
-            UPDATE sessions SET session_data = $session_data
+            UPDATE sessions
+            SET session_data=$session_data,last_accessed=now()
             WHERE id=$id AND email=$email",
             id = self.id,
             email = self.email,
@@ -100,7 +103,10 @@ impl Session {
 
     pub async fn cleanup(pool: &PgPool, expiration_seconds: i64) -> Result<(), Error> {
         let time = Utc::now() - Duration::seconds(expiration_seconds);
-        let query = query!("DELETE FROM sessions WHERE created_at < $time", time = time);
+        let query = query!(
+            "DELETE FROM sessions WHERE last_accessed < $time",
+            time = time
+        );
         let conn = pool.get().await?;
         query.execute(&conn).await?;
         Ok(())
