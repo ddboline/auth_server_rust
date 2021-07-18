@@ -22,8 +22,8 @@ thiserror = "1.0"
 dirs = "3.0"
 dotenv = "0.15"
 derive_more = "0.99"
-rusoto_core = {version = "0.46", default_features = false, features=["rustls"]}
-rusoto_ses = {version = "0.46", default_features = false, features=["rustls"]}
+rusoto_core = {version = "0.47", default_features = false, features=["rustls"]}
+rusoto_ses = {version = "0.47", default_features = false, features=["rustls"]}
 sts_profile_auth = "0.6"
 lazy_static = "1.4"
 serde = { version="1.0", features=["derive"] }
@@ -34,7 +34,7 @@ deadqueue = "0.2"
 tokio-postgres = {version = "0.7", features = ["with-chrono-0_4", "with-uuid-0_8", "with-serde_json-1"]}
 postgres-types = "0.2"
 postgres_query = {git = "https://github.com/ddboline/rust-postgres-query", tag = "0.3.3-2", features=["deadpool"]}
-bcrypt = "0.9"
+bcrypt = "0.10"
 bytes = "1.0"
 envy = "0.4"
 base64 = "0.13"
@@ -60,4 +60,4 @@ rweb_helper = {git = "https://github.com/ddboline/rweb_helper.git", tag="0.2.2"}
 [dev-dependencies]
 reqwest = {version = "0.11", default_features = false, features=["cookies", "rustls-tls", "gzip", "json"]}
 maplit = "1.0"
-env_logger = "0.8"
+env_logger = "0.9"
