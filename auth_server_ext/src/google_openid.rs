@@ -7,10 +7,11 @@ pub use openid::error::Error as OpenidError;
 use openid::{DiscoveredClient, Options, Userinfo};
 use rand::{thread_rng, Rng};
 use stack_string::StackString;
-use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{Mutex, Notify};
-use tokio::time::sleep;
-use std::time::Duration;
+use std::{collections::HashMap, sync::Arc, time::Duration};
+use tokio::{
+    sync::{Mutex, Notify},
+    time::sleep,
+};
 use url::Url;
 
 use authorized_users::AuthorizedUser;
@@ -61,7 +62,7 @@ impl GoogleClient {
                         client: Arc::new(client),
                         csrf_tokens,
                     });
-                },
+                }
                 Err(e) => {
                     error!("Encountered error {}, sleep and try again", e);
                     sleep(Duration::from_secs(1)).await;

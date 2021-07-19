@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{map::Map, Value};
 use stack_string::StackString;
 use std::{convert::Infallible, sync::Arc, time::Duration};
-use tokio::time::{timeout, sleep};
+use tokio::time::{sleep, timeout};
 use url::Url;
 use uuid::Uuid;
 
