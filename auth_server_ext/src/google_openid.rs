@@ -2,13 +2,15 @@ use anyhow::{format_err, Error};
 use base64::{encode_config, URL_SAFE_NO_PAD};
 use chrono::{DateTime, Utc};
 use crossbeam::atomic::AtomicCell;
-use log::debug;
+use log::{debug, error};
 pub use openid::error::Error as OpenidError;
 use openid::{DiscoveredClient, Options, Userinfo};
 use rand::{thread_rng, Rng};
 use stack_string::StackString;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{Mutex, Notify};
+use tokio::time::sleep;
+use std::time::Duration;
 use url::Url;
 
 use authorized_users::AuthorizedUser;
@@ -51,12 +53,21 @@ pub struct GoogleClient {
 
 impl GoogleClient {
     pub async fn new(config: &Config) -> Result<Self, Error> {
-        let client = Arc::new(get_google_client(config).await?);
         let csrf_tokens = Arc::new(Mutex::new(HashMap::new()));
-        Ok(Self {
-            client,
-            csrf_tokens,
-        })
+        loop {
+            match get_google_client(config).await {
+                Ok(client) => {
+                    return Ok(Self {
+                        client: Arc::new(client),
+                        csrf_tokens,
+                    });
+                },
+                Err(e) => {
+                    error!("Encountered error {}, sleep and try again", e);
+                    sleep(Duration::from_secs(1)).await;
+                }
+            }
+        }
     }
 
     pub async fn get_auth_url(&self) -> Result<(StackString, Url), Error> {
