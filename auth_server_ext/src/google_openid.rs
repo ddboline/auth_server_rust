@@ -3,7 +3,7 @@ use base64::{encode_config, URL_SAFE_NO_PAD};
 use chrono::{DateTime, Utc};
 use crossbeam::atomic::AtomicCell;
 use log::{debug, error};
-pub use openid::error::Error as OpenidError;
+pub use openid::error::{Error as OpenidError, ClientError};
 use openid::{DiscoveredClient, Options, Userinfo};
 use rand::{thread_rng, Rng};
 use stack_string::StackString;
@@ -62,6 +62,10 @@ impl GoogleClient {
                         client: Arc::new(client),
                         csrf_tokens,
                     });
+                }
+                Err(OpenidError::ClientError(ClientError::Reqwest(e))) => {
+                    debug!("Reqwest error {}", e);
+                    sleep(Duration::from_secs(1)).await;
                 }
                 Err(e) => {
                     error!("Encountered error {}, sleep and try again", e);
@@ -179,7 +183,7 @@ fn get_random_string() -> StackString {
     encode_config(&random_bytes, URL_SAFE_NO_PAD).into()
 }
 
-pub async fn get_google_client(config: &Config) -> Result<DiscoveredClient, Error> {
+pub async fn get_google_client(config: &Config) -> Result<DiscoveredClient, OpenidError> {
     let google_client_id = config.google_client_id.clone().into();
     let google_client_secret = config.google_client_secret.clone().into();
     let issuer_url = Url::parse("https://accounts.google.com").expect("Invalid issuer URL");
@@ -192,7 +196,6 @@ pub async fn get_google_client(config: &Config) -> Result<DiscoveredClient, Erro
         issuer_url,
     )
     .await
-    .map_err(|e| format_err!("Openid Error {:?}", e))
 }
 
 #[cfg(test)]
