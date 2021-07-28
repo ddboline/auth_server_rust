@@ -11,10 +11,9 @@ use url::Url;
 use uuid::Uuid;
 
 use auth_server_ext::{
-    datetime_wrapper::DateTimeWrapper,
     google_openid::GoogleClient,
     invitation::Invitation,
-    ses_client::{EmailStats, SesInstance, SesQuotas},
+    ses_client::{SesInstance},
 };
 use auth_server_lib::{config::Config, pgpool::PgPool, session::Session, user::User};
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
@@ -22,9 +21,7 @@ use rweb_helper::{
     html_response::HtmlResponse as HtmlBase, json_response::JsonResponse as JsonBase, RwebResponse,
 };
 
-use crate::{
-    app::AppState, auth::AuthRequest, errors::ServiceError as Error, logged_user::LoggedUser,
-};
+use crate::{EmailStatsWrapper, SesQuotasWrapper, app::AppState, auth::AuthRequest, datetime_wrapper::DateTimeWrapper, errors::ServiceError as Error, logged_user::LoggedUser};
 
 pub type WarpResult<T> = Result<T, Rejection>;
 pub type HttpResult<T> = Result<T, Error>;
@@ -506,8 +503,8 @@ async fn callback_body(
 pub struct StatusOutput {
     number_of_users: i64,
     number_of_invitations: i64,
-    quota: SesQuotas,
-    stats: EmailStats,
+    quota: SesQuotasWrapper,
+    stats: EmailStatsWrapper,
 }
 
 #[derive(RwebResponse)]
@@ -531,8 +528,8 @@ async fn status_body(pool: &PgPool) -> HttpResult<StatusOutput> {
     let result = StatusOutput {
         number_of_users: number_users,
         number_of_invitations: number_invitations,
-        quota,
-        stats,
+        quota: quota.into(),
+        stats: stats.into(),
     };
     Ok(result)
 }

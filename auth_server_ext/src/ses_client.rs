@@ -3,12 +3,11 @@
 use anyhow::Error;
 use rusoto_core::Region;
 use rusoto_ses::{Body, Content, Destination, Message, SendEmailRequest, Ses, SesClient};
-use rweb::Schema;
 use serde::Serialize;
 use std::fmt;
 use sts_profile_auth::get_client_sts;
+use chrono::{DateTime, Utc};
 
-use crate::datetime_wrapper::DateTimeWrapper;
 #[derive(Clone)]
 pub struct SesInstance {
     ses_client: SesClient,
@@ -115,19 +114,19 @@ impl SesInstance {
     }
 }
 
-#[derive(Default, Debug, Schema, Serialize)]
+#[derive(Default, Debug, Serialize)]
 pub struct SesQuotas {
     pub max_24_hour_send: f64,
     pub max_send_rate: f64,
     pub sent_last_24_hours: f64,
 }
 
-#[derive(Default, Debug, Schema, Serialize)]
+#[derive(Default, Debug, Serialize)]
 pub struct EmailStats {
     pub bounces: i64,
     pub complaints: i64,
     pub delivery_attempts: i64,
     pub rejects: i64,
-    pub min_timestamp: Option<DateTimeWrapper>,
-    pub max_timestamp: Option<DateTimeWrapper>,
+    pub min_timestamp: Option<DateTime<Utc>>,
+    pub max_timestamp: Option<DateTime<Utc>>,
 }

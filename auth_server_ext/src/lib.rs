@@ -8,7 +8,6 @@
 #![allow(clippy::cognitive_complexity)]
 #![allow(clippy::unseparated_literal_suffix)]
 
-pub mod datetime_wrapper;
 pub mod google_openid;
 pub mod invitation;
 pub mod ses_client;
