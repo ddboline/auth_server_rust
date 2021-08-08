@@ -68,7 +68,7 @@ impl GoogleClient {
                     sleep(Duration::from_secs(1)).await;
                 }
                 Err(e) => {
-                    error!("Encountered error {}, sleep and try again", e);
+                    error!("Encountered error {:?}, sleep and try again", e);
                     sleep(Duration::from_secs(1)).await;
                 }
             }
