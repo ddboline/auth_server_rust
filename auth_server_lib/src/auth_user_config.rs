@@ -88,16 +88,11 @@ impl Entry {
             table = self.table,
             email_field = self.email_field
         );
-        pool.get()
-            .await?
-            .query(query.as_str(), &[])
-            .await?
-            .into_iter()
-            .map(|row| {
-                let email_field: StackString = row.try_get(self.email_field.as_str())?;
-                Ok(email_field)
-            })
-            .collect()
+        let query = query_dyn!(&query)?;
+        let conn = pool.get().await?;
+        let emails: Vec<(StackString,)> = query.fetch(&conn).await?;
+        let emails = emails.into_iter().map(|(s,)| s).collect();
+        Ok(emails)
     }
 
     pub async fn add_user(&self, email: &str) -> Result<(), Error> {
