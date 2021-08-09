@@ -28,7 +28,7 @@ enum AuthServerOptions {
         email: StackString,
     },
     RmInvites {
-        #[structopt(short="u", long, parse(try_from_str=parse_uuid))]
+        #[structopt(short="u", long, parse(try_from_str=Uuid::parse_str))]
         ids: Vec<Uuid>,
     },
     /// Add new user
@@ -88,7 +88,7 @@ enum AuthServerOptions {
     },
     /// Delete Sessions
     RmSessions {
-        #[structopt(short, long, parse(try_from_str=parse_uuid))]
+        #[structopt(short, long, parse(try_from_str=Uuid::parse_str))]
         ids: Vec<Uuid>,
     },
 }
@@ -242,10 +242,6 @@ impl AuthServerOptions {
         }
         Ok(())
     }
-}
-
-fn parse_uuid(s: &str) -> Result<Uuid, Error> {
-    Uuid::parse_str(s).map_err(Into::into)
 }
 
 async fn get_auth_user_app_map(
