@@ -279,7 +279,10 @@ pub async fn run_cli() -> Result<(), Error> {
 mod test {
     use anyhow::Error;
     use log::debug;
-    use rand::{thread_rng, Rng};
+    use rand::{
+        distributions::{Alphanumeric, DistString},
+        thread_rng,
+    };
     use std::collections::HashSet;
     use stdout_channel::{MockStdout, StdoutChannel};
     use uuid::Uuid;
@@ -291,16 +294,7 @@ mod test {
 
     pub fn get_random_string(n: usize) -> String {
         let mut rng = thread_rng();
-        (0..)
-            .filter_map(|_| {
-                let c: char = (rng.gen::<u8>() & 0x7f).into();
-                match c {
-                    'A'..='Z' | 'a'..='z' | '0'..='9' => Some(c),
-                    _ => None,
-                }
-            })
-            .take(n)
-            .collect()
+        Alphanumeric.sample_string(&mut rng, n)
     }
 
     #[tokio::test]

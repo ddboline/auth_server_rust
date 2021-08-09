@@ -3,9 +3,12 @@ use base64::{encode_config, URL_SAFE_NO_PAD};
 use chrono::{DateTime, Utc};
 use crossbeam::atomic::AtomicCell;
 use log::{debug, error};
-pub use openid::error::{Error as OpenidError, ClientError};
+pub use openid::error::{ClientError, Error as OpenidError};
 use openid::{DiscoveredClient, Options, Userinfo};
-use rand::{thread_rng, Rng};
+use rand::{
+    distributions::{Distribution, Standard},
+    thread_rng,
+};
 use stack_string::StackString;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::{
@@ -78,8 +81,8 @@ impl GoogleClient {
     pub async fn get_auth_url(&self) -> Result<(StackString, Url), Error> {
         let options = Options {
             scope: Some("email".into()),
-            state: Some(get_random_string().into()),
-            nonce: Some(get_random_string().into()),
+            state: Some(get_token_string().into()),
+            nonce: Some(get_token_string().into()),
             ..Options::default()
         };
         let authorize_url = self.client.auth_url(&options);
@@ -142,7 +145,7 @@ impl GoogleClient {
         Ok(Some(user))
     }
 
-    pub async fn request_userinfo(&self, code: &str, nonce: &str) -> Result<Userinfo, Error> {
+    async fn request_userinfo(&self, code: &str, nonce: &str) -> Result<Userinfo, Error> {
         let token = self
             .client
             .authenticate(code, Some(nonce), None)
@@ -176,14 +179,13 @@ impl GoogleClient {
     }
 }
 
-fn get_random_string() -> StackString {
+fn get_token_string() -> StackString {
     let mut rng = thread_rng();
-    let mut random_bytes = [0u8; 16];
-    rng.fill(&mut random_bytes);
+    let random_bytes: [u8; 16] = Standard.sample(&mut rng);
     encode_config(&random_bytes, URL_SAFE_NO_PAD).into()
 }
 
-pub async fn get_google_client(config: &Config) -> Result<DiscoveredClient, OpenidError> {
+async fn get_google_client(config: &Config) -> Result<DiscoveredClient, OpenidError> {
     let google_client_id = config.google_client_id.clone().into();
     let google_client_secret = config.google_client_secret.clone().into();
     let issuer_url = Url::parse("https://accounts.google.com").expect("Invalid issuer URL");
@@ -204,7 +206,7 @@ mod tests {
 
     use auth_server_lib::{config::Config, AUTH_APP_MUTEX};
 
-    use crate::google_openid::GoogleClient;
+    use crate::google_openid::{get_token_string, GoogleClient};
 
     #[tokio::test]
     async fn test_google_openid() -> Result<(), Error> {
@@ -222,6 +224,13 @@ mod tests {
         assert!(url.as_str().contains(&redirect_uri));
         assert!(url.as_str().contains("scope=openid+email"));
         assert!(url.as_str().contains("response_type=code"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_get_token_string() -> Result<(), Error> {
+        let s = get_token_string();
+        assert_eq!(s.len(), 22);
         Ok(())
     }
 }

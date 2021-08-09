@@ -11,16 +11,16 @@
 
 pub mod app;
 pub mod auth;
+pub mod datetime_wrapper;
 pub mod errors;
 pub mod logged_user;
 pub mod routes;
 pub mod uuid_wrapper;
-pub mod datetime_wrapper;
 
 use rweb::Schema;
-use serde::{Serialize};
+use serde::Serialize;
 
-use auth_server_ext::ses_client::{SesQuotas, EmailStats};
+use auth_server_ext::ses_client::{EmailStats, SesQuotas};
 
 use crate::datetime_wrapper::DateTimeWrapper;
 

@@ -19,8 +19,10 @@ use chrono::{DateTime, Utc};
 use crossbeam::atomic::AtomicCell;
 use im::HashMap;
 use lazy_static::lazy_static;
-use rand::{thread_rng, Rng};
-use smallvec::SmallVec;
+use rand::{
+    distributions::{Distribution, Standard},
+    thread_rng,
+};
 use stack_string::StackString;
 use std::{
     cell::Cell,
@@ -195,14 +197,14 @@ pub async fn create_secret(p: &Path) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-pub fn get_random_key() -> SmallVec<SecretKey> {
+pub fn get_random_key() -> SecretKey {
     let mut rng = thread_rng();
-    (0..KEY_LENGTH).map(|_| rng.gen::<u8>()).collect()
+    Standard.sample(&mut rng)
 }
 
-pub fn get_random_nonce() -> Vec<u8> {
+pub fn get_random_nonce() -> [u8; 12] {
     let mut rng = thread_rng();
-    (0..12).map(|_| rng.gen::<u8>()).collect()
+    Standard.sample(&mut rng)
 }
 
 pub async fn get_secrets<T: AsRef<Path>>(

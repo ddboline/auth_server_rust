@@ -1,12 +1,12 @@
 #![allow(clippy::default_trait_access)]
 
 use anyhow::Error;
+use chrono::{DateTime, Utc};
 use rusoto_core::Region;
 use rusoto_ses::{Body, Content, Destination, Message, SendEmailRequest, Ses, SesClient};
 use serde::Serialize;
 use std::fmt;
 use sts_profile_auth::get_client_sts;
-use chrono::{DateTime, Utc};
 
 #[derive(Clone)]
 pub struct SesInstance {

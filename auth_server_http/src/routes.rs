@@ -11,9 +11,7 @@ use url::Url;
 use uuid::Uuid;
 
 use auth_server_ext::{
-    google_openid::GoogleClient,
-    invitation::Invitation,
-    ses_client::{SesInstance},
+    google_openid::GoogleClient, invitation::Invitation, ses_client::SesInstance,
 };
 use auth_server_lib::{config::Config, pgpool::PgPool, session::Session, user::User};
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
@@ -21,7 +19,10 @@ use rweb_helper::{
     html_response::HtmlResponse as HtmlBase, json_response::JsonResponse as JsonBase, RwebResponse,
 };
 
-use crate::{EmailStatsWrapper, SesQuotasWrapper, app::AppState, auth::AuthRequest, datetime_wrapper::DateTimeWrapper, errors::ServiceError as Error, logged_user::LoggedUser};
+use crate::{
+    app::AppState, auth::AuthRequest, datetime_wrapper::DateTimeWrapper,
+    errors::ServiceError as Error, logged_user::LoggedUser, EmailStatsWrapper, SesQuotasWrapper,
+};
 
 pub type WarpResult<T> = Result<T, Rejection>;
 pub type HttpResult<T> = Result<T, Error>;

@@ -15,7 +15,10 @@ pub mod session;
 pub mod user;
 
 use lazy_static::lazy_static;
-use rand::{distributions::Alphanumeric, thread_rng, Rng};
+use rand::{
+    distributions::{Alphanumeric, DistString},
+    thread_rng,
+};
 use tokio::sync::Mutex;
 
 lazy_static! {
@@ -24,9 +27,7 @@ lazy_static! {
 
 pub fn get_random_string(n: usize) -> String {
     let mut rng = thread_rng();
-    (0..n)
-        .map(|_| char::from(rng.sample(Alphanumeric)))
-        .collect()
+    Alphanumeric.sample_string(&mut rng, n)
 }
 
 #[cfg(test)]

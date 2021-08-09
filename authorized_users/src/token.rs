@@ -52,7 +52,7 @@ impl Token {
         debug!("jwe {:?}", jwe);
 
         let options = EncryptionOptions::AES_GCM {
-            nonce: get_random_nonce(),
+            nonce: get_random_nonce().into(),
         };
         let encrypted_jwe = jwe.encrypt(&SECRET_KEY.get_jwk_secret(), &options)?;
 
