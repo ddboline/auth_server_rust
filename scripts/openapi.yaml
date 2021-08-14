@@ -3,7 +3,7 @@ openapi: 3.0.1
 info:
   title: Rust Auth Server
   description: Authorization Server written in rust using jwt/jws/jwe and featuring integration with Google OAuth
-  version: 0.5.4
+  version: 0.5.14
 paths:
   /api/auth:
     get:
@@ -16,14 +16,16 @@ paths:
               schema:
                 properties:
                   email:
+                    description: Email Address
                     type: string
                   session:
-                    format: datetime
-                    nullable: true
+                    description: Session ID
+                    format: uuid
                     type: string
                 type: object
                 required:
                   - email
+                  - session
         "400":
           description: Bad Request
         "500":
@@ -36,8 +38,10 @@ paths:
             schema:
               properties:
                 email:
+                  description: Email Address
                   type: string
                 password:
+                  description: Password
                   type: string
               type: object
               required:
@@ -52,14 +56,16 @@ paths:
               schema:
                 properties:
                   email:
+                    description: Email Address
                     type: string
                   session:
-                    format: datetime
-                    nullable: true
+                    description: Session ID
+                    format: uuid
                     type: string
                 type: object
                 required:
                   - email
+                  - session
         "400":
           description: Bad Request
         "500":
@@ -107,7 +113,7 @@ paths:
                     type: string
                   expires_at:
                     description: Expiration Datetime
-                    format: datetime
+                    format: date-time
                     type: string
                 type: object
                 required:
@@ -133,6 +139,7 @@ paths:
             schema:
               properties:
                 password:
+                  description: Password
                   type: string
               type: object
               required:
@@ -146,14 +153,16 @@ paths:
               schema:
                 properties:
                   email:
+                    description: Email Address
                     type: string
                   session:
-                    format: datetime
-                    nullable: true
+                    description: Session ID
+                    format: uuid
                     type: string
                 type: object
                 required:
                   - email
+                  - session
         "400":
           description: Bad Request
         "500":
@@ -167,6 +176,7 @@ paths:
             schema:
               properties:
                 password:
+                  description: Password
                   type: string
               type: object
               required:
@@ -211,8 +221,10 @@ paths:
               schema:
                 properties:
                   csrf_state:
+                    description: CSRF State
                     type: string
                   auth_url:
+                    description: Auth URL
                     type: string
                 type: object
                 required:
@@ -228,7 +240,9 @@ paths:
       parameters:
         - name: state
           in: query
+          required: true
           schema:
+            description: CSRF State
             type: string
       responses:
         "200":
@@ -243,11 +257,15 @@ paths:
       parameters:
         - name: code
           in: query
+          required: true
           schema:
+            description: Authorization Code
             type: string
         - name: state
           in: query
+          required: true
           schema:
+            description: CSRF State
             type: string
       responses:
         "200":
@@ -271,16 +289,21 @@ paths:
               schema:
                 properties:
                   number_of_users:
+                    description: Number of Users
                     type: integer
                   number_of_invitations:
+                    description: Number of Invitations
                     type: integer
                   quota:
                     properties:
                       max_24_hour_send:
+                        description: Maximum Emails per Day
                         type: number
                       max_send_rate:
+                        description: Maximum Emails per Second
                         type: number
                       sent_last_24_hours:
+                        description: Emails Send in Last Day
                         type: number
                     type: object
                     required:
@@ -290,19 +313,25 @@ paths:
                   stats:
                     properties:
                       bounces:
+                        description: Number of Bounced Emails
                         type: integer
                       complaints:
+                        description: Number of Complaints
                         type: integer
                       delivery_attempts:
+                        description: Number of Delivery Attempts
                         type: integer
                       rejects:
+                        description: Number of Rejected Emails
                         type: integer
                       min_timestamp:
-                        format: datetime
+                        description: Earliest Record
+                        format: date-time
                         nullable: true
                         type: string
                       max_timestamp:
-                        format: datetime
+                        description: Latest Record
+                        format: date-time
                         nullable: true
                         type: string
                     type: object
@@ -326,7 +355,7 @@ paths:
       description: Get Session
       responses:
         "200":
-          description: Get Session Object
+          description: Session Object
           content:
             application/json:
               schema:
@@ -408,3 +437,4 @@ paths:
             text/html:
               schema:
                 type: string
+components: {}

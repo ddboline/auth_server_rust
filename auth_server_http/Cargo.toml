@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_http"
-version = "0.5.14"
+version = "0.6.0"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -49,13 +49,13 @@ arc-swap = "1.2"
 im = "15.0"
 toml = "0.5"
 itertools = "0.10"
-rweb = {version="0.12", features=["openapi"]}
+rweb = {version="0.13", features=["openapi", "chrono", "uuid"]}
 serde_yaml = "0.8"
 indexmap = "1.6"
 maplit = "1.0"
-stack-string = { version="0.2", features=["postgres_types", "rweb-openapi"] }
+stack-string = { version="0.3", features=["postgres_types", "rweb-openapi"] }
 stdout-channel = "0.4"
-rweb_helper = {git = "https://github.com/ddboline/rweb_helper.git", tag="0.2.2"}
+rweb_helper = {git = "https://github.com/ddboline/rweb_helper.git", tag="0.3.0"}
 
 [dev-dependencies]
 reqwest = {version = "0.11", default_features = false, features=["cookies", "rustls-tls", "gzip", "json"]}

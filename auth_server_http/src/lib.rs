@@ -11,23 +11,23 @@
 
 pub mod app;
 pub mod auth;
-pub mod datetime_wrapper;
 pub mod errors;
 pub mod logged_user;
 pub mod routes;
-pub mod uuid_wrapper;
 
+use chrono::{DateTime, Utc};
 use rweb::Schema;
 use serde::Serialize;
 
 use auth_server_ext::ses_client::{EmailStats, SesQuotas};
 
-use crate::datetime_wrapper::DateTimeWrapper;
-
 #[derive(Default, Debug, Serialize, Schema)]
 pub struct SesQuotasWrapper {
+    #[schema(description = "Maximum Emails per Day")]
     pub max_24_hour_send: f64,
+    #[schema(description = "Maximum Emails per Second")]
     pub max_send_rate: f64,
+    #[schema(description = "Emails Send in Last Day")]
     pub sent_last_24_hours: f64,
 }
 
@@ -43,12 +43,18 @@ impl From<SesQuotas> for SesQuotasWrapper {
 
 #[derive(Default, Debug, Serialize, Schema)]
 pub struct EmailStatsWrapper {
+    #[schema(description = "Number of Bounced Emails")]
     pub bounces: i64,
+    #[schema(description = "Number of Complaints")]
     pub complaints: i64,
+    #[schema(description = "Number of Delivery Attempts")]
     pub delivery_attempts: i64,
+    #[schema(description = "Number of Rejected Emails")]
     pub rejects: i64,
-    pub min_timestamp: Option<DateTimeWrapper>,
-    pub max_timestamp: Option<DateTimeWrapper>,
+    #[schema(description = "Earliest Record")]
+    pub min_timestamp: Option<DateTime<Utc>>,
+    #[schema(description = "Latest Record")]
+    pub max_timestamp: Option<DateTime<Utc>>,
 }
 
 impl From<EmailStats> for EmailStatsWrapper {

@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use futures::try_join;
 use log::{debug, error};
 use rweb::{delete, get, post, Json, Query, Rejection, Schema};
@@ -20,8 +20,8 @@ use rweb_helper::{
 };
 
 use crate::{
-    app::AppState, auth::AuthRequest, datetime_wrapper::DateTimeWrapper,
-    errors::ServiceError as Error, logged_user::LoggedUser, EmailStatsWrapper, SesQuotasWrapper,
+    app::AppState, auth::AuthRequest, errors::ServiceError as Error, logged_user::LoggedUser,
+    EmailStatsWrapper, SesQuotasWrapper,
 };
 
 pub type WarpResult<T> = Result<T, Rejection>;
@@ -150,11 +150,12 @@ pub async fn logout(
     let mut session_map_cache = (*data.session_cache.load().clone()).clone();
     session_map_cache.remove(&session);
     data.session_cache.store(Arc::new(session_map_cache));
-    let resp =
-        JsonBase::new(format!("{} has been logged out", logged_user.email)).with_cookie(format!(
-            "jwt=; HttpOnly; Path=/; Domain={}; Max-Age={}",
-            data.config.domain, data.config.expiration_seconds
-        ));
+    let cookie = format!(
+        "jwt=; HttpOnly; Path=/; Domain={}; Max-Age={}",
+        data.config.domain, data.config.expiration_seconds
+    );
+    let body = format!("{} has been logged out", logged_user.email);
+    let resp = JsonBase::new(body).with_cookie(cookie);
     Ok(resp.into())
 }
 
@@ -169,7 +170,7 @@ pub async fn get_me(#[cookie = "jwt"] logged_user: LoggedUser) -> WarpResult<Api
 }
 
 #[derive(RwebResponse)]
-#[response(description = "Get Session Object")]
+#[response(description = "Session Object")]
 struct GetSessionResponse(JsonBase<Value, Error>);
 
 #[get("/api/session")]
@@ -238,7 +239,7 @@ pub struct InvitationOutput {
     #[schema(description = "Email Address")]
     pub email: StackString,
     #[schema(description = "Expiration Datetime")]
-    pub expires_at: DateTimeWrapper,
+    pub expires_at: DateTime<Utc>,
 }
 
 impl From<Invitation> for InvitationOutput {
@@ -283,6 +284,7 @@ async fn register_email_invitation(
 
 #[derive(Debug, Deserialize, Schema)]
 pub struct UserData {
+    #[schema(description = "Password")]
     pub password: StackString,
 }
 
@@ -380,7 +382,9 @@ pub struct GetAuthUrlData {
 
 #[derive(Serialize, Deserialize, Schema)]
 pub struct AuthUrlOutput {
+    #[schema(description = "CSRF State")]
     pub csrf_state: StackString,
+    #[schema(description = "Auth URL")]
     pub auth_url: StackString,
 }
 
@@ -415,6 +419,7 @@ async fn auth_url_body(
 
 #[derive(Schema, Serialize, Deserialize)]
 pub struct AuthAwait {
+    #[schema(description = "CSRF State")]
     pub state: StackString,
 }
 
@@ -447,7 +452,9 @@ pub async fn auth_await(
 
 #[derive(Deserialize, Schema)]
 pub struct CallbackQuery {
+    #[schema(description = "Authorization Code")]
     pub code: StackString,
+    #[schema(description = "CSRF State")]
     pub state: StackString,
 }
 
@@ -502,7 +509,9 @@ async fn callback_body(
 
 #[derive(Serialize, Schema)]
 pub struct StatusOutput {
+    #[schema(description = "Number of Users")]
     number_of_users: i64,
+    #[schema(description = "Number of Invitations")]
     number_of_invitations: i64,
     quota: SesQuotasWrapper,
     stats: EmailStatsWrapper,

@@ -6,7 +6,9 @@ use auth_server_lib::{pgpool::PgPool, user::User};
 
 #[derive(Debug, Deserialize, Schema)]
 pub struct AuthRequest {
+    #[schema(description = "Email Address")]
     pub email: String,
+    #[schema(description = "Password")]
     pub password: String,
 }
 

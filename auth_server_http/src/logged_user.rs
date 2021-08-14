@@ -6,20 +6,23 @@ use std::{
     convert::{TryFrom, TryInto},
     str::FromStr,
 };
+use uuid::Uuid;
 
 use authorized_users::{token::Token, AuthorizedUser, AUTHORIZED_USERS};
 
-use crate::{errors::ServiceError as Error, uuid_wrapper::UuidWrapper};
+use crate::errors::ServiceError as Error;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Schema)]
 pub struct LoggedUser {
+    #[schema(description = "Email Address")]
     pub email: StackString,
-    pub session: UuidWrapper,
+    #[schema(description = "Session ID")]
+    pub session: Uuid,
 }
 
 impl LoggedUser {
     pub fn get_jwt_cookie(&self, domain: &str, expiration_seconds: i64) -> Result<String, Error> {
-        let session = self.session.into();
+        let session = self.session;
         let token = Token::create_token(&self.email, domain, expiration_seconds, session)?;
         Ok(format!(
             "jwt={}; HttpOnly; Path=/; Domain={}; Max-Age={}",
