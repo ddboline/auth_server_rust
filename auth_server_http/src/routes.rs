@@ -116,7 +116,7 @@ async fn login_user_jwt(
     let message = if let Some(user) = auth_data.authenticate(pool).await? {
         let user: AuthorizedUser = user.into();
         let mut user: LoggedUser = user.into();
-        user.session = session.into();
+        user.session = session;
         match user.get_jwt_cookie(&config.domain, config.expiration_seconds) {
             Ok(jwt) => return Ok((user, jwt)),
             Err(e) => format!("Failed to create_token {}", e),
@@ -137,7 +137,7 @@ pub async fn logout(
     #[cookie = "jwt"] logged_user: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<ApiAuthDeleteResponse> {
-    let session = logged_user.session.into();
+    let session = logged_user.session;
     if let Some(session_obj) = Session::get_session(&data.pool, &session)
         .await
         .map_err(Into::<Error>::into)?
@@ -247,7 +247,7 @@ impl From<Invitation> for InvitationOutput {
         Self {
             id: i.id.to_string().into(),
             email: i.email,
-            expires_at: i.expires_at.into(),
+            expires_at: i.expires_at,
         }
     }
 }
@@ -319,7 +319,7 @@ async fn register_user_object(
     let uuid = Uuid::parse_str(&invitation_id)?;
     if let Some(invitation) = Invitation::get_by_uuid(&uuid, pool).await? {
         if invitation.expires_at > Utc::now() {
-            let user = User::from_details(&invitation.email, &user_data.password, &config);
+            let user = User::from_details(&invitation.email, &user_data.password, config);
             user.upsert(pool).await?;
             invitation.delete(pool).await?;
             let user: AuthorizedUser = user.into();
@@ -366,7 +366,7 @@ async fn change_password_user_body(
     config: &Config,
 ) -> HttpResult<&'static str> {
     if let Some(mut user) = User::get_by_email(&logged_user.email, pool).await? {
-        user.set_password(&user_data.password, &config);
+        user.set_password(&user_data.password, config);
         user.update(pool).await?;
         Ok("password updated")
     } else {
@@ -496,9 +496,9 @@ async fn callback_body(
         let mut user: LoggedUser = user.into();
 
         let session = Session::new(user.email.as_str());
-        session.insert(&pool).await?;
+        session.insert(pool).await?;
 
-        user.session = session.id.into();
+        user.session = session.id;
 
         let jwt = user.get_jwt_cookie(&config.domain, config.expiration_seconds)?;
         Ok(jwt)
@@ -573,7 +573,7 @@ async fn test_login_user_jwt(
             };
             AUTHORIZED_USERS.merge_users(&[user.email.clone()])?;
             let mut user: LoggedUser = user.into();
-            user.session = session.into();
+            user.session = session;
             let jwt = user.get_jwt_cookie(&config.domain, config.expiration_seconds)?;
             return Ok((user, jwt));
         }

@@ -130,7 +130,7 @@ impl AuthTrigger {
     }
 
     pub fn set(&self) {
-        self.0.store(true, Ordering::SeqCst)
+        self.0.store(true, Ordering::SeqCst);
     }
 }
 

@@ -136,7 +136,7 @@ impl GoogleClient {
         debug!("Nonce {:?}", nonce);
         let userinfo = self.request_userinfo(code, &nonce).await?;
         let user_email = &userinfo.email.ok_or_else(|| format_err!("No userinfo"))?;
-        let user = User::get_by_email(user_email, &pool)
+        let user = User::get_by_email(user_email, pool)
             .await?
             .ok_or_else(|| format_err!("No User"))?;
         let user: AuthorizedUser = user.into();

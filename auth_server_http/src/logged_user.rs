@@ -35,7 +35,7 @@ impl From<AuthorizedUser> for LoggedUser {
     fn from(user: AuthorizedUser) -> Self {
         Self {
             email: user.email,
-            session: user.session.into(),
+            session: user.session,
         }
     }
 }
@@ -44,7 +44,7 @@ impl From<LoggedUser> for AuthorizedUser {
     fn from(user: LoggedUser) -> Self {
         Self {
             email: user.email,
-            session: user.session.into(),
+            session: user.session,
         }
     }
 }

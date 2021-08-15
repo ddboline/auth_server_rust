@@ -104,6 +104,7 @@ fn login_html() -> impl Reply {
 }
 
 #[allow(clippy::missing_panics_doc)]
+#[allow(clippy::unused_async)]
 pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible> {
     let code: StatusCode;
     let message: &str;

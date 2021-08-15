@@ -105,7 +105,7 @@ impl AuthServerOptions {
             AuthServerOptions::List => {
                 let auth_app_map = get_auth_user_app_map(&config).await?;
 
-                for user in User::get_authorized_users(&pool).await? {
+                for user in User::get_authorized_users(pool).await? {
                     stdout.send(format!(
                         "{} {}",
                         user.email,
@@ -116,13 +116,13 @@ impl AuthServerOptions {
                 }
             }
             AuthServerOptions::ListInvites => {
-                for invite in Invitation::get_all(&pool).await? {
+                for invite in Invitation::get_all(pool).await? {
                     stdout.send(serde_json::to_string(&invite)?);
                 }
             }
             AuthServerOptions::SendInvite { email } => {
                 let invitation = Invitation::from_email(&email);
-                invitation.insert(&pool).await?;
+                invitation.insert(pool).await?;
                 invitation
                     .send_invitation(&config.sending_email_address, config.callback_url.as_str())
                     .await?;
@@ -130,23 +130,23 @@ impl AuthServerOptions {
             }
             AuthServerOptions::RmInvites { ids } => {
                 for id in ids {
-                    if let Some(invitation) = Invitation::get_by_uuid(&id, &pool).await? {
-                        invitation.delete(&pool).await?;
+                    if let Some(invitation) = Invitation::get_by_uuid(id, &pool).await? {
+                        invitation.delete(pool).await?;
                     }
                 }
             }
             AuthServerOptions::Add { email, password } => {
-                if User::get_by_email(&email, &pool).await?.is_none() {
-                    let user = User::from_details(&email, &password, &config);
-                    user.insert(&pool).await?;
+                if User::get_by_email(email, pool).await?.is_none() {
+                    let user = User::from_details(email, password, &config);
+                    user.insert(pool).await?;
                     stdout.send(format!("Add user {}", user.email));
                 } else {
                     stdout.send(format!("User {} exists", email));
                 }
             }
             AuthServerOptions::Rm { email } => {
-                if let Some(user) = User::get_by_email(&email, &pool).await? {
-                    user.delete(&pool).await?;
+                if let Some(user) = User::get_by_email(email, pool).await? {
+                    user.delete(pool).await?;
                     stdout.send(format!("Deleted user {}", user.email));
                 } else {
                     stdout.send(format!("User {} does not exist", email));
@@ -157,31 +157,31 @@ impl AuthServerOptions {
                 password,
             } => {
                 let uuid = Uuid::parse_str(invitation_id)?;
-                if let Some(invitation) = Invitation::get_by_uuid(&uuid, &pool).await? {
+                if let Some(invitation) = Invitation::get_by_uuid(&uuid, pool).await? {
                     if invitation.expires_at > Utc::now() {
                         let user = User::from_details(&invitation.email, password, &config);
-                        user.upsert(&pool).await?;
-                        invitation.delete(&pool).await?;
+                        user.upsert(pool).await?;
+                        invitation.delete(pool).await?;
                         let user: AuthorizedUser = user.into();
                         AUTHORIZED_USERS.store_auth(user.clone(), true)?;
                         stdout.send(serde_json::to_string(&user)?);
                     } else {
-                        invitation.delete(&pool).await?;
+                        invitation.delete(pool).await?;
                     }
                 }
             }
             AuthServerOptions::Change { email, password } => {
-                if let Some(mut user) = User::get_by_email(&email, &pool).await? {
-                    user.set_password(&password, &config);
-                    user.update(&pool).await?;
+                if let Some(mut user) = User::get_by_email(email, pool).await? {
+                    user.set_password(password, &config);
+                    user.update(pool).await?;
                     stdout.send(format!("Password updated for {}", email));
                 } else {
                     stdout.send(format!("User {} does not exist", email));
                 }
             }
             AuthServerOptions::Verify { email, password } => {
-                if let Some(user) = User::get_by_email(&email, &pool).await? {
-                    if user.verify_password(&password)? {
+                if let Some(user) = User::get_by_email(email, pool).await? {
+                    if user.verify_password(password)? {
                         stdout.send("Password correct".to_string());
                     } else {
                         stdout.send("Password incorrect".to_string());
@@ -193,8 +193,8 @@ impl AuthServerOptions {
             AuthServerOptions::Status => {
                 let ses = SesInstance::new(None);
                 let (number_users, number_invitations, (quota, stats)) = try_join!(
-                    User::get_number_users(&pool),
-                    Invitation::get_number_invitations(&pool),
+                    User::get_number_users(pool),
+                    Invitation::get_number_invitations(pool),
                     ses.get_statistics(),
                 )?;
                 stdout.send(format!(
