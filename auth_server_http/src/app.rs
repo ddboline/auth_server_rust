@@ -198,7 +198,7 @@ pub async fn fill_auth_from_db(
 ) -> Result<(), anyhow::Error> {
     debug!("{:?}", *TRIGGER_DB_UPDATE);
     let users: Vec<StackString> = if TRIGGER_DB_UPDATE.check() {
-        Session::cleanup(&pool, expiration_seconds).await?;
+        Session::cleanup(pool, expiration_seconds).await?;
         User::get_authorized_users(pool)
             .await?
             .into_iter()

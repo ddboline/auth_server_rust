@@ -121,7 +121,7 @@ impl AuthServerOptions {
                 }
             }
             AuthServerOptions::SendInvite { email } => {
-                let invitation = Invitation::from_email(&email);
+                let invitation = Invitation::from_email(email);
                 invitation.insert(pool).await?;
                 invitation
                     .send_invitation(&config.sending_email_address, config.callback_url.as_str())
@@ -130,7 +130,7 @@ impl AuthServerOptions {
             }
             AuthServerOptions::RmInvites { ids } => {
                 for id in ids {
-                    if let Some(invitation) = Invitation::get_by_uuid(id, &pool).await? {
+                    if let Some(invitation) = Invitation::get_by_uuid(id, pool).await? {
                         invitation.delete(pool).await?;
                     }
                 }
