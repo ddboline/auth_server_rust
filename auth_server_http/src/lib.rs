@@ -18,26 +18,16 @@ pub mod routes;
 
 use chrono::{DateTime, Utc};
 use derive_more::{From, Into};
-use rweb::{
-    openapi::{ComponentDescriptor, ComponentOrInlineSchema, Entity},
-    Schema,
-};
+use rweb::Schema;
+use rweb_helper::derive_rweb_schema;
 use serde::Serialize;
-use std::borrow::Cow;
 
 use auth_server_ext::ses_client::{EmailStats, SesQuotas};
 
 #[derive(Into, From, Default, Debug, Serialize)]
 pub struct SesQuotasWrapper(SesQuotas);
 
-impl Entity for SesQuotasWrapper {
-    fn type_name() -> Cow<'static, str> {
-        _SesQuotasWrapper::type_name()
-    }
-    fn describe(comp_d: &mut ComponentDescriptor) -> ComponentOrInlineSchema {
-        _SesQuotasWrapper::describe(comp_d)
-    }
-}
+derive_rweb_schema!(SesQuotasWrapper, _SesQuotasWrapper);
 
 #[allow(dead_code)]
 #[derive(Schema)]
@@ -53,14 +43,7 @@ struct _SesQuotasWrapper {
 #[derive(Into, From, Default, Debug, Serialize)]
 pub struct EmailStatsWrapper(EmailStats);
 
-impl Entity for EmailStatsWrapper {
-    fn type_name() -> Cow<'static, str> {
-        _EmailStatsWrapper::type_name()
-    }
-    fn describe(comp_d: &mut ComponentDescriptor) -> ComponentOrInlineSchema {
-        _EmailStatsWrapper::describe(comp_d)
-    }
-}
+derive_rweb_schema!(EmailStatsWrapper, _EmailStatsWrapper);
 
 #[allow(dead_code)]
 #[derive(Schema)]
