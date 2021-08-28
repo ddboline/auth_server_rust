@@ -1,20 +1,19 @@
-use anyhow::{format_err, Error};
-use postgres_query::query_dyn;
-use serde::{Deserialize, Serialize};
+use anyhow::Error;
+use derive_more::{Deref, IntoIterator};
 use stack_string::StackString;
 use std::{
-    collections::{hash_map::IntoIter, HashMap},
+    collections::HashMap,
     convert::{TryFrom, TryInto},
     fs,
-    ops::Deref,
     path::Path,
     str::FromStr,
 };
-use url::Url;
 
-use crate::pgpool::PgPool;
+use crate::toml_entry::{Entry, TomlEntry};
 
-#[derive(Debug)]
+type ConfigToml = HashMap<String, TomlEntry>;
+
+#[derive(Debug, Deref, IntoIterator)]
 pub struct AuthUserConfig(HashMap<StackString, Entry>);
 
 impl AuthUserConfig {
@@ -22,13 +21,6 @@ impl AuthUserConfig {
         let data = fs::read_to_string(p)?;
         let config: ConfigToml = toml::from_str(&data)?;
         config.try_into()
-    }
-}
-
-impl Deref for AuthUserConfig {
-    type Target = HashMap<StackString, Entry>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }
 
@@ -40,95 +32,18 @@ impl FromStr for AuthUserConfig {
     }
 }
 
-impl IntoIterator for AuthUserConfig {
-    type Item = (StackString, Entry);
-    type IntoIter = IntoIter<StackString, Entry>;
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
 impl TryFrom<ConfigToml> for AuthUserConfig {
     type Error = Error;
     fn try_from(item: ConfigToml) -> Result<Self, Self::Error> {
         let result: Result<HashMap<_, _>, Error> = item
             .into_iter()
             .map(|(key, entry)| {
-                let database_url = entry
-                    .database_url
-                    .ok_or_else(|| format_err!("No database_url"))?;
-                let table = entry.table.ok_or_else(|| format_err!("No table"))?;
-                let email_field = entry.email_field.unwrap_or_else(|| "email".into());
-                Ok((
-                    key.into(),
-                    Entry {
-                        database_url,
-                        table,
-                        email_field,
-                    },
-                ))
+                let entry: Entry = entry.try_into()?;
+                Ok((key.into(), entry))
             })
             .collect();
         result.map(AuthUserConfig)
     }
-}
-
-#[derive(Debug)]
-pub struct Entry {
-    pub database_url: Url,
-    pub table: StackString,
-    pub email_field: StackString,
-}
-
-impl Entry {
-    pub async fn get_authorized_users(&self) -> Result<Vec<StackString>, Error> {
-        let pool = PgPool::new(self.database_url.as_str());
-        let query = format!(
-            "SELECT {email_field} FROM {table}",
-            table = self.table,
-            email_field = self.email_field
-        );
-        let query = query_dyn!(&query)?;
-        let conn = pool.get().await?;
-        let emails: Vec<(StackString,)> = query.fetch(&conn).await?;
-        let emails = emails.into_iter().map(|(s,)| s).collect();
-        Ok(emails)
-    }
-
-    pub async fn add_user(&self, email: &str) -> Result<(), Error> {
-        let pool = PgPool::new(self.database_url.as_str());
-        let query = format!(
-            "INSERT INTO {table} ({email_field}) VALUES ($email)",
-            table = self.table,
-            email_field = self.email_field,
-        );
-        let query = query_dyn!(&query, email = email)?;
-        let conn = pool.get().await?;
-        query.execute(&conn).await?;
-        Ok(())
-    }
-
-    pub async fn remove_user(&self, email: &str) -> Result<(), Error> {
-        let pool = PgPool::new(self.database_url.as_str());
-        let query = format!(
-            "DELETE FROM {table} WHERE {email_field} = $email",
-            table = self.table,
-            email_field = self.email_field
-        );
-        let query = query_dyn!(&query, email = email)?;
-        let conn = pool.get().await?;
-        query.execute(&conn).await?;
-        Ok(())
-    }
-}
-
-type ConfigToml = HashMap<String, TomlEntry>;
-
-#[derive(Serialize, Deserialize)]
-struct TomlEntry {
-    database_url: Option<Url>,
-    table: Option<StackString>,
-    email_field: Option<StackString>,
 }
 
 #[cfg(test)]

@@ -17,6 +17,12 @@ pub struct Session {
     pub session_data: Value,
 }
 
+impl Default for Session {
+    fn default() -> Self {
+        Self::new("")
+    }
+}
+
 impl Session {
     pub fn new(email: &str) -> Self {
         Self {

@@ -1,8 +1,8 @@
 use anyhow::{format_err, Error};
 use bcrypt::DEFAULT_COST;
+use derive_more::Deref;
 use serde::{Deserialize, Serialize};
 use std::{
-    ops::Deref,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -77,16 +77,8 @@ fn default_auth_user_config_path() -> PathBuf {
         .join("auth_user_config.toml")
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deref)]
 pub struct Config(Arc<ConfigInner>);
-
-impl Deref for Config {
-    type Target = ConfigInner;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
 
 impl Config {
     pub fn from_inner(inner: ConfigInner) -> Self {

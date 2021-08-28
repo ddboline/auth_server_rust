@@ -207,14 +207,16 @@ impl AuthServerOptions {
             AuthServerOptions::AddToApp { email, app } => {
                 if let Ok(auth_user_config) = AuthUserConfig::new(&config.auth_user_config_path) {
                     if let Some(entry) = auth_user_config.get(app.as_str()) {
-                        entry.add_user(email.as_str()).await?;
+                        let pool = PgPool::new(entry.database_url.as_str());
+                        entry.add_user(&pool, email.as_str()).await?;
                     }
                 }
             }
             AuthServerOptions::RemoveFromApp { email, app } => {
                 if let Ok(auth_user_config) = AuthUserConfig::new(&config.auth_user_config_path) {
                     if let Some(entry) = auth_user_config.get(app.as_str()) {
-                        entry.remove_user(email.as_str()).await?;
+                        let pool = PgPool::new(entry.database_url.as_str());
+                        entry.remove_user(&pool, email.as_str()).await?;
                     }
                 }
             }
@@ -250,7 +252,10 @@ async fn get_auth_user_app_map(
     let mut auth_app_map: HashMap<_, BTreeSet<_>> = HashMap::new();
     if let Ok(auth_user_config) = AuthUserConfig::new(&config.auth_user_config_path) {
         let futures = auth_user_config.into_iter().map(|(key, val)| async move {
-            val.get_authorized_users().await.map(|users| (key, users))
+            let pool = PgPool::new(val.database_url.as_str());
+            val.get_authorized_users(&pool)
+                .await
+                .map(|users| (key, users))
         });
         let results: Result<Vec<_>, Error> = try_join_all(futures).await;
         for (key, users) in results? {

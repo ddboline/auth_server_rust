@@ -1,5 +1,6 @@
 use anyhow::{format_err, Error};
 use deadpool_postgres::{Client, Config, Pool};
+use stack_string::StackString;
 use std::fmt;
 use tokio_postgres::{Config as PgConfig, NoTls};
 
@@ -8,7 +9,7 @@ use tokio_postgres::{Config as PgConfig, NoTls};
 /// the get method, which returns a `PooledConnection` object
 #[derive(Clone, Default)]
 pub struct PgPool {
-    pgurl: String,
+    pgurl: StackString,
     pool: Option<Pool>,
 }
 
@@ -47,7 +48,7 @@ impl PgPool {
         }
 
         Self {
-            pgurl: pgurl.to_string(),
+            pgurl: pgurl.into(),
             pool: Some(
                 config
                     .create_pool(NoTls)

@@ -12,6 +12,7 @@ pub mod auth_user_config;
 pub mod config;
 pub mod pgpool;
 pub mod session;
+pub mod toml_entry;
 pub mod user;
 
 use lazy_static::lazy_static;

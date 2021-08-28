@@ -17,56 +17,64 @@ pub mod logged_user;
 pub mod routes;
 
 use chrono::{DateTime, Utc};
-use rweb::Schema;
+use derive_more::{From, Into};
+use rweb::{
+    openapi::{ComponentDescriptor, ComponentOrInlineSchema, Entity},
+    Schema,
+};
 use serde::Serialize;
+use std::borrow::Cow;
 
 use auth_server_ext::ses_client::{EmailStats, SesQuotas};
 
-#[derive(Default, Debug, Serialize, Schema)]
-pub struct SesQuotasWrapper {
+#[derive(Into, From, Default, Debug, Serialize)]
+pub struct SesQuotasWrapper(SesQuotas);
+
+impl Entity for SesQuotasWrapper {
+    fn type_name() -> Cow<'static, str> {
+        _SesQuotasWrapper::type_name()
+    }
+    fn describe(comp_d: &mut ComponentDescriptor) -> ComponentOrInlineSchema {
+        _SesQuotasWrapper::describe(comp_d)
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Schema)]
+struct _SesQuotasWrapper {
     #[schema(description = "Maximum Emails per Day")]
-    pub max_24_hour_send: f64,
+    max_24_hour_send: f64,
     #[schema(description = "Maximum Emails per Second")]
-    pub max_send_rate: f64,
+    max_send_rate: f64,
     #[schema(description = "Emails Send in Last Day")]
-    pub sent_last_24_hours: f64,
+    sent_last_24_hours: f64,
 }
 
-impl From<SesQuotas> for SesQuotasWrapper {
-    fn from(item: SesQuotas) -> Self {
-        Self {
-            max_24_hour_send: item.max_24_hour_send,
-            max_send_rate: item.max_send_rate,
-            sent_last_24_hours: item.sent_last_24_hours,
-        }
+#[derive(Into, From, Default, Debug, Serialize)]
+pub struct EmailStatsWrapper(EmailStats);
+
+impl Entity for EmailStatsWrapper {
+    fn type_name() -> Cow<'static, str> {
+        _EmailStatsWrapper::type_name()
+    }
+    fn describe(comp_d: &mut ComponentDescriptor) -> ComponentOrInlineSchema {
+        _EmailStatsWrapper::describe(comp_d)
     }
 }
 
-#[derive(Default, Debug, Serialize, Schema)]
-pub struct EmailStatsWrapper {
+#[allow(dead_code)]
+#[derive(Schema)]
+struct _EmailStatsWrapper {
     #[schema(description = "Number of Bounced Emails")]
-    pub bounces: i64,
+    bounces: i64,
     #[schema(description = "Number of Complaints")]
-    pub complaints: i64,
+    complaints: i64,
     #[schema(description = "Number of Delivery Attempts")]
-    pub delivery_attempts: i64,
+    delivery_attempts: i64,
     #[schema(description = "Number of Rejected Emails")]
-    pub rejects: i64,
+    rejects: i64,
     #[schema(description = "Earliest Record")]
-    pub min_timestamp: Option<DateTime<Utc>>,
+    min_timestamp: Option<DateTime<Utc>>,
     #[schema(description = "Latest Record")]
-    pub max_timestamp: Option<DateTime<Utc>>,
-}
-
-impl From<EmailStats> for EmailStatsWrapper {
-    fn from(item: EmailStats) -> Self {
-        Self {
-            bounces: item.bounces,
-            complaints: item.complaints,
-            delivery_attempts: item.delivery_attempts,
-            rejects: item.rejects,
-            min_timestamp: item.min_timestamp.map(Into::into),
-            max_timestamp: item.max_timestamp.map(Into::into),
-        }
-    }
+    max_timestamp: Option<DateTime<Utc>>,
 }

@@ -3,7 +3,7 @@ openapi: 3.0.1
 info:
   title: Rust Auth Server
   description: Authorization Server written in rust using jwt/jws/jwe and featuring integration with Google OAuth
-  version: 0.5.14
+  version: 0.6.1
 paths:
   /api/auth:
     get:

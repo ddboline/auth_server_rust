@@ -10,11 +10,9 @@ use authorized_users::AuthorizedUser;
 
 use crate::{config::Config, pgpool::PgPool};
 
-pub fn hash_password(plain: &str, hash_rounds: u32) -> StackString {
+fn hash_password(plain: &str, hash_rounds: u32) -> String {
     // get the hashing cost from the env variable or use default
-    hash(plain, hash_rounds)
-        .expect("Password Hashing failed")
-        .into()
+    hash(plain, hash_rounds).expect("Password Hashing failed")
 }
 
 #[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug)]
@@ -27,7 +25,7 @@ pub struct User {
 
 impl User {
     pub fn from_details(email: &str, password: &str, config: &Config) -> Self {
-        let password = hash_password(password, config.hash_rounds);
+        let password = hash_password(password, config.hash_rounds).into();
         Self {
             email: email.into(),
             password,
@@ -36,7 +34,7 @@ impl User {
     }
 
     pub fn set_password(&mut self, password: &str, config: &Config) {
-        self.password = hash_password(password, config.hash_rounds);
+        self.password = hash_password(password, config.hash_rounds).into();
     }
 
     pub fn verify_password(&self, password: &str) -> Result<bool, Error> {
