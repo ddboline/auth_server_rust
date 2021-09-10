@@ -37,8 +37,8 @@ impl Argon {
     }
 
     fn verify_password(&self, hashed: &str, password: &str) -> Result<(), ArgonError> {
-        let hasher = PasswordHash::new(hashed)?;
-        self.0.verify_password(password.as_bytes(), &hasher)
+        self.0
+            .verify_password(password.as_bytes(), &PasswordHash::new(hashed)?)
     }
 }
 
