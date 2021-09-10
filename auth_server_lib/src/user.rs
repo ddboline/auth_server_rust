@@ -1,6 +1,11 @@
-use anyhow::Error;
-use bcrypt::{hash, verify};
+use anyhow::{format_err, Error};
+use argon2::{
+    password_hash::Error as ArgonError, Algorithm, Argon2, Params, PasswordHash, PasswordHasher,
+    PasswordVerifier, Version,
+};
+use bcrypt::verify;
 use chrono::{DateTime, Utc};
+use lazy_static::lazy_static;
 use postgres_query::{query, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
@@ -8,11 +13,33 @@ use uuid::Uuid;
 
 use authorized_users::AuthorizedUser;
 
-use crate::{config::Config, pgpool::PgPool};
+use crate::{get_random_string, pgpool::PgPool};
 
-fn hash_password(plain: &str, hash_rounds: u32) -> String {
-    // get the hashing cost from the env variable or use default
-    hash(plain, hash_rounds).expect("Password Hashing failed")
+lazy_static! {
+    static ref ARGON: Argon = Argon::new().expect("Failed to init Argon");
+}
+
+struct Argon(Argon2<'static>);
+
+impl Argon {
+    fn new() -> Result<Self, ArgonError> {
+        Ok(Self(Argon2::new(
+            Algorithm::Argon2id,
+            Version::V0x13,
+            Params::new(15360, 2, 1, None)?,
+        )))
+    }
+
+    fn hash_password(&self, plain: &str) -> Result<String, ArgonError> {
+        let salt = get_random_string(16);
+        let hash = self.0.hash_password(plain.as_bytes(), &salt)?;
+        Ok(hash.to_string())
+    }
+
+    fn verify_password(&self, hashed: &str, password: &str) -> Result<(), ArgonError> {
+        let hasher = PasswordHash::new(hashed)?;
+        self.0.verify_password(password.as_bytes(), &hasher)
+    }
 }
 
 #[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug)]
@@ -24,8 +51,11 @@ pub struct User {
 }
 
 impl User {
-    pub fn from_details(email: &str, password: &str, config: &Config) -> Self {
-        let password = hash_password(password, config.hash_rounds).into();
+    pub fn from_details(email: &str, password: &str) -> Self {
+        let password = ARGON
+            .hash_password(password)
+            .expect("Argon Hash Failed")
+            .into();
         Self {
             email: email.into(),
             password,
@@ -33,12 +63,23 @@ impl User {
         }
     }
 
-    pub fn set_password(&mut self, password: &str, config: &Config) {
-        self.password = hash_password(password, config.hash_rounds).into();
+    pub fn set_password(&mut self, password: &str) {
+        self.password = ARGON
+            .hash_password(password)
+            .expect("Argon Hash Failed")
+            .into();
     }
 
     pub fn verify_password(&self, password: &str) -> Result<bool, Error> {
-        verify(password, &self.password).map_err(Into::into)
+        if password.starts_with("$2b$") {
+            verify(password, &self.password).map_err(Into::into)
+        } else {
+            match ARGON.verify_password(&self.password, password) {
+                Ok(()) => Ok(true),
+                Err(ArgonError::Password) => Ok(false),
+                Err(e) => Err(format_err!("{:?}", e)),
+            }
+        }
     }
 
     pub async fn get_authorized_users(pool: &PgPool) -> Result<Vec<Self>, Error> {
@@ -115,7 +156,13 @@ mod tests {
     use anyhow::Error;
     use log::debug;
 
-    use crate::{config::Config, get_random_string, pgpool::PgPool, user::User, AUTH_APP_MUTEX};
+    use crate::{
+        config::Config,
+        get_random_string,
+        pgpool::PgPool,
+        user::{Argon, User},
+        AUTH_APP_MUTEX,
+    };
 
     #[tokio::test]
     async fn test_create_delete_user() -> Result<(), Error> {
@@ -128,7 +175,8 @@ mod tests {
         assert_eq!(User::get_by_email(&email, &pool).await?, None);
 
         let password = get_random_string(32);
-        let user = User::from_details(&email, &password, &config);
+        let user = User::from_details(&email, &password);
+        println!("{}", user.password);
 
         user.insert(&pool).await?;
         let mut db_user = User::get_by_email(&email, &pool).await?.unwrap();
@@ -136,7 +184,7 @@ mod tests {
         assert!(db_user.verify_password(&password)?);
 
         let password = get_random_string(32);
-        db_user.set_password(&password, &config);
+        db_user.set_password(&password);
         db_user.upsert(&pool).await?;
 
         let db_user = User::get_by_email(&email, &pool).await?.unwrap();
@@ -157,6 +205,15 @@ mod tests {
         let users = User::get_authorized_users(&pool).await?;
         debug!("{:?}", users);
         assert_eq!(count, users.len());
+        Ok(())
+    }
+
+    #[test]
+    fn test_argon2() -> Result<(), Error> {
+        let argon = Argon::new().unwrap();
+        let password = "password";
+        let hash = argon.hash_password(password).unwrap();
+        assert_eq!(argon.verify_password(&hash, password), Ok(()));
         Ok(())
     }
 }

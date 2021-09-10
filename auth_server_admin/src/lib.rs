@@ -137,7 +137,7 @@ impl AuthServerOptions {
             }
             AuthServerOptions::Add { email, password } => {
                 if User::get_by_email(email, pool).await?.is_none() {
-                    let user = User::from_details(email, password, &config);
+                    let user = User::from_details(email, password);
                     user.insert(pool).await?;
                     stdout.send(format!("Add user {}", user.email));
                 } else {
@@ -159,7 +159,7 @@ impl AuthServerOptions {
                 let uuid = Uuid::parse_str(invitation_id)?;
                 if let Some(invitation) = Invitation::get_by_uuid(&uuid, pool).await? {
                     if invitation.expires_at > Utc::now() {
-                        let user = User::from_details(&invitation.email, password, &config);
+                        let user = User::from_details(&invitation.email, password);
                         user.upsert(pool).await?;
                         invitation.delete(pool).await?;
                         let user: AuthorizedUser = user.into();
@@ -172,7 +172,7 @@ impl AuthServerOptions {
             }
             AuthServerOptions::Change { email, password } => {
                 if let Some(mut user) = User::get_by_email(email, pool).await? {
-                    user.set_password(password, &config);
+                    user.set_password(password);
                     user.update(pool).await?;
                     stdout.send(format!("Password updated for {}", email));
                 } else {

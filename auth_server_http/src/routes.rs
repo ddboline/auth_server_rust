@@ -299,13 +299,7 @@ pub async fn register_user(
     #[data] data: AppState,
     user_data: Json<UserData>,
 ) -> WarpResult<ApiRegisterResponse> {
-    let user = register_user_object(
-        invitation_id,
-        user_data.into_inner(),
-        &data.pool,
-        &data.config,
-    )
-    .await?;
+    let user = register_user_object(invitation_id, user_data.into_inner(), &data.pool).await?;
     let resp = JsonBase::new(user.into());
     Ok(resp.into())
 }
@@ -314,12 +308,11 @@ async fn register_user_object(
     invitation_id: StackString,
     user_data: UserData,
     pool: &PgPool,
-    config: &Config,
 ) -> HttpResult<AuthorizedUser> {
     let uuid = Uuid::parse_str(&invitation_id)?;
     if let Some(invitation) = Invitation::get_by_uuid(&uuid, pool).await? {
         if invitation.expires_at > Utc::now() {
-            let user = User::from_details(&invitation.email, &user_data.password, config);
+            let user = User::from_details(&invitation.email, &user_data.password);
             user.upsert(pool).await?;
             invitation.delete(pool).await?;
             let user: AuthorizedUser = user.into();
@@ -347,14 +340,9 @@ pub async fn change_password_user(
     #[data] data: AppState,
     user_data: Json<UserData>,
 ) -> WarpResult<ApiPasswordChangeResponse> {
-    let message = change_password_user_body(
-        logged_user,
-        user_data.into_inner(),
-        &data.pool,
-        &data.config,
-    )
-    .await?
-    .into();
+    let message = change_password_user_body(logged_user, user_data.into_inner(), &data.pool)
+        .await?
+        .into();
     let resp = JsonBase::new(PasswordChangeOutput { message });
     Ok(resp.into())
 }
@@ -363,10 +351,9 @@ async fn change_password_user_body(
     logged_user: LoggedUser,
     user_data: UserData,
     pool: &PgPool,
-    config: &Config,
 ) -> HttpResult<&'static str> {
     if let Some(mut user) = User::get_by_email(&logged_user.email, pool).await? {
-        user.set_password(&user_data.password, config);
+        user.set_password(&user_data.password);
         user.update(pool).await?;
         Ok("password updated")
     } else {
