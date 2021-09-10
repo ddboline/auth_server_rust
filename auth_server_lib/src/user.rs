@@ -71,7 +71,7 @@ impl User {
     }
 
     pub fn verify_password(&self, password: &str) -> Result<bool, Error> {
-        if password.starts_with("$2b$") {
+        if self.password.starts_with("$2b$") {
             verify(password, &self.password).map_err(Into::into)
         } else {
             match ARGON.verify_password(&self.password, password) {
