@@ -154,8 +154,8 @@ impl From<User> for AuthorizedUser {
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
-    use log::debug;
     use chrono::Utc;
+    use log::debug;
 
     use crate::{
         config::Config,
@@ -212,7 +212,9 @@ mod tests {
     fn test_verify_argon2() -> Result<(), Error> {
         let user = User {
             email: "test@localhost".into(),
-            password: "$argon2id$v=19$m=15360,t=2,p=1$kCY9hyy6ZE3c71Np$kLz4pb6M5IbBz7jLgwG+xxFudnPPvSAWVC5muM/jh8E".into(),
+            password: "$argon2id$v=19$m=15360,t=2,\
+                       p=1$kCY9hyy6ZE3c71Np$kLz4pb6M5IbBz7jLgwG+xxFudnPPvSAWVC5muM/jh8E"
+                .into(),
             created_at: Utc::now(),
         };
         assert!(user.verify_password("password").unwrap());
