@@ -138,8 +138,8 @@ impl GoogleClient {
         let user_email = &userinfo.email.ok_or_else(|| format_err!("No userinfo"))?;
         let user = User::get_by_email(user_email, pool)
             .await?
-            .ok_or_else(|| format_err!("No User"))?;
-        let user: AuthorizedUser = user.into();
+            .ok_or_else(|| format_err!("No User"))?
+            .into();
         is_ready.store(TokenState::Authorized);
         notify.notify_waiters();
         Ok(Some(user))
@@ -151,29 +151,20 @@ impl GoogleClient {
             .authenticate(code, Some(nonce), None)
             .await
             .map_err(|e| format_err!("Openid Error {:?}", e))?;
-        let userinfo = self
-            .client
+        self.client
             .request_userinfo(&token)
             .await
-            .map_err(|e| format_err!("Openid Error {:?}", e))?;
-        Ok(userinfo)
+            .map_err(|e| format_err!("Openid Error {:?}", e))
     }
 
     pub async fn cleanup_token_map(&self) {
-        let expired_keys: Vec<_> = self
-            .csrf_tokens
-            .lock()
-            .await
-            .iter()
-            .filter_map(|(k, t)| {
-                if (Utc::now() - t.timestamp).num_seconds() > 3600 {
-                    Some(k.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
-        for key in expired_keys {
+        for key in self.csrf_tokens.lock().await.iter().filter_map(|(k, t)| {
+            if (Utc::now() - t.timestamp).num_seconds() > 3600 {
+                Some(k.clone())
+            } else {
+                None
+            }
+        }) {
             self.csrf_tokens.lock().await.remove(&key);
         }
     }
