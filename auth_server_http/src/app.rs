@@ -103,7 +103,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
     let google_client = GoogleClient::new(&config).await?;
     let pool = PgPool::new(&config.database_url);
 
-    spawn(_update_db(
+    let update_handle = spawn(_update_db(
         pool.clone(),
         google_client.clone(),
         config.expiration_seconds,
@@ -157,7 +157,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
     let addr: SocketAddr = format!("127.0.0.1:{}", config.port).parse()?;
     debug!("{:?}", addr);
     rweb::serve(routes).bind(addr).await;
-    Ok(())
+    update_handle.await.map_err(Into::into)
 }
 
 #[allow(clippy::similar_names)]
