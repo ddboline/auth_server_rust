@@ -45,7 +45,7 @@ impl Session {
         ))
     }
 
-    pub async fn get_session(pool: &PgPool, id: &Uuid) -> Result<Option<Self>, Error> {
+    pub async fn get_session(pool: &PgPool, id: Uuid) -> Result<Option<Self>, Error> {
         let query = query!("SELECT * FROM sessions WHERE id = $id", id = id);
         let conn = pool.get().await?;
         query.fetch_opt(&conn).await.map_err(Into::into)
@@ -93,7 +93,7 @@ impl Session {
     }
 
     pub async fn upsert(&self, pool: &PgPool) -> Result<(), Error> {
-        if Self::get_session(pool, &self.id).await?.is_some() {
+        if Self::get_session(pool, self.id).await?.is_some() {
             self.update(pool).await
         } else {
             self.insert(pool).await
@@ -140,7 +140,7 @@ mod tests {
 
         session.insert(&pool).await?;
 
-        let new_session = Session::get_session(&pool, &session.id).await?;
+        let new_session = Session::get_session(&pool, session.id).await?;
         assert!(new_session.is_some());
         let new_session = new_session.unwrap();
         assert_eq!(new_session.email, session.email);
