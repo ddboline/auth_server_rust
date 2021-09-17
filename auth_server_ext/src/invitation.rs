@@ -39,7 +39,7 @@ impl Invitation {
         Ok(count)
     }
 
-    pub async fn get_by_uuid(uuid: &Uuid, pool: &PgPool) -> Result<Option<Self>, Error> {
+    pub async fn get_by_uuid(uuid: Uuid, pool: &PgPool) -> Result<Option<Self>, Error> {
         let query = query!("SELECT * FROM invitations WHERE id = $id", id = uuid);
         let conn = pool.get().await?;
         query.fetch_opt(&conn).await.map_err(Into::into)
@@ -127,7 +127,7 @@ mod tests {
         let pool = PgPool::new(&config.database_url);
         let email = format!("{}@localhost", get_random_string(32));
         let invitation = Invitation::from_email(&email);
-        let uuid = &invitation.id;
+        let uuid = invitation.id;
         invitation.insert(&pool).await?;
 
         let invitation = Invitation::get_by_uuid(uuid, &pool).await?.unwrap();
