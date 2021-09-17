@@ -157,7 +157,6 @@ async fn run_app(config: Config) -> Result<(), Error> {
     let addr: SocketAddr = format!("127.0.0.1:{}", config.port).parse()?;
     debug!("{:?}", addr);
     rweb::serve(routes).bind(addr).await;
-
     Ok(())
 }
 
@@ -185,10 +184,8 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
         .build();
 
     let routes = auth_path.recover(error_response).with(cors);
-
     let addr: SocketAddr = format!("127.0.0.1:{}", port).parse()?;
     rweb::serve(routes).bind(addr).await;
-
     Ok(())
 }
 
@@ -354,7 +351,7 @@ mod tests {
         debug!("registered {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
-        assert!(Invitation::get_by_uuid(&invitation.id, &pool)
+        assert!(Invitation::get_by_uuid(invitation.id, &pool)
             .await?
             .is_none());
 
