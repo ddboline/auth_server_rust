@@ -64,14 +64,11 @@ impl SesInstance {
             },
             ..SendEmailRequest::default()
         };
-        self.ses_client
-            .send_email(req)
-            .await
-            .map_err(Into::into)
-            .map(|_| ())
+        self.ses_client.send_email(req).await?;
+        Ok(())
     }
 
-    pub async fn get_statistics(&self) -> Result<(SesQuotas, EmailStats), Error> {
+    pub async fn get_statistics(&self) -> Result<Statistics, Error> {
         let quota = self.ses_client.get_send_quota().await?;
         let stats = self
             .ses_client
@@ -105,12 +102,12 @@ impl SesInstance {
                 }
                 stats
             });
-        let quota = SesQuotas {
+        let quotas = SesQuotas {
             max_24_hour_send: quota.max_24_hour_send.unwrap_or(0.0),
             max_send_rate: quota.max_send_rate.unwrap_or(0.0),
             sent_last_24_hours: quota.sent_last_24_hours.unwrap_or(0.0),
         };
-        Ok((quota, stats))
+        Ok(Statistics { quotas, stats })
     }
 }
 
@@ -129,4 +126,10 @@ pub struct EmailStats {
     pub rejects: i64,
     pub min_timestamp: Option<DateTime<Utc>>,
     pub max_timestamp: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Default)]
+pub struct Statistics {
+    pub quotas: SesQuotas,
+    pub stats: EmailStats,
 }
