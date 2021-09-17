@@ -11,7 +11,9 @@ use url::Url;
 use uuid::Uuid;
 
 use auth_server_ext::{
-    google_openid::GoogleClient, invitation::Invitation, ses_client::SesInstance,
+    google_openid::GoogleClient,
+    invitation::Invitation,
+    ses_client::{SesInstance, Statistics},
 };
 use auth_server_lib::{config::Config, pgpool::PgPool, session::Session, user::User};
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
@@ -137,8 +139,7 @@ pub async fn logout(
     #[cookie = "jwt"] logged_user: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<ApiAuthDeleteResponse> {
-    let session = logged_user.session;
-    if let Some(session_obj) = Session::get_session(&data.pool, &session)
+    if let Some(session_obj) = Session::get_session(&data.pool, logged_user.session)
         .await
         .map_err(Into::<Error>::into)?
     {
@@ -148,7 +149,7 @@ pub async fn logout(
             .map_err(Into::<Error>::into)?;
     }
     let mut session_map_cache = (*data.session_cache.load().clone()).clone();
-    session_map_cache.remove(&session);
+    session_map_cache.remove(&logged_user.session);
     data.session_cache.store(Arc::new(session_map_cache));
     let cookie = format!(
         "jwt=; HttpOnly; Path=/; Domain={}; Max-Age={}",
@@ -183,7 +184,7 @@ pub async fn get_session(
         debug!("got cache");
         return Ok(JsonBase::new(value.clone()).into());
     }
-    if let Some(session_obj) = Session::get_session(&data.pool, &session)
+    if let Some(session_obj) = Session::get_session(&data.pool, session)
         .await
         .map_err(Into::<Error>::into)?
     {
@@ -209,7 +210,7 @@ pub async fn post_session(
     let payload = payload.into_inner();
     debug!("payload {} {}", payload, session);
     debug!("session {}", session);
-    if let Some(mut session_obj) = Session::get_session(&data.pool, &session)
+    if let Some(mut session_obj) = Session::get_session(&data.pool, session)
         .await
         .map_err(Into::<Error>::into)?
     {
@@ -295,7 +296,7 @@ struct ApiRegisterResponse(JsonBase<LoggedUser, Error>);
 #[post("/api/register/{invitation_id}")]
 #[openapi(description = "Set password using link from email")]
 pub async fn register_user(
-    invitation_id: StackString,
+    invitation_id: Uuid,
     #[data] data: AppState,
     user_data: Json<UserData>,
 ) -> WarpResult<ApiRegisterResponse> {
@@ -305,12 +306,11 @@ pub async fn register_user(
 }
 
 async fn register_user_object(
-    invitation_id: StackString,
+    invitation_id: Uuid,
     user_data: UserData,
     pool: &PgPool,
 ) -> HttpResult<AuthorizedUser> {
-    let uuid = Uuid::parse_str(&invitation_id)?;
-    if let Some(invitation) = Invitation::get_by_uuid(&uuid, pool).await? {
+    if let Some(invitation) = Invitation::get_by_uuid(invitation_id, pool).await? {
         if invitation.expires_at > Utc::now() {
             let user = User::from_details(&invitation.email, &user_data.password);
             user.upsert(pool).await?;
@@ -517,7 +517,7 @@ pub async fn status(#[data] data: AppState) -> WarpResult<StatusResponse> {
 
 async fn status_body(pool: &PgPool) -> HttpResult<StatusOutput> {
     let ses = SesInstance::new(None);
-    let (number_users, number_invitations, (quota, stats)) = try_join!(
+    let (number_users, number_invitations, Statistics { quotas, stats }) = try_join!(
         User::get_number_users(pool),
         Invitation::get_number_invitations(pool),
         ses.get_statistics(),
@@ -525,7 +525,7 @@ async fn status_body(pool: &PgPool) -> HttpResult<StatusOutput> {
     let result = StatusOutput {
         number_of_users: number_users,
         number_of_invitations: number_invitations,
-        quota: quota.into(),
+        quota: quotas.into(),
         stats: stats.into(),
     };
     Ok(result)
