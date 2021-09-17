@@ -9,7 +9,10 @@ use stdout_channel::StdoutChannel;
 use structopt::StructOpt;
 use uuid::Uuid;
 
-use auth_server_ext::{invitation::Invitation, ses_client::SesInstance};
+use auth_server_ext::{
+    invitation::Invitation,
+    ses_client::{SesInstance, Statistics},
+};
 use auth_server_lib::{
     auth_user_config::AuthUserConfig, config::Config, pgpool::PgPool, session::Session, user::User,
 };
@@ -28,7 +31,7 @@ enum AuthServerOptions {
         email: StackString,
     },
     RmInvites {
-        #[structopt(short="u", long, parse(try_from_str=Uuid::parse_str))]
+        #[structopt(short = "u", long)]
         ids: Vec<Uuid>,
     },
     /// Add new user
@@ -46,7 +49,7 @@ enum AuthServerOptions {
     /// Register
     Register {
         #[structopt(short, long)]
-        invitation_id: StackString,
+        invitation_id: Uuid,
         #[structopt(short, long)]
         password: StackString,
     },
@@ -88,7 +91,7 @@ enum AuthServerOptions {
     },
     /// Delete Sessions
     RmSessions {
-        #[structopt(short, long, parse(try_from_str=Uuid::parse_str))]
+        #[structopt(short, long)]
         ids: Vec<Uuid>,
     },
 }
@@ -130,7 +133,7 @@ impl AuthServerOptions {
             }
             AuthServerOptions::RmInvites { ids } => {
                 for id in ids {
-                    if let Some(invitation) = Invitation::get_by_uuid(id, pool).await? {
+                    if let Some(invitation) = Invitation::get_by_uuid(*id, pool).await? {
                         invitation.delete(pool).await?;
                     }
                 }
@@ -156,8 +159,8 @@ impl AuthServerOptions {
                 invitation_id,
                 password,
             } => {
-                let uuid = Uuid::parse_str(invitation_id)?;
-                if let Some(invitation) = Invitation::get_by_uuid(&uuid, pool).await? {
+                let uuid = *invitation_id;
+                if let Some(invitation) = Invitation::get_by_uuid(uuid, pool).await? {
                     if invitation.expires_at > Utc::now() {
                         let user = User::from_details(&invitation.email, password);
                         user.upsert(pool).await?;
@@ -192,7 +195,7 @@ impl AuthServerOptions {
             }
             AuthServerOptions::Status => {
                 let ses = SesInstance::new(None);
-                let (number_users, number_invitations, (quota, stats)) = try_join!(
+                let (number_users, number_invitations, Statistics { quotas, stats }) = try_join!(
                     User::get_number_users(pool),
                     Invitation::get_number_invitations(pool),
                     ses.get_statistics(),
@@ -201,7 +204,7 @@ impl AuthServerOptions {
                     "Users: {}\nInvitations: {}\n",
                     number_users, number_invitations
                 ));
-                stdout.send(format!("{:#?}", quota));
+                stdout.send(format!("{:#?}", quotas));
                 stdout.send(format!("{:#?}", stats,));
             }
             AuthServerOptions::AddToApp { email, app } => {
@@ -236,7 +239,7 @@ impl AuthServerOptions {
             }
             AuthServerOptions::RmSessions { ids } => {
                 for id in ids {
-                    if let Some(session) = Session::get_session(pool, id).await? {
+                    if let Some(session) = Session::get_session(pool, *id).await? {
                         session.delete(pool).await?;
                     }
                 }
@@ -249,7 +252,6 @@ impl AuthServerOptions {
 async fn get_auth_user_app_map(
     config: &Config,
 ) -> Result<HashMap<StackString, BTreeSet<StackString>>, Error> {
-    let mut auth_app_map: HashMap<_, BTreeSet<_>> = HashMap::new();
     if let Ok(auth_user_config) = AuthUserConfig::new(&config.auth_user_config_path) {
         let futures = auth_user_config.into_iter().map(|(key, val)| async move {
             let pool = PgPool::new(val.database_url.as_str());
@@ -258,13 +260,20 @@ async fn get_auth_user_app_map(
                 .map(|users| (key, users))
         });
         let results: Result<Vec<_>, Error> = try_join_all(futures).await;
-        for (key, users) in results? {
-            for user in users {
-                auth_app_map.entry(user).or_default().insert(key.clone());
-            }
-        }
+
+        let auth_app_map: HashMap<_, BTreeSet<_>> =
+            results?
+                .into_iter()
+                .fold(HashMap::new(), |mut h, (key, users)| {
+                    for user in users {
+                        h.entry(user).or_default().insert(key.clone());
+                    }
+                    h
+                });
+        Ok(auth_app_map)
+    } else {
+        Ok(HashMap::default())
     }
-    Ok(auth_app_map)
 }
 
 #[allow(clippy::missing_panics_doc)]
@@ -324,7 +333,7 @@ mod test {
             .nth(1)
             .unwrap()
             .parse()?;
-        let invitation = Invitation::get_by_uuid(&invitation_uuid, &pool)
+        let invitation = Invitation::get_by_uuid(invitation_uuid, &pool)
             .await?
             .unwrap();
 
@@ -356,7 +365,7 @@ mod test {
 
         debug!("start register");
         let opts = AuthServerOptions::Register {
-            invitation_id: invitation.id.to_string().into(),
+            invitation_id: invitation.id,
             password: password.into(),
         };
         opts.process_args(&pool, &stdout).await?;
@@ -513,7 +522,7 @@ mod test {
         };
         opts.process_args(&pool, &stdout).await?;
         stdout.close().await?;
-        assert!(Invitation::get_by_uuid(&invitation_uuid, &pool)
+        assert!(Invitation::get_by_uuid(invitation_uuid, &pool)
             .await?
             .is_none());
 
