@@ -219,6 +219,10 @@ mod tests {
     use reqwest::header::HeaderValue;
     use rweb::openapi;
     use std::{env, sync::Arc};
+    use tokio::{
+        task::spawn,
+        time::{sleep, Duration},
+    };
 
     use auth_server_ext::{google_openid::GoogleClient, invitation::Invitation};
     use auth_server_lib::{
@@ -262,13 +266,13 @@ mod tests {
         let config = Config::init_config()?;
 
         debug!("{} {}", config.port, config.domain);
-        tokio::task::spawn({
+        let test_handle = spawn({
             env_logger::init();
             let config = config.clone();
             async move { run_test_app(config).await.unwrap() }
         });
 
-        tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+        sleep(Duration::from_secs(10)).await;
 
         let client = reqwest::Client::builder().cookie_store(true).build()?;
         let url = format!("http://localhost:{}/api/auth", test_port);
@@ -300,6 +304,9 @@ mod tests {
         assert_eq!(resp.email.as_str(), email.as_str());
 
         std::env::remove_var("TESTENV");
+
+        test_handle.abort();
+
         Ok(())
     }
 
@@ -326,9 +333,9 @@ mod tests {
         SECRET_KEY.set(secret_key);
         JWT_SECRET.set(secret_key);
 
-        tokio::task::spawn(async move { run_app(config).await.unwrap() });
+        let app_handle = spawn(async move { run_app(config).await.unwrap() });
 
-        tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+        sleep(Duration::from_secs(10)).await;
 
         let url = format!(
             "http://localhost:{}/api/register/{}",
@@ -447,7 +454,7 @@ mod tests {
 
         user.delete(&pool).await?;
         assert_eq!(User::get_by_email(&email, &pool).await?, None);
-
+        app_handle.abort();
         Ok(())
     }
 

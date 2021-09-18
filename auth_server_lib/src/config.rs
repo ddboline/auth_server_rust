@@ -1,5 +1,4 @@
 use anyhow::{format_err, Error};
-use bcrypt::DEFAULT_COST;
 use derive_more::Deref;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -22,8 +21,6 @@ pub struct ConfigInner {
     pub domain: StackString,
     #[serde(default = "default_port")]
     pub port: u32,
-    #[serde(default = "default_cost")]
-    pub hash_rounds: u32,
     #[serde(default = "default_expiration_seconds")]
     pub expiration_seconds: i64,
     #[serde(default = "default_key")]
@@ -54,9 +51,6 @@ fn default_callback() -> Url {
     "http://localhost:3000/register.html"
         .parse()
         .expect("Failed to parse")
-}
-fn default_cost() -> u32 {
-    DEFAULT_COST
 }
 fn default_expiration_seconds() -> i64 {
     24 * 3600

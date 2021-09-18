@@ -1,6 +1,5 @@
 use anyhow::Error as AnyhowError;
 use auth_server_ext::google_openid::OpenidError;
-use bcrypt::BcryptError;
 use http::{Error as HTTPError, StatusCode};
 use indexmap::IndexMap;
 use log::error;
@@ -48,8 +47,6 @@ pub enum ServiceError {
     PostgresError(#[from] PostgresError),
     #[error("QueryError {0}")]
     QueryError(#[from] QueryError),
-    #[error("BcryptError {0}")]
-    BcryptError(#[from] BcryptError),
     #[error("UrlParseError {0}")]
     UrlParseError(#[from] UrlParseError),
     #[error("GetSendQuotaError {0}")]

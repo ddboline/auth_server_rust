@@ -3,7 +3,6 @@ use argon2::{
     password_hash::Error as ArgonError, Algorithm, Argon2, Params, PasswordHash, PasswordHasher,
     PasswordVerifier, Version,
 };
-use bcrypt::verify;
 use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
 use postgres_query::{query, FromSqlRow};
@@ -71,14 +70,10 @@ impl User {
     }
 
     pub fn verify_password(&self, password: &str) -> Result<bool, Error> {
-        if self.password.starts_with("$2b$") {
-            verify(password, &self.password).map_err(Into::into)
-        } else {
-            match ARGON.verify_password(&self.password, password) {
-                Ok(()) => Ok(true),
-                Err(ArgonError::Password) => Ok(false),
-                Err(e) => Err(format_err!("{:?}", e)),
-            }
+        match ARGON.verify_password(&self.password, password) {
+            Ok(()) => Ok(true),
+            Err(ArgonError::Password) => Ok(false),
+            Err(e) => Err(format_err!("{:?}", e)),
         }
     }
 
@@ -194,17 +189,6 @@ mod tests {
 
         db_user.delete(&pool).await?;
         assert_eq!(User::get_by_email(&email, &pool).await?, None);
-        Ok(())
-    }
-
-    #[test]
-    fn test_verify_bcrypt() -> Result<(), Error> {
-        let user = User {
-            email: "test@localhost".into(),
-            password: "$2b$12$8KgTFdk2121ByElPYYb8SexQ5e3k5pkjzrYo1iG9NXsdTUx2G4uae".into(),
-            created_at: Utc::now(),
-        };
-        assert!(user.verify_password("password").unwrap());
         Ok(())
     }
 
