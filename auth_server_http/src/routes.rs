@@ -115,18 +115,13 @@ async fn login_user_jwt(
     pool: &PgPool,
     config: &Config,
 ) -> HttpResult<(LoggedUser, String)> {
-    let message = if let Some(user) = auth_data.authenticate(pool).await? {
-        let user: AuthorizedUser = user.into();
-        let mut user: LoggedUser = user.into();
-        user.session = session;
-        match user.get_jwt_cookie(&config.domain, config.expiration_seconds) {
-            Ok(jwt) => return Ok((user, jwt)),
-            Err(e) => format!("Failed to create_token {}", e),
-        }
-    } else {
-        "Username and Password don't match".into()
-    };
-    Err(Error::BadRequest(message))
+    let user = auth_data.authenticate(pool).await?;
+    let user: AuthorizedUser = user.into();
+    let mut user: LoggedUser = user.into();
+    user.session = session;
+    user.get_jwt_cookie(&config.domain, config.expiration_seconds)
+        .map(|jwt| (user, jwt))
+        .map_err(|e| Error::BadRequest(format!("Failed to create_token {}", e)))
 }
 
 #[derive(RwebResponse)]
