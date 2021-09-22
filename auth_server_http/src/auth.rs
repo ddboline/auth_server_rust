@@ -1,6 +1,7 @@
 use anyhow::{format_err, Error};
 use rweb::Schema;
 use serde::Deserialize;
+use tokio::task::spawn_blocking;
 
 use auth_server_lib::{pgpool::PgPool, user::User};
 
@@ -13,11 +14,19 @@ pub struct AuthRequest {
 }
 
 impl AuthRequest {
-    pub async fn authenticate(&self, pool: &PgPool) -> Result<Option<User>, Error> {
+    pub async fn authenticate(&self, pool: &PgPool) -> Result<User, Error> {
+        let password = self.password.clone();
         if let Some(user) = User::get_by_email(&self.email, pool).await? {
-            if user.verify_password(&self.password)? {
-                return Ok(Some(user));
+            if let Ok(Some(user)) = spawn_blocking(move || {
+                user.verify_password(&password)
+                    .map(|v| if v { Some(user) } else { None })
+            })
+            .await?
+            {
+                return Ok(user);
             }
+        } else {
+            spawn_blocking(move || User::fake_verify(&password)).await??;
         }
         Err(format_err!("Invalid username or password"))
     }
