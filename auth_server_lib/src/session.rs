@@ -34,17 +34,6 @@ impl Session {
         }
     }
 
-    pub fn get_session_cookie(
-        &self,
-        domain: &str,
-        expiration_seconds: i64,
-    ) -> Result<String, Error> {
-        Ok(format!(
-            "session={}; HttpOnly; Path=/; Domain={}; Max-Age={}",
-            self.id, domain, expiration_seconds
-        ))
-    }
-
     pub async fn get_session(pool: &PgPool, id: Uuid) -> Result<Option<Self>, Error> {
         let query = query!("SELECT * FROM sessions WHERE id = $id", id = id);
         let conn = pool.get().await?;
@@ -122,6 +111,7 @@ impl Session {
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
+    use std::collections::{HashMap, HashSet};
 
     use crate::{config::Config, pgpool::PgPool, session::Session, user::User, AUTH_APP_MUTEX};
 
@@ -140,11 +130,28 @@ mod tests {
 
         session.insert(&pool).await?;
 
+        let all_sessions = Session::get_all_sessions(&pool).await?;
+        assert!(!all_sessions.is_empty());
+        let all_sessions: HashSet<_> = all_sessions.into_iter().map(|s| s.id).collect();
+        assert!(all_sessions.contains(&session.id));
+
         let new_session = Session::get_session(&pool, session.id).await?;
         assert!(new_session.is_some());
-        let new_session = new_session.unwrap();
+        let mut new_session = new_session.unwrap();
         assert_eq!(new_session.email, session.email);
         assert_eq!(new_session.session_data, session.session_data);
+
+        new_session.session_data = "NEW TEST DATA".into();
+        new_session.upsert(&pool).await?;
+
+        let new_session = Session::get_by_email(&pool, &session.email).await?;
+        assert!(!new_session.is_empty());
+        let session_len = new_session.len();
+        let new_session_map: HashMap<_, _> = new_session.into_iter().map(|s| (s.id, s)).collect();
+        assert_eq!(session_len, new_session_map.len());
+        let new_session = new_session_map.get(&session.id).unwrap();
+        assert_eq!(new_session.id, session.id);
+        assert_eq!(&new_session.session_data, "NEW TEST DATA");
 
         session.delete(&pool).await?;
         user.delete(&pool).await?;
