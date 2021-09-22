@@ -38,7 +38,12 @@ impl TryFrom<TomlEntry> for Entry {
 }
 
 impl Entry {
-    pub async fn get_authorized_users(&self, pool: &PgPool) -> Result<Vec<StackString>, Error> {
+    pub fn get_pool(&self) -> PgPool {
+        PgPool::new(&self.database_url.as_str())
+    }
+
+    pub async fn get_authorized_users(&self) -> Result<Vec<StackString>, Error> {
+        let pool = self.get_pool();
         let query = format!(
             "SELECT {email_field} FROM {table}",
             table = self.table,
@@ -51,7 +56,8 @@ impl Entry {
         Ok(emails)
     }
 
-    pub async fn add_user(&self, pool: &PgPool, email: &str) -> Result<(), Error> {
+    pub async fn add_user(&self, email: &str) -> Result<(), Error> {
+        let pool = self.get_pool();
         let query = format!(
             "INSERT INTO {table} ({email_field}) VALUES ($email)",
             table = self.table,
@@ -63,7 +69,8 @@ impl Entry {
         Ok(())
     }
 
-    pub async fn remove_user(&self, pool: &PgPool, email: &str) -> Result<(), Error> {
+    pub async fn remove_user(&self, email: &str) -> Result<(), Error> {
+        let pool = self.get_pool();
         let query = format!(
             "DELETE FROM {table} WHERE {email_field} = $email",
             table = self.table,
