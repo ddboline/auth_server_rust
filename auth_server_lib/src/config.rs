@@ -1,4 +1,4 @@
-use anyhow::{format_err, Error};
+use anyhow::{format_err, Context, Error};
 use derive_more::Deref;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -96,7 +96,7 @@ impl Config {
             dotenv::from_path(env_file).ok();
         }
 
-        let conf: ConfigInner = envy::from_env()?;
+        let conf: ConfigInner = envy::from_env().context("Envy parsing failed")?;
 
         Ok(Self::from_inner(conf))
     }
