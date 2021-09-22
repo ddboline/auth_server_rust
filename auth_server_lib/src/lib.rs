@@ -30,11 +30,3 @@ pub fn get_random_string(n: usize) -> String {
     let mut rng = thread_rng();
     Alphanumeric.sample_string(&mut rng, n)
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
