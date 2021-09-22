@@ -1,4 +1,4 @@
-use anyhow::Error;
+use anyhow::{Context, Error};
 use derive_more::{Deref, IntoIterator};
 use stack_string::StackString;
 use std::{
@@ -18,8 +18,9 @@ pub struct AuthUserConfig(HashMap<StackString, Entry>);
 
 impl AuthUserConfig {
     pub fn new(p: &Path) -> Result<Self, Error> {
-        let data = fs::read_to_string(p)?;
-        let config: ConfigToml = toml::from_str(&data)?;
+        let data = fs::read_to_string(p).with_context(|| format!("Failed to open {:?}", p))?;
+        let config: ConfigToml =
+            toml::from_str(&data).with_context(|| format!("Failed to parse toml in {:?}", p))?;
         config.try_into()
     }
 }
@@ -27,7 +28,8 @@ impl AuthUserConfig {
 impl FromStr for AuthUserConfig {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let config: ConfigToml = toml::from_str(s)?;
+        let config: ConfigToml =
+            toml::from_str(s).with_context(|| format!("Failed to parse toml {}", s))?;
         config.try_into()
     }
 }
