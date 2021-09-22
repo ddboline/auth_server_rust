@@ -16,6 +16,9 @@ use crate::{get_random_string, pgpool::PgPool};
 
 lazy_static! {
     static ref ARGON: Argon = Argon::new().expect("Failed to init Argon");
+    static ref FAKE_PASSWORD: String = ARGON
+        .hash_password("password")
+        .expect("Failed to generate password");
 }
 
 struct Argon(Argon2<'static>);
@@ -74,6 +77,19 @@ impl User {
             Ok(()) => Ok(true),
             Err(ArgonError::Password) => Ok(false),
             Err(e) => Err(format_err!("{:?}", e)),
+        }
+    }
+
+    pub fn fake_verify(password: &str) -> Result<(), Error> {
+        let password = if password == "password" {
+            "fake password"
+        } else {
+            password
+        };
+        match ARGON.verify_password(&FAKE_PASSWORD, password) {
+            Err(ArgonError::Password) => Ok(()),
+            Err(e) => Err(format_err!("{:?}", e)),
+            Ok(()) => panic!("fake verify should never return true"),
         }
     }
 
