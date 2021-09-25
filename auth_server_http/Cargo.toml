@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_http"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -19,7 +19,7 @@ chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "0.8", features = ["serde", "v4"] }
 tokio = {version="1.6", features=["full"]}
 thiserror = "1.0"
-dirs = "3.0"
+dirs = "4.0"
 dotenv = "0.15"
 derive_more = "0.99"
 rusoto_core = {version = "0.47", default_features = false, features=["rustls"]}
@@ -48,13 +48,13 @@ arc-swap = "1.2"
 im = "15.0"
 toml = "0.5"
 itertools = "0.10"
-rweb = {version="0.13", features=["openapi", "chrono", "uuid"]}
+rweb = {version="0.14", features=["openapi", "chrono", "uuid"]}
 serde_yaml = "0.8"
 indexmap = "1.6"
 maplit = "1.0"
 stack-string = { version="0.3", features=["postgres_types", "rweb-openapi"] }
 stdout-channel = "0.4"
-rweb_helper = {git = "https://github.com/ddboline/rweb_helper.git", tag="0.3.1.1"}
+rweb_helper = {git = "https://github.com/ddboline/rweb_helper.git", tag="0.3.3"}
 
 [dev-dependencies]
 reqwest = {version = "0.11", default_features = false, features=["cookies", "rustls-tls", "gzip", "json"]}
