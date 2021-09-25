@@ -33,7 +33,7 @@ postgres_query = {git = "https://github.com/ddboline/rust-postgres-query", tag =
 bytes = "1.0"
 envy = "0.4"
 base64 = "0.13"
-openid = "0.9"
+openid = {version="0.9", default-features=false}
 rand = "0.8"
 url = "2.2"
 futures = "0.3"
