@@ -105,7 +105,7 @@ pub async fn login(
     data.session_cache.store(Arc::new(session_map_cache));
 
     let (user, jwt) = login_user_jwt(auth_data, session.id, &data.pool, &data.config).await?;
-    let resp = JsonBase::new(user).with_cookie(jwt);
+    let resp = JsonBase::new(user).with_cookie(&jwt);
     Ok(resp.into())
 }
 
@@ -151,7 +151,7 @@ pub async fn logout(
         data.config.domain, data.config.expiration_seconds
     );
     let body = format!("{} has been logged out", logged_user.email);
-    let resp = JsonBase::new(body).with_cookie(cookie);
+    let resp = JsonBase::new(body).with_cookie(&cookie);
     Ok(resp.into())
 }
 
@@ -538,7 +538,7 @@ pub async fn test_login(
     let auth_data = auth_data.into_inner();
     let session = Session::new(auth_data.email.as_str());
     let (user, jwt) = test_login_user_jwt(auth_data, session.id, &data.config).await?;
-    let resp = JsonBase::new(user).with_cookie(jwt);
+    let resp = JsonBase::new(user).with_cookie(&jwt);
     Ok(resp.into())
 }
 
