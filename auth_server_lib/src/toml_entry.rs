@@ -39,7 +39,7 @@ impl TryFrom<TomlEntry> for Entry {
 
 impl Entry {
     pub fn get_pool(&self) -> PgPool {
-        PgPool::new(&self.database_url.as_str())
+        PgPool::new(self.database_url.as_str())
     }
 
     pub async fn get_authorized_users(&self) -> Result<Vec<StackString>, Error> {

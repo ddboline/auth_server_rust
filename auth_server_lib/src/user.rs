@@ -19,6 +19,9 @@ lazy_static! {
     static ref FAKE_PASSWORD: String = ARGON
         .hash_password("password")
         .expect("Failed to generate password");
+    static ref ALTERNATE_FAKE: String = ARGON
+        .hash_password("fake password")
+        .expect("Failed to generate password");
 }
 
 struct Argon(Argon2<'static>);
@@ -81,15 +84,15 @@ impl User {
     }
 
     pub fn fake_verify(password: &str) -> Result<(), Error> {
-        let password = if password == "password" {
-            "fake password"
+        let password = if password == FAKE_PASSWORD.as_str() {
+            ALTERNATE_FAKE.as_str()
         } else {
             password
         };
         match ARGON.verify_password(&FAKE_PASSWORD, password) {
             Err(ArgonError::Password) => Ok(()),
             Err(e) => Err(format_err!("{:?}", e)),
-            Ok(()) => panic!("fake verify should never return true"),
+            Ok(()) => Err(format_err!("fake verify should never return true")),
         }
     }
 
