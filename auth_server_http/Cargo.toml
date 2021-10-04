@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_http"
-version = "0.7.2"
+version = "0.7.3"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -52,6 +52,7 @@ rweb = {version="0.14", features=["openapi", "chrono", "uuid"]}
 serde_yaml = "0.8"
 indexmap = "1.6"
 maplit = "1.0"
+cookie = {version="0.16.0-rc.1", features=["percent-encode"]}
 stack-string = { version="0.3", features=["postgres_types", "rweb-openapi"] }
 stdout-channel = "0.4"
 rweb_helper = {git = "https://github.com/ddboline/rweb_helper.git", tag="0.3.4"}

@@ -182,6 +182,12 @@ impl AuthServerOptions {
                 }
             }
             AuthServerOptions::Rm { email } => {
+                for session in Session::get_by_email(pool, email)
+                    .await
+                    .with_context(|| format!("failed to get sionssions by email {}", email))?
+                {
+                    session.delete(pool).await?;
+                }
                 if let Some(user) = User::get_by_email(email, pool)
                     .await
                     .with_context(|| format!("failed to get_by_email {}", email))?

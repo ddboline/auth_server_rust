@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use cookie::Cookie;
 use futures::try_join;
 use log::{debug, error};
 use rweb::{delete, get, post, Json, Query, Rejection, Schema};
@@ -22,7 +23,10 @@ use rweb_helper::{
 };
 
 use crate::{
-    app::AppState, auth::AuthRequest, errors::ServiceError as Error, logged_user::LoggedUser,
+    app::AppState,
+    auth::AuthRequest,
+    errors::ServiceError as Error,
+    logged_user::{LoggedUser, UserCookies},
     EmailStatsWrapper, SesQuotasWrapper,
 };
 
@@ -104,8 +108,11 @@ pub async fn login(
     session_map_cache.insert(session.id, Value::Object(Map::new()));
     data.session_cache.store(Arc::new(session_map_cache));
 
-    let (user, jwt) = login_user_jwt(auth_data, session.id, &data.pool, &data.config).await?;
-    let resp = JsonBase::new(user).with_cookie(&jwt);
+    let (user, UserCookies { session_id, jwt }) =
+        login_user_jwt(auth_data, session.id, &data.pool, &data.config).await?;
+    let resp = JsonBase::new(user)
+        .with_cookie(&session_id.encoded().to_string())
+        .with_cookie(&jwt.encoded().to_string());
     Ok(resp.into())
 }
 
@@ -114,14 +121,15 @@ async fn login_user_jwt(
     session: Uuid,
     pool: &PgPool,
     config: &Config,
-) -> HttpResult<(LoggedUser, String)> {
+) -> HttpResult<(LoggedUser, UserCookies<'static>)> {
     let user = auth_data.authenticate(pool).await?;
     let user: AuthorizedUser = user.into();
     let mut user: LoggedUser = user.into();
     user.session = session;
-    user.get_jwt_cookie(&config.domain, config.expiration_seconds)
-        .map(|jwt| (user, jwt))
-        .map_err(|e| Error::BadRequest(format!("Failed to create_token {}", e)))
+    let cookies = user
+        .get_jwt_cookie(&config.domain, config.expiration_seconds, config.secure)
+        .map_err(|e| Error::BadRequest(format!("Failed to create_token {}", e)))?;
+    Ok((user, cookies))
 }
 
 #[derive(RwebResponse)]
@@ -131,9 +139,11 @@ struct ApiAuthDeleteResponse(JsonBase<String, Error>);
 #[delete("/api/auth")]
 #[openapi(description = "Log out")]
 pub async fn logout(
+    #[cookie = "session-id"] session_id: Uuid,
     #[cookie = "jwt"] logged_user: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<ApiAuthDeleteResponse> {
+    logged_user.verify_session_id(session_id)?;
     if let Some(session_obj) = Session::get_session(&data.pool, logged_user.session)
         .await
         .map_err(Into::<Error>::into)?
@@ -146,12 +156,17 @@ pub async fn logout(
     let mut session_map_cache = (*data.session_cache.load().clone()).clone();
     session_map_cache.remove(&logged_user.session);
     data.session_cache.store(Arc::new(session_map_cache));
-    let cookie = format!(
-        "jwt=; HttpOnly; Path=/; Domain={}; Max-Age={}",
-        data.config.domain, data.config.expiration_seconds
-    );
+    let cookie = Cookie::build("jwt", "".to_string())
+        .http_only(true)
+        .secure(data.config.secure)
+        .path("/")
+        .domain(data.config.domain.to_string())
+        .max_age(cookie::time::Duration::seconds(
+            data.config.expiration_seconds,
+        ))
+        .finish();
     let body = format!("{} has been logged out", logged_user.email);
-    let resp = JsonBase::new(body).with_cookie(&cookie);
+    let resp = JsonBase::new(body).with_cookie(&cookie.encoded().to_string());
     Ok(resp.into())
 }
 
@@ -331,10 +346,12 @@ struct ApiPasswordChangeResponse(JsonBase<PasswordChangeOutput, Error>);
 #[post("/api/password_change")]
 #[openapi(description = "Change password for currently logged in user")]
 pub async fn change_password_user(
+    #[cookie = "session-id"] session_id: Uuid,
     #[cookie = "jwt"] logged_user: LoggedUser,
     #[data] data: AppState,
     user_data: Json<UserData>,
 ) -> WarpResult<ApiPasswordChangeResponse> {
+    logged_user.verify_session_id(session_id)?;
     let message = change_password_user_body(logged_user, user_data.into_inner(), &data.pool)
         .await?
         .into();
@@ -450,7 +467,7 @@ pub async fn callback(
     #[data] data: AppState,
     query: Query<CallbackQuery>,
 ) -> WarpResult<ApiCallbackResponse> {
-    let jwt = callback_body(
+    let UserCookies { session_id, jwt } = callback_body(
         query.into_inner(),
         &data.pool,
         &data.google_client,
@@ -462,7 +479,10 @@ pub async fn callback(
         This window can be closed.
         <script language="JavaScript" type="text/javascript">window.close()</script>
     "#;
-    Ok(HtmlBase::new(body).with_cookie(&jwt).into())
+    Ok(HtmlBase::new(body)
+        .with_cookie(&session_id.encoded().to_string())
+        .with_cookie(&jwt.encoded().to_string())
+        .into())
 }
 
 async fn callback_body(
@@ -470,7 +490,7 @@ async fn callback_body(
     pool: &PgPool,
     google_client: &GoogleClient,
     config: &Config,
-) -> HttpResult<String> {
+) -> HttpResult<UserCookies<'static>> {
     if let Some(user) = google_client
         .run_callback(&query.code, &query.state, pool)
         .await?
@@ -482,8 +502,9 @@ async fn callback_body(
 
         user.session = session.id;
 
-        let jwt = user.get_jwt_cookie(&config.domain, config.expiration_seconds)?;
-        Ok(jwt)
+        let cookies =
+            user.get_jwt_cookie(&config.domain, config.expiration_seconds, config.secure)?;
+        Ok(cookies)
     } else {
         Err(Error::BadRequest("Callback Failed".into()))
     }
@@ -537,8 +558,11 @@ pub async fn test_login(
 ) -> WarpResult<TestLoginResponse> {
     let auth_data = auth_data.into_inner();
     let session = Session::new(auth_data.email.as_str());
-    let (user, jwt) = test_login_user_jwt(auth_data, session.id, &data.config).await?;
-    let resp = JsonBase::new(user).with_cookie(&jwt);
+    let (user, UserCookies { session_id, jwt }) =
+        test_login_user_jwt(auth_data, session.id, &data.config).await?;
+    let resp = JsonBase::new(user)
+        .with_cookie(&session_id.encoded().to_string())
+        .with_cookie(&jwt.encoded().to_string());
     Ok(resp.into())
 }
 
@@ -546,7 +570,7 @@ async fn test_login_user_jwt(
     auth_data: AuthRequest,
     session: Uuid,
     config: &Config,
-) -> HttpResult<(LoggedUser, String)> {
+) -> HttpResult<(LoggedUser, UserCookies<'static>)> {
     if let Ok(s) = std::env::var("TESTENV") {
         if &s == "true" {
             let user = AuthorizedUser {
@@ -556,8 +580,8 @@ async fn test_login_user_jwt(
             AUTHORIZED_USERS.merge_users(&[user.email.clone()])?;
             let mut user: LoggedUser = user.into();
             user.session = session;
-            let jwt = user.get_jwt_cookie(&config.domain, config.expiration_seconds)?;
-            return Ok((user, jwt));
+            let cookies = user.get_jwt_cookie(&config.domain, config.expiration_seconds, false)?;
+            return Ok((user, cookies));
         }
     }
     Err(Error::BadRequest(

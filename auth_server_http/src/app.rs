@@ -321,6 +321,7 @@ mod tests {
 
         env::set_var("PORT", test_port.to_string());
         env::set_var("DOMAIN", "localhost");
+        env::set_var("SECURE", "false");
 
         let config = Config::init_config()?;
 
