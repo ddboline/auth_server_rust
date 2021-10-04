@@ -33,8 +33,13 @@ pub struct ConfigInner {
     pub jwt_secret_path: PathBuf,
     #[serde(default = "default_auth_user_config_path")]
     pub auth_user_config_path: PathBuf,
+    #[serde(default = "default_secure")]
+    pub secure: bool,
 }
 
+fn default_secure() -> bool {
+    true
+}
 fn default_database_url() -> StackString {
     "postgresql://user:password@host:1234/test_db".into()
 }
