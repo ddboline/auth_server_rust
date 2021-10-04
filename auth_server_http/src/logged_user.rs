@@ -1,3 +1,4 @@
+use cookie::{time::Duration, Cookie};
 use log::debug;
 use rweb::Schema;
 use serde::{Deserialize, Serialize};
@@ -20,14 +21,44 @@ pub struct LoggedUser {
     pub session: Uuid,
 }
 
+pub struct UserCookies<'a> {
+    pub session_id: Cookie<'a>,
+    pub jwt: Cookie<'a>,
+}
+
 impl LoggedUser {
-    pub fn get_jwt_cookie(&self, domain: &str, expiration_seconds: i64) -> Result<String, Error> {
+    pub fn get_jwt_cookie(
+        &self,
+        domain: &str,
+        expiration_seconds: i64,
+        secure: bool,
+    ) -> Result<UserCookies<'static>, Error> {
         let session = self.session;
+        let session_id = Cookie::build("session-id", session.to_string())
+            .path("/")
+            .http_only(true)
+            .domain(domain.to_string())
+            .max_age(Duration::seconds(expiration_seconds))
+            .secure(secure)
+            .finish();
+
         let token = Token::create_token(&self.email, domain, expiration_seconds, session)?;
-        Ok(format!(
-            "jwt={}; HttpOnly; Path=/; Domain={}; Max-Age={}",
-            token, domain, expiration_seconds
-        ))
+        let jwt = Cookie::build("jwt", token.to_string())
+            .path("/")
+            .http_only(true)
+            .domain(domain.to_string())
+            .max_age(Duration::seconds(expiration_seconds))
+            .secure(secure)
+            .finish();
+        Ok(UserCookies { session_id, jwt })
+    }
+
+    pub fn verify_session_id(&self, session_id: Uuid) -> Result<(), Error> {
+        if self.session == session_id {
+            Ok(())
+        } else {
+            Err(Error::Unauthorized)
+        }
     }
 }
 
