@@ -139,12 +139,10 @@ struct ApiAuthDeleteResponse(JsonBase<String, Error>);
 #[delete("/api/auth")]
 #[openapi(description = "Log out")]
 pub async fn logout(
-    #[cookie = "session-id"] session_id: Uuid,
-    #[cookie = "jwt"] logged_user: LoggedUser,
+    #[filter = "LoggedUser::filter"] user: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<ApiAuthDeleteResponse> {
-    logged_user.verify_session_id(session_id)?;
-    if let Some(session_obj) = Session::get_session(&data.pool, logged_user.session)
+    if let Some(session_obj) = Session::get_session(&data.pool, user.session)
         .await
         .map_err(Into::<Error>::into)?
     {
@@ -154,7 +152,7 @@ pub async fn logout(
             .map_err(Into::<Error>::into)?;
     }
     let mut session_map_cache = (*data.session_cache.load().clone()).clone();
-    session_map_cache.remove(&logged_user.session);
+    session_map_cache.remove(&user.session);
     data.session_cache.store(Arc::new(session_map_cache));
     let cookie = Cookie::build("jwt", "".to_string())
         .http_only(true)
@@ -165,7 +163,7 @@ pub async fn logout(
             data.config.expiration_seconds,
         ))
         .finish();
-    let body = format!("{} has been logged out", logged_user.email);
+    let body = format!("{} has been logged out", user.email);
     let resp = JsonBase::new(body).with_cookie(&cookie.encoded().to_string());
     Ok(resp.into())
 }
@@ -176,8 +174,10 @@ struct ApiAuthGetResponse(JsonBase<LoggedUser, Error>);
 
 #[get("/api/auth")]
 #[openapi(description = "Get current username if logged in")]
-pub async fn get_me(#[cookie = "jwt"] logged_user: LoggedUser) -> WarpResult<ApiAuthGetResponse> {
-    Ok(JsonBase::new(logged_user).into())
+pub async fn get_me(
+    #[filter = "LoggedUser::filter"] user: LoggedUser,
+) -> WarpResult<ApiAuthGetResponse> {
+    Ok(JsonBase::new(user).into())
 }
 
 #[derive(RwebResponse)]
@@ -346,13 +346,11 @@ struct ApiPasswordChangeResponse(JsonBase<PasswordChangeOutput, Error>);
 #[post("/api/password_change")]
 #[openapi(description = "Change password for currently logged in user")]
 pub async fn change_password_user(
-    #[cookie = "session-id"] session_id: Uuid,
-    #[cookie = "jwt"] logged_user: LoggedUser,
+    #[filter = "LoggedUser::filter"] user: LoggedUser,
     #[data] data: AppState,
     user_data: Json<UserData>,
 ) -> WarpResult<ApiPasswordChangeResponse> {
-    logged_user.verify_session_id(session_id)?;
-    let message = change_password_user_body(logged_user, user_data.into_inner(), &data.pool)
+    let message = change_password_user_body(user, user_data.into_inner(), &data.pool)
         .await?
         .into();
     let resp = JsonBase::new(PasswordChangeOutput { message });
