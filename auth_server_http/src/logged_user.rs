@@ -1,6 +1,6 @@
 use cookie::{time::Duration, Cookie};
 use log::debug;
-use rweb::Schema;
+use rweb::{filters::cookie::cookie, Filter, Rejection, Schema};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::{
@@ -59,6 +59,16 @@ impl LoggedUser {
         } else {
             Err(Error::Unauthorized)
         }
+    }
+
+    pub fn filter() -> impl Filter<Extract = (Self,), Error = Rejection> + Copy {
+        cookie("session-id")
+            .and(cookie("jwt"))
+            .and_then(|id: Uuid, user: Self| async move {
+                user.verify_session_id(id)
+                    .map(|_| user)
+                    .map_err(rweb::reject::custom)
+            })
     }
 }
 
