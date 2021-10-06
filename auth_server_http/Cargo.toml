@@ -48,7 +48,7 @@ arc-swap = "1.2"
 im = "15.0"
 toml = "0.5"
 itertools = "0.10"
-rweb = {version="0.14", features=["openapi", "chrono", "uuid"]}
+rweb = {version="0.14", features=["openapi", "chrono", "uuid"], default-features=false}
 serde_yaml = "0.8"
 indexmap = "1.6"
 maplit = "1.0"
