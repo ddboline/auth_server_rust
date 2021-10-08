@@ -514,6 +514,7 @@ async fn callback_body(
         session.insert(pool).await?;
 
         user.session = session.id;
+        user.secret_key = session.secret_key;
 
         let cookies =
             user.get_jwt_cookie(&config.domain, config.expiration_seconds, config.secure)?;
