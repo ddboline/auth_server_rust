@@ -105,11 +105,11 @@ pub async fn login(
         .map_err(Into::<Error>::into)?;
 
     let mut session_map_cache = (*data.session_cache.load().clone()).clone();
-    session_map_cache.insert(session.id, Value::Object(Map::new()));
+    session_map_cache.insert(session.id, (session.secret_key.clone(), Value::Object(Map::new())));
     data.session_cache.store(Arc::new(session_map_cache));
 
     let (user, UserCookies { session_id, jwt }) =
-        login_user_jwt(auth_data, session.id, &data.pool, &data.config).await?;
+        login_user_jwt(auth_data, session, &data.pool, &data.config).await?;
     let resp = JsonBase::new(user)
         .with_cookie(&session_id.encoded().to_string())
         .with_cookie(&jwt.encoded().to_string());
@@ -118,14 +118,15 @@ pub async fn login(
 
 async fn login_user_jwt(
     auth_data: AuthRequest,
-    session: Uuid,
+    session: Session,
     pool: &PgPool,
     config: &Config,
 ) -> HttpResult<(LoggedUser, UserCookies<'static>)> {
     let user = auth_data.authenticate(pool).await?;
     let user: AuthorizedUser = user.into();
     let mut user: LoggedUser = user.into();
-    user.session = session;
+    user.session = session.id;
+    user.secret_key = session.secret_key;
     let cookies = user
         .get_jwt_cookie(&config.domain, config.expiration_seconds, config.secure)
         .map_err(|e| Error::BadRequest(format!("Failed to create_token {}", e)))?;
@@ -188,9 +189,13 @@ struct GetSessionResponse(JsonBase<Value, Error>);
 #[openapi(description = "Get Session")]
 pub async fn get_session(
     #[header = "session"] session: Uuid,
+    #[header = "secret-key"] secret_key: StackString,
     #[data] data: AppState,
 ) -> WarpResult<GetSessionResponse> {
-    if let Some(value) = data.session_cache.load().get(&session) {
+    if let Some((secret, value)) = data.session_cache.load().get(&session) {
+        if secret != &secret_key {
+            return Err(Error::BadRequest("Bad Secret".into()).into());
+        }
         debug!("got cache");
         return Ok(JsonBase::new(value.clone()).into());
     }
@@ -198,8 +203,11 @@ pub async fn get_session(
         .await
         .map_err(Into::<Error>::into)?
     {
+        if session_obj.secret_key != secret_key {
+            return Err(Error::BadRequest("Bad Secret".into()).into());
+        }
         let mut session_map_cache = (*data.session_cache.load().clone()).clone();
-        session_map_cache.insert(session, session_obj.session_data.clone());
+        session_map_cache.insert(session, (secret_key, session_obj.session_data.clone()));
         data.session_cache.store(Arc::new(session_map_cache));
         return Ok(JsonBase::new(session_obj.session_data).into());
     }
@@ -214,6 +222,7 @@ struct PostSessionResponse(JsonBase<Value, Error>);
 #[openapi(description = "Set session value")]
 pub async fn post_session(
     #[header = "session"] session: Uuid,
+    #[header = "secret-key"] secret_key: StackString,
     #[data] data: AppState,
     payload: Json<Value>,
 ) -> WarpResult<PostSessionResponse> {
@@ -224,6 +233,9 @@ pub async fn post_session(
         .await
         .map_err(Into::<Error>::into)?
     {
+        if session_obj.secret_key != secret_key {
+            return Err(Error::BadRequest("Bad Secret".into()).into());
+        }
         debug!("session_obj {:?}", session_obj.session_data);
         session_obj.session_data = payload.clone();
         session_obj
@@ -231,7 +243,7 @@ pub async fn post_session(
             .await
             .map_err(Into::<Error>::into)?;
         let mut session_map_cache = (*data.session_cache.load().clone()).clone();
-        *session_map_cache.entry(session).or_default() = session_obj.session_data;
+        *session_map_cache.entry(session).or_default() = (secret_key, session_obj.session_data);
         data.session_cache.store(Arc::new(session_map_cache));
     }
     Ok(JsonBase::new(payload).into())
@@ -557,7 +569,7 @@ pub async fn test_login(
     let auth_data = auth_data.into_inner();
     let session = Session::new(auth_data.email.as_str());
     let (user, UserCookies { session_id, jwt }) =
-        test_login_user_jwt(auth_data, session.id, &data.config).await?;
+        test_login_user_jwt(auth_data, session, &data.config).await?;
     let resp = JsonBase::new(user)
         .with_cookie(&session_id.encoded().to_string())
         .with_cookie(&jwt.encoded().to_string());
@@ -566,18 +578,19 @@ pub async fn test_login(
 
 async fn test_login_user_jwt(
     auth_data: AuthRequest,
-    session: Uuid,
+    session: Session,
     config: &Config,
 ) -> HttpResult<(LoggedUser, UserCookies<'static>)> {
     if let Ok(s) = std::env::var("TESTENV") {
         if &s == "true" {
             let user = AuthorizedUser {
                 email: auth_data.email.into(),
-                session,
+                session: session.id,
+                secret_key: session.secret_key.clone(),
             };
             AUTHORIZED_USERS.merge_users(&[user.email.clone()])?;
             let mut user: LoggedUser = user.into();
-            user.session = session;
+            user.session = session.id;
             let cookies = user.get_jwt_cookie(&config.domain, config.expiration_seconds, false)?;
             return Ok((user, cookies));
         }
