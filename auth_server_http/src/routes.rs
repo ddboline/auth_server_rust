@@ -105,7 +105,10 @@ pub async fn login(
         .map_err(Into::<Error>::into)?;
 
     let mut session_map_cache = (*data.session_cache.load().clone()).clone();
-    session_map_cache.insert(session.id, (session.secret_key.clone(), Value::Object(Map::new())));
+    session_map_cache.insert(
+        session.id,
+        (session.secret_key.clone(), Value::Object(Map::new())),
+    );
     data.session_cache.store(Arc::new(session_map_cache));
 
     let (user, UserCookies { session_id, jwt }) =

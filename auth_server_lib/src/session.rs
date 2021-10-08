@@ -6,8 +6,7 @@ use serde_json::Value;
 use stack_string::StackString;
 use uuid::Uuid;
 
-use crate::pgpool::PgPool;
-use crate::get_random_string;
+use crate::{get_random_string, pgpool::PgPool};
 
 #[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug)]
 pub struct Session {

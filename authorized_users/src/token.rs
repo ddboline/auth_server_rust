@@ -1,16 +1,21 @@
-use anyhow::{Error, format_err};
+use anyhow::{format_err, Error};
 use biscuit::{
     jwa::{
         ContentEncryptionAlgorithm, EncryptionOptions, KeyManagementAlgorithm, SignatureAlgorithm,
     },
-    jwe, jws::{self, Compact}, ClaimsSet, Empty, JWE, JWT,
+    jwe,
+    jws::{self, Compact},
+    ClaimsSet, Empty, JWE, JWT,
 };
 use derive_more::{Display, From, Into};
 use log::debug;
-use uuid::Uuid;
 use std::convert::TryInto;
+use uuid::Uuid;
 
-use crate::{claim::{Claim, PrivateClaim}, get_random_nonce, JWT_SECRET, SECRET_KEY};
+use crate::{
+    claim::{Claim, PrivateClaim},
+    get_random_nonce, JWT_SECRET, SECRET_KEY,
+};
 
 const SG_ALGORITHM: SignatureAlgorithm = SignatureAlgorithm::HS256;
 const KM_ALGORITHM: KeyManagementAlgorithm = KeyManagementAlgorithm::A256GCMKW;
@@ -70,7 +75,7 @@ impl Token {
         let decrypted_jws = decrypted_jwe.payload()?.clone();
 
         let token = decrypted_jws.into_decoded(&JWT_SECRET.get_jws_secret(), SG_ALGORITHM)?;
-        if let Compact::Decoded { payload, ..} = token {
+        if let Compact::Decoded { payload, .. } = token {
             payload.try_into()
         } else {
             Err(format_err!("Failed to decode"))
@@ -81,9 +86,9 @@ impl Token {
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
+    use base64::{encode_config, URL_SAFE_NO_PAD};
     use log::debug;
     use uuid::Uuid;
-    use base64::{encode_config, URL_SAFE_NO_PAD};
 
     use crate::{get_random_key, token::Token, AuthorizedUser, JWT_SECRET, KEY_LENGTH, SECRET_KEY};
 

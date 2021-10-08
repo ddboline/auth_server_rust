@@ -44,7 +44,13 @@ impl LoggedUser {
             .secure(secure)
             .finish();
 
-        let token = Token::create_token(&self.email, domain, expiration_seconds, session, &self.secret_key)?;
+        let token = Token::create_token(
+            &self.email,
+            domain,
+            expiration_seconds,
+            session,
+            &self.secret_key,
+        )?;
         let jwt = Cookie::build("jwt", token.to_string())
             .path("/")
             .http_only(true)
