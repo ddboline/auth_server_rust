@@ -7,6 +7,7 @@ use stack_string::StackString;
 use uuid::Uuid;
 
 use crate::pgpool::PgPool;
+use crate::get_random_string;
 
 #[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug)]
 pub struct Session {
@@ -15,6 +16,7 @@ pub struct Session {
     pub created_at: DateTime<Utc>,
     pub last_accessed: DateTime<Utc>,
     pub session_data: Value,
+    pub secret_key: StackString,
 }
 
 impl Default for Session {
@@ -31,6 +33,7 @@ impl Session {
             created_at: Utc::now(),
             last_accessed: Utc::now(),
             session_data: Value::Null,
+            secret_key: get_random_string(16).into(),
         }
     }
 
@@ -55,11 +58,12 @@ impl Session {
     pub async fn insert(&self, pool: &PgPool) -> Result<(), Error> {
         let query = query!(
             "
-            INSERT INTO sessions (id, email, session_data)
-            VALUES ($id, $email, $session_data)",
+            INSERT INTO sessions (id, email, session_data, secret_key)
+            VALUES ($id, $email, $session_data, $secret_key)",
             id = self.id,
             email = self.email,
-            session_data = self.session_data
+            session_data = self.session_data,
+            secret_key = self.secret_key,
         );
         let conn = pool.get().await?;
         query.execute(&conn).await?;
