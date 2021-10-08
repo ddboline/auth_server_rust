@@ -38,7 +38,7 @@ pub struct AppState {
     pub config: Config,
     pub pool: PgPool,
     pub google_client: GoogleClient,
-    pub session_cache: Arc<ArcSwap<HashMap<Uuid, Value>>>,
+    pub session_cache: Arc<ArcSwap<HashMap<Uuid, (StackString, Value)>>>,
 }
 
 pub async fn start_app() -> Result<(), Error> {
@@ -416,10 +416,12 @@ mod tests {
         };
         debug!("POST session");
         let value = HeaderValue::from_str(&resp.session.to_string())?;
+        let secret = HeaderValue::from_str(&resp.secret_key)?;
         let resp = client
             .post(&url)
             .json(&data)
             .header("session", value.clone())
+            .header("secret-key", secret.clone())
             .send()
             .await?
             .error_for_status()?;
@@ -428,6 +430,7 @@ mod tests {
         let resp: std::collections::HashMap<String, String> = client
             .get(&url)
             .header("session", value)
+            .header("secret-key", secret)
             .send()
             .await?
             .error_for_status()?
