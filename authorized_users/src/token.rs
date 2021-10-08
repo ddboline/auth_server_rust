@@ -1,15 +1,16 @@
-use anyhow::Error;
+use anyhow::{Error, format_err};
 use biscuit::{
     jwa::{
         ContentEncryptionAlgorithm, EncryptionOptions, KeyManagementAlgorithm, SignatureAlgorithm,
     },
-    jwe, jws, ClaimsSet, Empty, JWE, JWT,
+    jwe, jws::{self, Compact}, ClaimsSet, Empty, JWE, JWT,
 };
 use derive_more::{Display, From, Into};
 use log::debug;
 use uuid::Uuid;
+use std::convert::TryInto;
 
-use crate::{claim::Claim, get_random_nonce, JWT_SECRET, SECRET_KEY};
+use crate::{claim::{Claim, PrivateClaim}, get_random_nonce, JWT_SECRET, SECRET_KEY};
 
 const SG_ALGORITHM: SignatureAlgorithm = SignatureAlgorithm::HS256;
 const KM_ALGORITHM: KeyManagementAlgorithm = KeyManagementAlgorithm::A256GCMKW;
@@ -25,11 +26,12 @@ impl Token {
         domain: &str,
         expiration_seconds: i64,
         session: Uuid,
+        secret_key: &str,
     ) -> Result<Self, Error> {
-        let claims = Claim::with_email(email, domain, expiration_seconds, session);
+        let claims = Claim::with_email(email, domain, expiration_seconds, session, secret_key);
         let claimset = ClaimsSet {
             registered: claims.get_registered_claims(),
-            private: claims,
+            private: claims.get_private_claims(),
         };
         let header = jws::RegisteredHeader {
             algorithm: SG_ALGORITHM,
@@ -61,14 +63,18 @@ impl Token {
 
     #[allow(clippy::similar_names)]
     pub fn decode_token(&self) -> Result<Claim, Error> {
-        let token: JWE<Claim, Empty, Empty> = JWE::new_encrypted(&self.0);
+        let token: JWE<PrivateClaim, Empty, Empty> = JWE::new_encrypted(&self.0);
 
         let decrypted_jwe =
             token.into_decrypted(&SECRET_KEY.get_jwk_secret(), KM_ALGORITHM, CE_ALGORITHM)?;
         let decrypted_jws = decrypted_jwe.payload()?.clone();
 
         let token = decrypted_jws.into_decoded(&JWT_SECRET.get_jws_secret(), SG_ALGORITHM)?;
-        Ok(token.payload()?.private.clone())
+        if let Compact::Decoded { payload, ..} = token {
+            payload.try_into()
+        } else {
+            Err(format_err!("Failed to decode"))
+        }
     }
 }
 
@@ -77,6 +83,7 @@ mod tests {
     use anyhow::Error;
     use log::debug;
     use uuid::Uuid;
+    use base64::{encode_config, URL_SAFE_NO_PAD};
 
     use crate::{get_random_key, token::Token, AuthorizedUser, JWT_SECRET, KEY_LENGTH, SECRET_KEY};
 
@@ -89,13 +96,15 @@ mod tests {
         JWT_SECRET.set(secret_key);
 
         let session = Uuid::new_v4();
+        let secret = encode_config(&secret_key, URL_SAFE_NO_PAD);
 
         let user = AuthorizedUser {
             email: "test@local".into(),
             session,
+            secret_key: secret.into(),
         };
 
-        let token = Token::create_token(&user.email, "localhost", 3600, session)?;
+        let token = Token::create_token(&user.email, "localhost", 3600, session, &user.secret_key)?;
 
         debug!("token {}", token);
 
