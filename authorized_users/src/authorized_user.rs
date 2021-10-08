@@ -10,6 +10,7 @@ use crate::token::Token;
 pub struct AuthorizedUser {
     pub email: StackString,
     pub session: Uuid,
+    pub secret_key: StackString,
 }
 
 impl TryFrom<Token> for AuthorizedUser {
