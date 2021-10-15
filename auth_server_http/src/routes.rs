@@ -1,10 +1,11 @@
 use chrono::{DateTime, Utc};
 use cookie::Cookie;
 use futures::try_join;
+use im::HashMap;
 use log::{debug, error};
 use rweb::{delete, get, post, Json, Query, Rejection, Schema};
 use serde::{Deserialize, Serialize};
-use serde_json::{map::Map, Value};
+use serde_json::Value;
 use stack_string::StackString;
 use std::{convert::Infallible, sync::Arc, time::Duration};
 use tokio::time::{sleep, timeout};
@@ -105,10 +106,7 @@ pub async fn login(
         .map_err(Into::<Error>::into)?;
 
     let mut session_map_cache = (*data.session_cache.load().clone()).clone();
-    session_map_cache.insert(
-        session.id,
-        (session.secret_key.clone(), Value::Object(Map::new())),
-    );
+    session_map_cache.insert(session.id, (session.secret_key.clone(), HashMap::new()));
     data.session_cache.store(Arc::new(session_map_cache));
 
     let (user, UserCookies { session_id, jwt }) =
@@ -188,19 +186,22 @@ pub async fn get_me(
 #[response(description = "Session Object")]
 struct GetSessionResponse(JsonBase<Value, Error>);
 
-#[get("/api/session")]
+#[get("/api/session/{session_key}")]
 #[openapi(description = "Get Session")]
 pub async fn get_session(
     #[header = "session"] session: Uuid,
     #[header = "secret-key"] secret_key: StackString,
+    session_key: StackString,
     #[data] data: AppState,
 ) -> WarpResult<GetSessionResponse> {
-    if let Some((secret, value)) = data.session_cache.load().get(&session) {
+    if let Some((secret, session_map)) = data.session_cache.load().get(&session) {
         if secret != &secret_key {
             return Err(Error::BadRequest("Bad Secret".into()).into());
         }
         debug!("got cache");
-        return Ok(JsonBase::new(value.clone()).into());
+        if let Some(value) = session_map.get(&session_key) {
+            return Ok(JsonBase::new(value.clone()).into());
+        }
     }
     if let Some(session_obj) = Session::get_session(&data.pool, session)
         .await
@@ -209,10 +210,25 @@ pub async fn get_session(
         if session_obj.secret_key != secret_key {
             return Err(Error::BadRequest("Bad Secret".into()).into());
         }
-        let mut session_map_cache = (*data.session_cache.load().clone()).clone();
-        session_map_cache.insert(session, (secret_key, session_obj.session_data.clone()));
-        data.session_cache.store(Arc::new(session_map_cache));
-        return Ok(JsonBase::new(session_obj.session_data).into());
+        if let Some(session_data) = session_obj
+            .get_session_data(&data.pool, &session_key)
+            .await
+            .map_err(Into::<Error>::into)?
+        {
+            let mut session_map_cache = (*data.session_cache.load().clone()).clone();
+            if let Some((secret, session_map)) = session_map_cache.get_mut(&session) {
+                if secret != &secret_key {
+                    return Err(Error::BadRequest("Bad Secret".into()).into());
+                }
+                *session_map.entry(session_key).or_default() = session_data.session_value.clone();
+            } else {
+                let mut session_map = HashMap::new();
+                session_map.insert(session_key, session_data.session_value.clone());
+                session_map_cache.insert(session, (secret_key, session_map));
+            }
+            data.session_cache.store(Arc::new(session_map_cache));
+            return Ok(JsonBase::new(session_data.session_value).into());
+        }
     }
     Ok(JsonBase::new(Value::Null).into())
 }
@@ -221,32 +237,41 @@ pub async fn get_session(
 #[response(description = "Set Session Object", status = "CREATED")]
 struct PostSessionResponse(JsonBase<Value, Error>);
 
-#[post("/api/session")]
+#[post("/api/session/{session_key}")]
 #[openapi(description = "Set session value")]
 pub async fn post_session(
     #[header = "session"] session: Uuid,
     #[header = "secret-key"] secret_key: StackString,
     #[data] data: AppState,
+    session_key: StackString,
     payload: Json<Value>,
 ) -> WarpResult<PostSessionResponse> {
     let payload = payload.into_inner();
     debug!("payload {} {}", payload, session);
     debug!("session {}", session);
-    if let Some(mut session_obj) = Session::get_session(&data.pool, session)
+    if let Some(session_obj) = Session::get_session(&data.pool, session)
         .await
         .map_err(Into::<Error>::into)?
     {
         if session_obj.secret_key != secret_key {
             return Err(Error::BadRequest("Bad Secret".into()).into());
         }
-        debug!("session_obj {:?}", session_obj.session_data);
-        session_obj.session_data = payload.clone();
-        session_obj
-            .update(&data.pool)
+        let session_data = session_obj
+            .set_session_data(&data.pool, &session_key, payload.clone())
             .await
             .map_err(Into::<Error>::into)?;
+        debug!("session_data {:?}", session_data);
         let mut session_map_cache = (*data.session_cache.load().clone()).clone();
-        *session_map_cache.entry(session).or_default() = (secret_key, session_obj.session_data);
+        if let Some((secret, session_map)) = session_map_cache.get_mut(&session) {
+            if secret != &secret_key {
+                return Err(Error::BadRequest("Bad Secret".into()).into());
+            }
+            *session_map.entry(session_key).or_default() = session_data.session_value.clone();
+        } else {
+            let mut session_map = HashMap::new();
+            session_map.insert(session_key, session_data.session_value.clone());
+            session_map_cache.insert(session, (secret_key, session_map));
+        }
         data.session_cache.store(Arc::new(session_map_cache));
     }
     Ok(JsonBase::new(payload).into())

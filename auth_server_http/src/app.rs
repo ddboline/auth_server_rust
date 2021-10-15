@@ -38,7 +38,7 @@ pub struct AppState {
     pub config: Config,
     pub pool: PgPool,
     pub google_client: GoogleClient,
-    pub session_cache: Arc<ArcSwap<HashMap<Uuid, (StackString, Value)>>>,
+    pub session_cache: Arc<ArcSwap<HashMap<Uuid, (StackString, HashMap<StackString, Value>)>>>,
 }
 
 pub async fn start_app() -> Result<(), Error> {
