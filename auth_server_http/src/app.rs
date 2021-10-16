@@ -410,7 +410,7 @@ mod tests {
         debug!("password changed {:?}", output);
         assert_eq!(output.message.as_str(), "password updated");
 
-        let url = format!("http://localhost:{}/api/session", test_port);
+        let url = format!("http://localhost:{}/api/session/test", test_port);
         let data = hashmap! {
             "key" => "value",
         };
