@@ -123,6 +123,7 @@ impl Session {
         query.fetch_opt(&conn).await.map_err(Into::into)
     }
 
+    #[allow(clippy::option_if_let_else)]
     pub async fn set_session_data(
         &self,
         pool: &PgPool,

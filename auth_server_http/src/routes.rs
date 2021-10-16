@@ -266,10 +266,10 @@ pub async fn post_session(
             if secret != &secret_key {
                 return Err(Error::BadRequest("Bad Secret".into()).into());
             }
-            *session_map.entry(session_key).or_default() = session_data.session_value.clone();
+            *session_map.entry(session_key).or_default() = session_data.session_value;
         } else {
             let mut session_map = HashMap::new();
-            session_map.insert(session_key, session_data.session_value.clone());
+            session_map.insert(session_key, session_data.session_value);
             session_map_cache.insert(session, (secret_key, session_map));
         }
         data.session_cache.store(Arc::new(session_map_cache));
