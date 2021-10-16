@@ -148,6 +148,16 @@ pub async fn logout(
         .await
         .map_err(Into::<Error>::into)?
     {
+        for session_data in session_obj
+            .get_all_session_data(&data.pool)
+            .await
+            .map_err(Into::<Error>::into)?
+        {
+            session_data
+                .delete(&data.pool)
+                .await
+                .map_err(Into::<Error>::into)?;
+        }
         session_obj
             .delete(&data.pool)
             .await

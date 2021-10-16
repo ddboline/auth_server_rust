@@ -15,7 +15,8 @@ use auth_server_ext::{
     ses_client::{SesInstance, Statistics},
 };
 use auth_server_lib::{
-    auth_user_config::AuthUserConfig, config::Config, pgpool::PgPool, session::Session, user::User,
+    auth_user_config::AuthUserConfig, config::Config, pgpool::PgPool, session::Session,
+    session_data::SessionData, user::User,
 };
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 
@@ -89,6 +90,10 @@ enum AuthServerOptions {
     ListSessions {
         #[structopt(short, long)]
         email: Option<StackString>,
+    },
+    ListSessionData {
+        #[structopt(short, long)]
+        id: Option<Uuid>,
     },
     /// Delete Sessions
     RmSessions {
@@ -184,8 +189,11 @@ impl AuthServerOptions {
             AuthServerOptions::Rm { email } => {
                 for session in Session::get_by_email(pool, email)
                     .await
-                    .with_context(|| format!("failed to get sionssions by email {}", email))?
+                    .with_context(|| format!("failed to get sessions by email {}", email))?
                 {
+                    for session_data in session.get_all_session_data(pool).await? {
+                        session_data.delete(pool).await?;
+                    }
                     session.delete(pool).await?;
                 }
                 if let Some(user) = User::get_by_email(email, pool)
@@ -284,9 +292,25 @@ impl AuthServerOptions {
                     stdout.send(serde_json::to_string(&session)?);
                 }
             }
+            &AuthServerOptions::ListSessionData { id } => {
+                if let Some(id) = id {
+                    if let Some(session_obj) = Session::get_session(pool, id).await? {
+                        for session_data in session_obj.get_all_session_data(pool).await? {
+                            stdout.send(serde_json::to_string(&session_data)?);
+                        }
+                    }
+                } else {
+                    for session_data in SessionData::get_all_session_data(pool).await? {
+                        stdout.send(serde_json::to_string(&session_data)?);
+                    }
+                }
+            }
             AuthServerOptions::RmSessions { ids } => {
                 for id in ids {
                     if let Some(session) = Session::get_session(pool, *id).await? {
+                        for session_data in session.get_all_session_data(pool).await? {
+                            session_data.delete(pool).await?;
+                        }
                         session.delete(pool).await?;
                     }
                 }

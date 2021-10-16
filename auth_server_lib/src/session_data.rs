@@ -30,6 +30,12 @@ impl SessionData {
         }
     }
 
+    pub async fn get_all_session_data(pool: &PgPool) -> Result<Vec<Self>, Error> {
+        let query = query!("SELECT * FROM session_values");
+        let conn = pool.get().await?;
+        query.fetch(&conn).await.map_err(Into::into)
+    }
+
     pub async fn get_by_id(pool: &PgPool, id: Uuid) -> Result<Option<Self>, Error> {
         let query = query!(
             "
@@ -40,6 +46,15 @@ impl SessionData {
         );
         let conn = pool.get().await?;
         query.fetch_opt(&conn).await.map_err(Into::into)
+    }
+
+    pub async fn get_by_session_id(pool: &PgPool, session_id: Uuid) -> Result<Vec<Self>, Error> {
+        let query = query!(
+            "SELECT * FROM session_values WHERE session_id = $session_id",
+            session_id = session_id
+        );
+        let conn = pool.get().await?;
+        query.fetch(&conn).await.map_err(Into::into)
     }
 
     pub async fn get_by_session_key(
