@@ -33,12 +33,14 @@ async fn update_secrets(config: &Config) -> Result<(), Error> {
     update_secret(&config.jwt_secret_path).await
 }
 
+type SessionMap = HashMap<Uuid, (StackString, HashMap<StackString, Value>)>;
+
 #[derive(Clone)]
 pub struct AppState {
     pub config: Config,
     pub pool: PgPool,
     pub google_client: GoogleClient,
-    pub session_cache: Arc<ArcSwap<HashMap<Uuid, (StackString, Value)>>>,
+    pub session_cache: Arc<ArcSwap<SessionMap>>,
 }
 
 pub async fn start_app() -> Result<(), Error> {
@@ -410,7 +412,7 @@ mod tests {
         debug!("password changed {:?}", output);
         assert_eq!(output.message.as_str(), "password updated");
 
-        let url = format!("http://localhost:{}/api/session", test_port);
+        let url = format!("http://localhost:{}/api/session/test", test_port);
         let data = hashmap! {
             "key" => "value",
         };
