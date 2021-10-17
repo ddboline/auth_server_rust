@@ -3,7 +3,7 @@ openapi: 3.0.1
 info:
   title: Rust Auth Server
   description: Authorization Server written in rust using jwt/jws/jwe and featuring integration with Google OAuth
-  version: 0.6.1
+  version: 0.7.9
 paths:
   /api/auth:
     get:
@@ -22,10 +22,14 @@ paths:
                     description: Session ID
                     format: uuid
                     type: string
+                  secret_key:
+                    description: Secret Key
+                    type: string
                 type: object
                 required:
                   - email
                   - session
+                  - secret_key
         "400":
           description: Bad Request
         "500":
@@ -62,10 +66,14 @@ paths:
                     description: Session ID
                     format: uuid
                     type: string
+                  secret_key:
+                    description: Secret Key
+                    type: string
                 type: object
                 required:
                   - email
                   - session
+                  - secret_key
         "400":
           description: Bad Request
         "500":
@@ -132,6 +140,7 @@ paths:
           in: path
           required: true
           schema:
+            format: uuid
             type: string
       requestBody:
         content:
@@ -159,10 +168,14 @@ paths:
                     description: Session ID
                     format: uuid
                     type: string
+                  secret_key:
+                    description: Secret Key
+                    type: string
                 type: object
                 required:
                   - email
                   - session
+                  - secret_key
         "400":
           description: Bad Request
         "500":
@@ -350,15 +363,22 @@ paths:
           description: Bad Request
         "500":
           description: Internal Server Error
-  /api/session:
+  "/api/session/{session_key}":
     get:
       description: Get Session
+      parameters:
+        - name: session_key
+          in: path
+          required: true
+          schema:
+            type: string
       responses:
         "200":
           description: Session Object
           content:
             application/json:
               schema:
+                nullable: true
                 type: object
         "400":
           description: Bad Request
@@ -366,10 +386,17 @@ paths:
           description: Internal Server Error
     post:
       description: Set session value
+      parameters:
+        - name: session_key
+          in: path
+          required: true
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
+              nullable: true
               type: object
         required: true
       responses:
@@ -378,7 +405,27 @@ paths:
           content:
             application/json:
               schema:
+                nullable: true
                 type: object
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+    delete:
+      description: Delete session value
+      parameters:
+        - name: session_key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Delete Session Object
+          content:
+            text/plain:
+              schema:
+                type: string
         "400":
           description: Bad Request
         "500":
