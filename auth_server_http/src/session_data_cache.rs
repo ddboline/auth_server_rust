@@ -60,7 +60,7 @@ impl SessionDataCache {
     ) -> Result<Option<Value>, Error> {
         if let Some((secret, session_map)) = self.load().get(&session_id) {
             if secret != secret_key {
-                return Err(Error::BadRequest("Bad Secret".into()).into());
+                return Err(Error::BadRequest("Bad Secret".into()));
             }
             debug!("got cache");
             if let Some(value) = session_map.get(session_key) {
@@ -80,7 +80,7 @@ impl SessionDataCache {
         let mut session_data_cache = (*self.load().clone()).clone();
         if let Some((secret, session_map)) = session_data_cache.get_mut(&session_id) {
             if secret != secret_key {
-                return Err(Error::BadRequest("Bad Secret".into()).into());
+                return Err(Error::BadRequest("Bad Secret".into()));
             }
             *session_map.entry(session_key.into()).or_default() = session_value.clone();
         } else {
