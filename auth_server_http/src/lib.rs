@@ -15,6 +15,7 @@ pub mod auth;
 pub mod errors;
 pub mod logged_user;
 pub mod routes;
+pub mod session_data_cache;
 
 use chrono::{DateTime, Utc};
 use derive_more::{From, Into};
