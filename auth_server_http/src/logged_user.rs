@@ -43,7 +43,6 @@ impl LoggedUser {
             .max_age(Duration::seconds(expiration_seconds))
             .secure(secure)
             .finish();
-
         let token = Token::create_token(
             &self.email,
             domain,
@@ -52,6 +51,30 @@ impl LoggedUser {
             &self.secret_key,
         )?;
         let jwt = Cookie::build("jwt", token.to_string())
+            .path("/")
+            .http_only(true)
+            .domain(domain.to_string())
+            .max_age(Duration::seconds(expiration_seconds))
+            .secure(secure)
+            .finish();
+        Ok(UserCookies { session_id, jwt })
+    }
+
+    pub fn clear_jwt_cookie(
+        &self,
+        domain: &str,
+        expiration_seconds: i64,
+        secure: bool,
+    ) -> Result<UserCookies<'static>, Error> {
+        let session = self.session;
+        let session_id = Cookie::build("session-id", session.to_string())
+            .path("/")
+            .http_only(true)
+            .domain(domain.to_string())
+            .max_age(Duration::seconds(expiration_seconds))
+            .secure(secure)
+            .finish();
+        let jwt = Cookie::build("jwt", "".to_string())
             .path("/")
             .http_only(true)
             .domain(domain.to_string())
