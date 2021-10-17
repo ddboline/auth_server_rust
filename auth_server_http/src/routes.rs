@@ -264,6 +264,39 @@ pub async fn post_session(
     Ok(JsonBase::new(payload).into())
 }
 
+#[derive(RwebResponse)]
+#[response(description = "Delete Session Object", status = "CREATED")]
+struct DeleteSessionResponse(HtmlBase<&'static str, Error>);
+
+#[delete("/api/session/{session_key}")]
+#[openapi(description = "Delete session value")]
+pub async fn delete_session(
+    #[header = "session"] session: Uuid,
+    #[header = "secret-key"] secret_key: StackString,
+    #[data] data: AppState,
+    session_key: StackString,
+) -> WarpResult<DeleteSessionResponse> {
+    if let Some(session_obj) = Session::get_session(&data.pool, session)
+        .await
+        .map_err(Into::<Error>::into)?
+    {
+        if session_obj.secret_key != secret_key {
+            return Err(Error::BadRequest("Bad Secret".into()).into());
+        }
+        if let Some(session_data) = session_obj
+            .get_session_data(&data.pool, &session_key)
+            .await
+            .map_err(Into::<Error>::into)?
+        {
+            session_data
+                .delete(&data.pool)
+                .await
+                .map_err(Into::<Error>::into)?;
+        }
+    }
+    Ok(HtmlBase::new("done").into())
+}
+
 #[derive(Deserialize, Schema)]
 pub struct CreateInvitation {
     #[schema(description = "Email to send invitation to")]
