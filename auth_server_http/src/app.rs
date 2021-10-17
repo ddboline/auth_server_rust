@@ -19,7 +19,7 @@ use crate::{
     routes::{
         auth_await, auth_url, callback, change_password, change_password_user, get_me, get_session,
         index_html, login, login_html, logout, main_css, main_js, post_session, register_email,
-        register_html, register_user, status, test_login,
+        register_html, register_user, status, test_login, delete_session,
     },
     session_data_cache::SessionDataCache,
 };
@@ -56,6 +56,7 @@ fn get_api_scope(app: &AppState) -> BoxedFilter<(impl Reply,)> {
     let status_path = status(app.clone());
     let session_path = get_session(app.clone())
         .or(post_session(app.clone()))
+        .or(delete_session(app.clone()))
         .boxed();
 
     let index_html_path = index_html();
