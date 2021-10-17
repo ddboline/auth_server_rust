@@ -10,11 +10,6 @@ use stack_string::StackString;
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{task::spawn, time::interval};
 
-use arc_swap::ArcSwap;
-use im::HashMap;
-use serde_json::Value;
-use uuid::Uuid;
-
 use auth_server_ext::google_openid::GoogleClient;
 use auth_server_lib::{config::Config, pgpool::PgPool, session::Session, user::User};
 use authorized_users::{get_secrets, update_secret, AUTHORIZED_USERS, TRIGGER_DB_UPDATE};
@@ -26,6 +21,7 @@ use crate::{
         index_html, login, login_html, logout, main_css, main_js, post_session, register_email,
         register_html, register_user, status, test_login,
     },
+    session_data_cache::SessionDataCache,
 };
 
 async fn update_secrets(config: &Config) -> Result<(), Error> {
@@ -33,14 +29,12 @@ async fn update_secrets(config: &Config) -> Result<(), Error> {
     update_secret(&config.jwt_secret_path).await
 }
 
-type SessionMap = HashMap<Uuid, (StackString, HashMap<StackString, Value>)>;
-
 #[derive(Clone)]
 pub struct AppState {
     pub config: Config,
     pub pool: PgPool,
     pub google_client: GoogleClient,
-    pub session_cache: Arc<ArcSwap<SessionMap>>,
+    pub session_cache: SessionDataCache,
 }
 
 pub async fn start_app() -> Result<(), Error> {
@@ -115,7 +109,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
         config: config.clone(),
         pool: pool.clone(),
         google_client: google_client.clone(),
-        session_cache: Arc::new(ArcSwap::new(Arc::new(HashMap::new()))),
+        session_cache: SessionDataCache::new(),
     };
 
     let (spec, api_scope) = openapi::spec()
@@ -171,7 +165,7 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
         config: config.clone(),
         pool: pool.clone(),
         google_client: google_client.clone(),
-        session_cache: Arc::new(ArcSwap::new(Arc::new(HashMap::new()))),
+        session_cache: SessionDataCache::new(),
     };
 
     let port = config.port;
@@ -214,13 +208,11 @@ pub async fn fill_auth_from_db(
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
-    use arc_swap::ArcSwap;
-    use im::HashMap;
     use log::debug;
     use maplit::hashmap;
     use reqwest::header::HeaderValue;
     use rweb::openapi;
-    use std::{env, sync::Arc};
+    use std::env;
     use tokio::{
         task::spawn,
         time::{sleep, Duration},
@@ -237,6 +229,7 @@ mod tests {
         app::{get_api_scope, run_app, run_test_app, AppState},
         logged_user::LoggedUser,
         routes::PasswordChangeOutput,
+        session_data_cache::SessionDataCache,
     };
 
     #[test]
@@ -474,7 +467,7 @@ mod tests {
             config: config.clone(),
             pool: pool.clone(),
             google_client: google_client.clone(),
-            session_cache: Arc::new(ArcSwap::new(Arc::new(HashMap::new()))),
+            session_cache: SessionDataCache::new(),
         };
 
         let (spec, _) = openapi::spec().build(|| get_api_scope(&app));
