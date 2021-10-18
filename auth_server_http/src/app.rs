@@ -17,9 +17,9 @@ use authorized_users::{get_secrets, update_secret, AUTHORIZED_USERS, TRIGGER_DB_
 use crate::{
     errors::error_response,
     routes::{
-        auth_await, auth_url, callback, change_password, change_password_user, get_me, get_session,
-        index_html, login, login_html, logout, main_css, main_js, post_session, register_email,
-        register_html, register_user, status, test_login, delete_session,
+        auth_await, auth_url, callback, change_password, change_password_user, delete_session,
+        get_me, get_session, index_html, list_sessions, login, login_html, logout, main_css,
+        main_js, post_session, register_email, register_html, register_user, status, test_login,
     },
     session_data_cache::SessionDataCache,
 };
@@ -58,7 +58,7 @@ fn get_api_scope(app: &AppState) -> BoxedFilter<(impl Reply,)> {
         .or(post_session(app.clone()))
         .or(delete_session(app.clone()))
         .boxed();
-
+    let list_sessions_path = list_sessions(app.clone()).boxed();
     let index_html_path = index_html();
     let main_css_path = main_css();
     let main_js_path = main_js();
@@ -75,6 +75,7 @@ fn get_api_scope(app: &AppState) -> BoxedFilter<(impl Reply,)> {
         .or(callback_path)
         .or(status_path)
         .or(session_path)
+        .or(list_sessions_path)
         .or(index_html_path)
         .or(main_css_path)
         .or(main_js_path)

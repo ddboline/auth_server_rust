@@ -15,7 +15,9 @@ use auth_server_ext::{
     invitation::Invitation,
     ses_client::{SesInstance, Statistics},
 };
-use auth_server_lib::{config::Config, pgpool::PgPool, session::Session, user::User};
+use auth_server_lib::{
+    config::Config, pgpool::PgPool, session::Session, session_data::SessionData, user::User,
+};
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 use rweb_helper::{
     html_response::HtmlResponse as HtmlBase, json_response::JsonResponse as JsonBase, RwebResponse,
@@ -295,6 +297,42 @@ pub async fn delete_session(
         }
     }
     Ok(HtmlBase::new("done").into())
+}
+
+#[derive(Schema, Serialize)]
+struct ListSessionData {
+    #[schema(description = "Session ID")]
+    session_id: Uuid,
+    #[schema(description = "Session Key")]
+    session_key: StackString,
+    #[schema(description = "Session Data")]
+    session_value: Value,
+    #[schema(description = "Create At")]
+    created_at: DateTime<Utc>,
+}
+
+#[derive(RwebResponse)]
+#[response(description = "List Session Data")]
+struct ListSessionDataResponse(JsonBase<Vec<ListSessionData>, Error>);
+
+#[get("/api/list_session_data")]
+#[openapi(description = "List Session Data")]
+pub async fn list_sessions(
+    #[filter = "LoggedUser::filter"] user: LoggedUser,
+    #[data] data: AppState,
+) -> WarpResult<ListSessionDataResponse> {
+    let values: Vec<ListSessionData> = SessionData::get_by_session_id(&data.pool, user.session)
+        .await
+        .map_err(Into::<Error>::into)?
+        .into_iter()
+        .map(|s| ListSessionData {
+            session_id: user.session,
+            session_key: s.session_key,
+            session_value: s.session_value,
+            created_at: s.created_at,
+        })
+        .collect();
+    Ok(JsonBase::new(values).into())
 }
 
 #[derive(Deserialize, Schema)]
