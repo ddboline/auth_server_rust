@@ -23,6 +23,27 @@ impl Default for Session {
     }
 }
 
+#[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug)]
+pub struct SessionSummary {
+    pub session_id: Uuid,
+    pub email_address: StackString,
+    pub created_at: DateTime<Utc>,
+    pub last_accessed: DateTime<Utc>,
+    pub number_of_data_objects: i64,
+}
+
+impl Default for SessionSummary {
+    fn default() -> Self {
+        Self {
+            session_id: Uuid::new_v4(),
+            email_address: "".into(),
+            created_at: Utc::now(),
+            last_accessed: Utc::now(),
+            number_of_data_objects: 0,
+        }
+    }
+}
+
 impl Session {
     pub fn new(email: &str) -> Self {
         Self {
@@ -46,10 +67,35 @@ impl Session {
         query.fetch(&conn).await.map_err(Into::into)
     }
 
+    pub async fn get_session_summary(pool: &PgPool) -> Result<Vec<SessionSummary>, Error> {
+        let query = query!(
+            "
+                SELECT s.id as session_id,
+                       s.email as email_address,
+                       s.created_at,
+                       s.last_accessed,
+                       count(sv) as number_of_data_objects
+                FROM sessions s
+                LEFT JOIN session_values sv ON s.id = sv.session_id
+                GROUP BY 1,2,3,4
+                ORDER BY created_at
+            "
+        );
+        let conn = pool.get().await?;
+        query.fetch(&conn).await.map_err(Into::into)
+    }
+
     pub async fn get_by_email(pool: &PgPool, email: &str) -> Result<Vec<Self>, Error> {
         let query = query!("SELECT * FROM sessions WHERE email = $email", email = email);
         let conn = pool.get().await?;
         query.fetch(&conn).await.map_err(Into::into)
+    }
+
+    pub async fn get_number_sessions(pool: &PgPool) -> Result<i64, Error> {
+        let query = query!("SELECT count(*) FROM sessions");
+        let conn = pool.get().await?;
+        let (count,) = query.fetch_one(&conn).await?;
+        Ok(count)
     }
 
     pub async fn insert(&self, pool: &PgPool) -> Result<(), Error> {
