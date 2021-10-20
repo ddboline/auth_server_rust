@@ -18,6 +18,9 @@
     <div>
       <br><h2><a href="/api/openapi/json" target="_blank">Api Docs</a></h2>
     </div>
+    <div id="list_session_data_box"></div>
+    <br>
+    <div id="list_sessions_box"></div>
   </body>
 </html>
 <script>
@@ -25,8 +28,6 @@
     let url = "/api/auth";
     let xmlhttp = new XMLHttpRequest();
     xmlhttp.onload = function f() {
-      console.log(xmlhttp.getAllResponseHeaders());
-      console.log(xmlhttp.getAllResponseHeaders().includes('application/json'));
       if (xmlhttp.getAllResponseHeaders().includes('application/json')) {
         let js = JSON.parse(xmlhttp.response);
         console.log(js.email);
@@ -35,11 +36,31 @@
             '<input type="button" name="logout" value="Logout" onclick="logout();"/>';
         }
       }
+      list_sessions();
+      list_session_data();
     }
     console.log(url);
     xmlhttp.open("GET", url, true);
     xmlhttp.send(null);
   }();
+  function list_sessions() {
+    let url = "/api/list-sessions";
+    let xmlhttp = new XMLHttpRequest();
+    xmlhttp.onload = function f() {
+      document.getElementById( 'list_sessions_box' ).innerHTML = xmlhttp.responseText;
+    }
+    xmlhttp.open("GET", url, true);
+    xmlhttp.send(null);
+  };
+  function list_session_data() {
+    let url = "/api/list-session-data";
+    let xmlhttp = new XMLHttpRequest();
+    xmlhttp.onload = function f() {
+      document.getElementById( 'list_session_data_box' ).innerHTML = xmlhttp.responseText;
+    }
+    xmlhttp.open("GET", url, true);
+    xmlhttp.send(null);
+  };
   function getFinalUrl() {
     let params = new URLSearchParams(window.location.search);
     return params.get('final_url');
@@ -114,12 +135,21 @@
     xmlhttp.send(data);
   }
   function logout() {
-        let url = "/api/auth";
-        let xmlhttp = new XMLHttpRequest();
-        xmlhttp.onload = function() {
-            location.reload()
-        }
-        xmlhttp.open("DELETE", url, true);
-        xmlhttp.send(null);
+      let url = "/api/auth";
+      let xmlhttp = new XMLHttpRequest();
+      xmlhttp.onload = function() {
+          location.reload()
+      }
+      xmlhttp.open("DELETE", url, true);
+      xmlhttp.send(null);
+  }
+  function delete_session( session_key ) {
+    let url = "/api/session/" + session_key;
+    let xmlhttp = new XMLHttpRequest();
+    xmlhttp.onload = function() {
+        location.reload()
     }
+    xmlhttp.open("DELETE", url, true);
+    xmlhttp.send(null);
+  }
 </script>
