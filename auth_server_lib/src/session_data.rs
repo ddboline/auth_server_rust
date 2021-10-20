@@ -50,7 +50,7 @@ impl SessionData {
 
     pub async fn get_by_session_id(pool: &PgPool, session_id: Uuid) -> Result<Vec<Self>, Error> {
         let query = query!(
-            "SELECT * FROM session_values WHERE session_id = $session_id",
+            "SELECT * FROM session_values WHERE session_id = $session_id ORDER BY created_at",
             session_id = session_id
         );
         let conn = pool.get().await?;
@@ -72,6 +72,13 @@ impl SessionData {
         );
         let conn = pool.get().await?;
         query.fetch_opt(&conn).await.map_err(Into::into)
+    }
+
+    pub async fn get_number_entries(pool: &PgPool) -> Result<i64, Error> {
+        let query = query!("SELECT count(*) FROM session_values");
+        let conn = pool.get().await?;
+        let (count,) = query.fetch_one(&conn).await?;
+        Ok(count)
     }
 
     pub async fn insert(&self, pool: &PgPool) -> Result<(), Error> {
