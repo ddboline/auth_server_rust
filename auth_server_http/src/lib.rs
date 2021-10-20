@@ -22,8 +22,11 @@ use derive_more::{From, Into};
 use rweb::Schema;
 use rweb_helper::derive_rweb_schema;
 use serde::Serialize;
+use stack_string::StackString;
+use uuid::Uuid;
 
 use auth_server_ext::ses_client::{EmailStats, SesQuotas};
+use auth_server_lib::session::SessionSummary;
 
 #[derive(Into, From, Default, Debug, Serialize)]
 pub struct SesQuotasWrapper(SesQuotas);
@@ -61,4 +64,24 @@ struct _EmailStatsWrapper {
     min_timestamp: Option<DateTime<Utc>>,
     #[schema(description = "Latest Record")]
     max_timestamp: Option<DateTime<Utc>>,
+}
+
+#[derive(Into, From, Default, Debug, Serialize)]
+pub struct SessionSummaryWrapper(SessionSummary);
+
+derive_rweb_schema!(SessionSummaryWrapper, _SessionSummaryWrapper);
+
+#[allow(dead_code)]
+#[derive(Schema)]
+struct _SessionSummaryWrapper {
+    #[schema(description = "Session ID")]
+    session_id: Uuid,
+    #[schema(description = "Email Address")]
+    email_address: StackString,
+    #[schema(description = "Last Accessed")]
+    last_accessed: DateTime<Utc>,
+    #[schema(description = "Create At")]
+    created_at: DateTime<Utc>,
+    #[schema(description = "Number of Data Objects")]
+    number_of_data_objects: i64,
 }
