@@ -28,7 +28,7 @@ use crate::{
     auth::AuthRequest,
     errors::ServiceError as Error,
     logged_user::{LoggedUser, UserCookies},
-    EmailStatsWrapper, SesQuotasWrapper,
+    EmailStatsWrapper, SesQuotasWrapper, SessionSummaryWrapper,
 };
 
 pub type WarpResult<T> = Result<T, Rejection>;
@@ -300,7 +300,7 @@ pub async fn delete_session(
 }
 
 #[derive(Schema, Serialize)]
-struct ListSessionData {
+struct SessionDataObj {
     #[schema(description = "Session ID")]
     session_id: Uuid,
     #[schema(description = "Session Key")]
@@ -312,20 +312,20 @@ struct ListSessionData {
 }
 
 #[derive(RwebResponse)]
-#[response(description = "List Session Data")]
-struct ListSessionDataResponse(JsonBase<Vec<ListSessionData>, Error>);
+#[response(description = "Session Data")]
+struct SessionDataObjResponse(JsonBase<Vec<SessionDataObj>, Error>);
 
-#[get("/api/list_session_data")]
-#[openapi(description = "List Session Data")]
-pub async fn list_sessions(
+#[get("/api/session-data")]
+#[openapi(description = "Session Data")]
+pub async fn list_session_obj(
     #[filter = "LoggedUser::filter"] user: LoggedUser,
     #[data] data: AppState,
-) -> WarpResult<ListSessionDataResponse> {
-    let values: Vec<ListSessionData> = SessionData::get_by_session_id(&data.pool, user.session)
+) -> WarpResult<SessionDataObjResponse> {
+    let values: Vec<SessionDataObj> = SessionData::get_by_session_id(&data.pool, user.session)
         .await
         .map_err(Into::<Error>::into)?
         .into_iter()
-        .map(|s| ListSessionData {
+        .map(|s| SessionDataObj {
             session_id: user.session,
             session_key: s.session_key,
             session_value: s.session_value,
@@ -333,6 +333,113 @@ pub async fn list_sessions(
         })
         .collect();
     Ok(JsonBase::new(values).into())
+}
+
+#[derive(RwebResponse)]
+#[response(description = "List Sessions")]
+struct ListSessionsResponse(HtmlBase<StackString, Error>);
+
+#[get("/api/list-sessions")]
+pub async fn list_sessions(
+    #[filter = "LoggedUser::filter"] _: LoggedUser,
+    #[data] data: AppState,
+) -> WarpResult<ListSessionsResponse> {
+    let lines: Vec<_> = Session::get_session_summary(&data.pool)
+        .await
+        .map_err(Into::<Error>::into)?
+        .into_iter()
+        .map(|s| {
+            format!(
+                r#"<tr style="text-align: center">
+                   <td>{}</td>
+                   <td>{}</td>
+                   <td>{}</td>
+                   <td>{}</td>
+                   </tr>
+                "#,
+                s.session_id,
+                s.email_address,
+                s.created_at.format("%Y-%m-%dT%H:%M:%SZ"),
+                s.number_of_data_objects,
+            )
+        })
+        .collect();
+    let body = format!(
+        r#"<table border="1" class="dataframe" style="text-align: center">
+            <thead><tr>
+            <th>Session ID</th>
+            <th>Email Address</th>
+            <th>Created At</th>
+            <th>Number of Data Objects</th>
+            </tr></thead>
+            <tbody>{}</tbody>
+            </table>"#,
+        lines.join("\n")
+    );
+    Ok(HtmlBase::new(body.into()).into())
+}
+
+#[derive(RwebResponse)]
+#[response(description = "List Session Data")]
+struct ListSessionDataResponse(HtmlBase<StackString, Error>);
+
+#[get("/api/list-session-data")]
+pub async fn list_session_data(
+    #[filter = "LoggedUser::filter"] user: LoggedUser,
+    #[data] data: AppState,
+) -> WarpResult<ListSessionDataResponse> {
+    let lines: Vec<_> = SessionData::get_by_session_id(&data.pool, user.session).await.map_err(Into::<Error>::into)?
+        .into_iter().map(|s| {
+            let js = serde_json::to_string(&s.session_value).unwrap_or_else(|_| String::new());
+            format!(
+                r#"<tr style="text-align">
+                   <td>{}</td>
+                   <td>{}</td>
+                   <td>{}</td>
+                   <td>{}</td>
+                   <td><input type="button" name="delete" value="Delete" onclick="delete_session("{}");"/></td>
+                   </tr>
+                "#,
+                s.session_id,
+                s.session_key,
+                s.created_at.format("%Y-%m-%dT%H:%M:%SZ"),
+                if js.len() < 80 {js} else {format!("{}", js.len())},
+                s.session_key,
+            )
+        }).collect();
+    let body = format!(
+        r#"<table border="1" class="dataframe">
+           <thead><tr>
+           <th>Session ID</th>
+           <th>Session Key</th>
+           <th>Created At</th>
+           <th>Session Value</th>
+           <th></th>
+           </tr></thead>
+           <tbody>{}</tbody>
+           </table>"#,
+        lines.join("\n")
+    );
+    Ok(HtmlBase::new(body.into()).into())
+}
+
+#[derive(RwebResponse)]
+#[response(description = "Sessions")]
+struct SessionsResponse(JsonBase<Vec<SessionSummaryWrapper>, Error>);
+
+#[get("/api/sessions")]
+#[openapi(description = "Open Sessions")]
+pub async fn get_sessions(
+    #[filter = "LoggedUser::filter"] _: LoggedUser,
+    #[data] data: AppState,
+) -> WarpResult<SessionsResponse> {
+    let objects = Session::get_session_summary(&data.pool)
+        .await
+        .map_err(Into::<Error>::into)?
+        .into_iter()
+        .map(Into::into)
+        .collect();
+    Ok(JsonBase::new(objects).into())
 }
 
 #[derive(Deserialize, Schema)]
@@ -613,6 +720,10 @@ pub struct StatusOutput {
     number_of_users: i64,
     #[schema(description = "Number of Invitations")]
     number_of_invitations: i64,
+    #[schema(description = "Number of Sessions")]
+    number_of_sessions: i64,
+    #[schema(description = "Number of Data Entries")]
+    number_of_entries: i64,
     quota: SesQuotasWrapper,
     stats: EmailStatsWrapper,
 }
@@ -630,14 +741,24 @@ pub async fn status(#[data] data: AppState) -> WarpResult<StatusResponse> {
 
 async fn status_body(pool: &PgPool) -> HttpResult<StatusOutput> {
     let ses = SesInstance::new(None);
-    let (number_users, number_invitations, Statistics { quotas, stats }) = try_join!(
+    let (
+        number_users,
+        number_invitations,
+        number_sessions,
+        number_entries,
+        Statistics { quotas, stats },
+    ) = try_join!(
         User::get_number_users(pool),
+        Session::get_number_sessions(pool),
+        SessionData::get_number_entries(pool),
         Invitation::get_number_invitations(pool),
         ses.get_statistics(),
     )?;
     let result = StatusOutput {
         number_of_users: number_users,
         number_of_invitations: number_invitations,
+        number_of_sessions: number_sessions,
+        number_of_entries: number_entries,
         quota: quotas.into(),
         stats: stats.into(),
     };
