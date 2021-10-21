@@ -5,7 +5,7 @@ use rweb::{delete, get, post, Json, Query, Rejection, Schema};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use stack_string::StackString;
-use std::{convert::Infallible, time::Duration};
+use std::{convert::Infallible, str, time::Duration};
 use tokio::time::{sleep, timeout};
 use url::Url;
 use uuid::Uuid;
@@ -390,7 +390,14 @@ pub async fn list_session_data(
 ) -> WarpResult<ListSessionDataResponse> {
     let lines: Vec<_> = SessionData::get_by_session_id(&data.pool, user.session).await.map_err(Into::<Error>::into)?
         .into_iter().map(|s| {
-            let js = serde_json::to_string(&s.session_value).unwrap_or_else(|_| String::new());
+            let js = serde_json::to_vec(&s.session_value).unwrap_or_else(|_| Vec::new());
+            let js = js.get(..100).unwrap_or_else(|| &js[..]);
+            let js = match str::from_utf8(js) {
+                Ok(s) => s,
+                Err(error) => {
+                    str::from_utf8(&js[..error.valid_up_to()]).unwrap()
+                }
+            };
             format!(
                 r#"<tr style="text-align">
                    <td>{}</td>
@@ -403,7 +410,7 @@ pub async fn list_session_data(
                 s.session_id,
                 s.session_key,
                 s.created_at.format("%Y-%m-%dT%H:%M:%SZ"),
-                if js.len() < 80 {js} else {format!("{}", js.len())},
+                js,
                 s.session_key,
             )
         }).collect();
