@@ -404,7 +404,7 @@ pub async fn list_session_data(
                    <td>{}</td>
                    <td>{}</td>
                    <td>{}</td>
-                   <td><input type="button" name="delete" value="Delete" onclick="delete_session("{}");"/></td>
+                   <td><input type="button" name="delete" value="Delete" onclick="delete_session('{}');"/></td>
                    </tr>
                 "#,
                 s.session_id,
