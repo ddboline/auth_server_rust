@@ -122,7 +122,7 @@ async fn login_user_jwt(
     config: &Config,
 ) -> HttpResult<(LoggedUser, Session, UserCookies<'static>)> {
     let session = Session::new(auth_data.email.as_str());
-    session.insert(&pool).await?;
+    session.insert(pool).await?;
 
     let user = auth_data.authenticate(pool).await?;
     let user: AuthorizedUser = user.into();
@@ -160,11 +160,11 @@ pub async fn logout(
 }
 
 async fn delete_user_session(session: Uuid, pool: &PgPool) -> HttpResult<()> {
-    if let Some(session_obj) = Session::get_session(&pool, session).await? {
-        for session_data in session_obj.get_all_session_data(&pool).await? {
-            session_data.delete(&pool).await?;
+    if let Some(session_obj) = Session::get_session(pool, session).await? {
+        for session_data in session_obj.get_all_session_data(pool).await? {
+            session_data.delete(pool).await?;
         }
-        session_obj.delete(&pool).await?;
+        session_obj.delete(pool).await?;
     }
     Ok(())
 }
@@ -215,7 +215,7 @@ async fn get_session_from_cache(
 ) -> HttpResult<Option<SessionData>> {
     if let Some(session_obj) = Session::get_session(&data.pool, session).await? {
         if session_obj.secret_key != secret_key {
-            return Err(Error::BadRequest("Bad Secret".into()).into());
+            return Err(Error::BadRequest("Bad Secret".into()));
         }
         if let Some(session_data) = session_obj
             .get_session_data(&data.pool, session_key)
@@ -223,8 +223,8 @@ async fn get_session_from_cache(
         {
             data.session_cache.set_data(
                 session,
-                &secret_key,
-                &session_key,
+                secret_key,
+                session_key,
                 &session_data.session_value,
             )?;
             return Ok(Some(session_data));
@@ -262,7 +262,7 @@ async fn set_session_from_cache(
 ) -> HttpResult<()> {
     if let Some(session_obj) = Session::get_session(&data.pool, session).await? {
         if session_obj.secret_key != secret_key {
-            return Err(Error::BadRequest("Bad Secret".into()).into());
+            return Err(Error::BadRequest("Bad Secret".into()));
         }
         let session_data = session_obj
             .set_session_data(&data.pool, &session_key, payload.clone())
@@ -270,8 +270,8 @@ async fn set_session_from_cache(
         debug!("session_data {:?}", session_data);
         data.session_cache.set_data(
             session,
-            &secret_key,
-            &session_key,
+            secret_key,
+            session_key,
             &session_data.session_value,
         )?;
     }
@@ -304,10 +304,10 @@ async fn delete_session_data_from_cache(
 ) -> HttpResult<()> {
     if let Some(session_obj) = Session::get_session(&data.pool, session).await? {
         if session_obj.secret_key != secret_key {
-            return Err(Error::BadRequest("Bad Secret".into()).into());
+            return Err(Error::BadRequest("Bad Secret".into()));
         }
         if let Some(session_data) = session_obj
-            .get_session_data(&data.pool, &session_key)
+            .get_session_data(&data.pool, session_key)
             .await?
         {
             session_data.delete(&data.pool).await?;
