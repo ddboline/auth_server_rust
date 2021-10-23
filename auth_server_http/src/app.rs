@@ -18,9 +18,9 @@ use crate::{
     errors::error_response,
     routes::{
         auth_await, auth_url, callback, change_password, change_password_user, delete_session,
-        get_me, get_session, get_sessions, index_html, list_session_data, list_session_obj,
-        list_sessions, login, login_html, logout, main_css, main_js, post_session, register_email,
-        register_html, register_user, status, test_login,
+        delete_sessions, get_me, get_session, get_sessions, index_html, list_session_data,
+        list_session_obj, list_sessions, login, login_html, logout, main_css, main_js,
+        post_session, register_email, register_html, register_user, status, test_login,
     },
     session_data_cache::SessionDataCache,
 };
@@ -60,7 +60,9 @@ fn get_api_scope(app: &AppState) -> BoxedFilter<(impl Reply,)> {
         .or(delete_session(app.clone()))
         .boxed();
     let list_session_obj_path = list_session_obj(app.clone()).boxed();
-    let get_sessions_path = get_sessions(app.clone()).boxed();
+    let get_sessions_path = get_sessions(app.clone())
+        .or(delete_sessions(app.clone()))
+        .boxed();
     let list_sessions_path = list_sessions(app.clone()).boxed();
     let list_session_data_path = list_session_data(app.clone()).boxed();
     let index_html_path = index_html();

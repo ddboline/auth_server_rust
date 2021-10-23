@@ -91,4 +91,21 @@ impl SessionDataCache {
         self.store(Arc::new(session_data_cache));
         Ok(())
     }
+
+    pub fn remove_data(
+        &self,
+        session_id: Uuid,
+        secret_key: &str,
+        session_key: &str,
+    ) -> Result<(), Error> {
+        let mut session_data_cache = (*self.load().clone()).clone();
+        if let Some((secret, session_map)) = session_data_cache.get_mut(&session_id) {
+            if secret != secret_key {
+                return Err(Error::BadRequest("Bad Secret".into()));
+            }
+            session_map.remove(session_key);
+        }
+        self.store(Arc::new(session_data_cache));
+        Ok(())
+    }
 }

@@ -143,8 +143,17 @@
       xmlhttp.open("DELETE", url, true);
       xmlhttp.send(null);
   }
-  function delete_session( session_key ) {
-    let url = "/api/session/" + session_key;
+  function delete_session_data( session_key ) {
+    let url = "/api/sessions?session_key=" + session_key;
+    let xmlhttp = new XMLHttpRequest();
+    xmlhttp.onload = function() {
+        location.reload()
+    }
+    xmlhttp.open("DELETE", url, true);
+    xmlhttp.send(null);
+  }
+  function delete_session( session_id ) {
+    let url = "/api/sessions?session=" + session_id;
     let xmlhttp = new XMLHttpRequest();
     xmlhttp.onload = function() {
         location.reload()

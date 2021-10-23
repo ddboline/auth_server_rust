@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use futures::try_join;
+use itertools::Itertools;
 use log::{debug, error};
 use rweb::{delete, get, post, Json, Query, Rejection, Schema};
 use serde::{Deserialize, Serialize};
@@ -16,7 +17,11 @@ use auth_server_ext::{
     ses_client::{SesInstance, Statistics},
 };
 use auth_server_lib::{
-    config::Config, pgpool::PgPool, session::Session, session_data::SessionData, user::User,
+    config::Config,
+    pgpool::PgPool,
+    session::{Session, SessionSummary},
+    session_data::SessionData,
+    user::User,
 };
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 use rweb_helper::{
@@ -99,16 +104,12 @@ pub async fn login(
     auth_data: Json<AuthRequest>,
 ) -> WarpResult<ApiAuthResponse> {
     let auth_data = auth_data.into_inner();
-    let session = Session::new(auth_data.email.as_str());
-    session
-        .insert(&data.pool)
-        .await
-        .map_err(Into::<Error>::into)?;
+
+    let (user, session, UserCookies { session_id, jwt }) =
+        login_user_jwt(auth_data, &data.pool, &data.config).await?;
 
     data.session_cache.add_session(&session);
 
-    let (user, UserCookies { session_id, jwt }) =
-        login_user_jwt(auth_data, session, &data.pool, &data.config).await?;
     let resp = JsonBase::new(user)
         .with_cookie(&session_id.encoded().to_string())
         .with_cookie(&jwt.encoded().to_string());
@@ -117,19 +118,21 @@ pub async fn login(
 
 async fn login_user_jwt(
     auth_data: AuthRequest,
-    session: Session,
     pool: &PgPool,
     config: &Config,
-) -> HttpResult<(LoggedUser, UserCookies<'static>)> {
+) -> HttpResult<(LoggedUser, Session, UserCookies<'static>)> {
+    let session = Session::new(auth_data.email.as_str());
+    session.insert(&pool).await?;
+
     let user = auth_data.authenticate(pool).await?;
     let user: AuthorizedUser = user.into();
     let mut user: LoggedUser = user.into();
     user.session = session.id;
-    user.secret_key = session.secret_key;
+    user.secret_key = session.secret_key.clone();
     let cookies = user
         .get_jwt_cookie(&config.domain, config.expiration_seconds, config.secure)
         .map_err(|e| Error::BadRequest(format!("Failed to create_token {}", e)))?;
-    Ok((user, cookies))
+    Ok((user, session, cookies))
 }
 
 #[derive(RwebResponse)]
@@ -142,25 +145,7 @@ pub async fn logout(
     #[filter = "LoggedUser::filter"] user: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<ApiAuthDeleteResponse> {
-    if let Some(session_obj) = Session::get_session(&data.pool, user.session)
-        .await
-        .map_err(Into::<Error>::into)?
-    {
-        for session_data in session_obj
-            .get_all_session_data(&data.pool)
-            .await
-            .map_err(Into::<Error>::into)?
-        {
-            session_data
-                .delete(&data.pool)
-                .await
-                .map_err(Into::<Error>::into)?;
-        }
-        session_obj
-            .delete(&data.pool)
-            .await
-            .map_err(Into::<Error>::into)?;
-    }
+    delete_user_session(user.session, &data.pool).await?;
     data.session_cache.remove_session(user.session);
     let UserCookies { session_id, jwt } = user.clear_jwt_cookie(
         &data.config.domain,
@@ -172,6 +157,16 @@ pub async fn logout(
         .with_cookie(&session_id.encoded().to_string())
         .with_cookie(&jwt.encoded().to_string());
     Ok(resp.into())
+}
+
+async fn delete_user_session(session: Uuid, pool: &PgPool) -> HttpResult<()> {
+    if let Some(session_obj) = Session::get_session(&pool, session).await? {
+        for session_data in session_obj.get_all_session_data(&pool).await? {
+            session_data.delete(&pool).await?;
+        }
+        session_obj.delete(&pool).await?;
+    }
+    Ok(())
 }
 
 #[derive(RwebResponse)]
@@ -204,17 +199,27 @@ pub async fn get_session(
     {
         return Ok(JsonBase::new(value).into());
     }
-    if let Some(session_obj) = Session::get_session(&data.pool, session)
-        .await
-        .map_err(Into::<Error>::into)?
+    if let Some(session_data) =
+        get_session_from_cache(&data, session, &secret_key, &session_key).await?
     {
+        return Ok(JsonBase::new(session_data.session_value).into());
+    }
+    Ok(JsonBase::new(Value::Null).into())
+}
+
+async fn get_session_from_cache(
+    data: &AppState,
+    session: Uuid,
+    secret_key: &str,
+    session_key: &str,
+) -> HttpResult<Option<SessionData>> {
+    if let Some(session_obj) = Session::get_session(&data.pool, session).await? {
         if session_obj.secret_key != secret_key {
             return Err(Error::BadRequest("Bad Secret".into()).into());
         }
         if let Some(session_data) = session_obj
-            .get_session_data(&data.pool, &session_key)
-            .await
-            .map_err(Into::<Error>::into)?
+            .get_session_data(&data.pool, session_key)
+            .await?
         {
             data.session_cache.set_data(
                 session,
@@ -222,10 +227,10 @@ pub async fn get_session(
                 &session_key,
                 &session_data.session_value,
             )?;
-            return Ok(JsonBase::new(session_data.session_value).into());
+            return Ok(Some(session_data));
         }
     }
-    Ok(JsonBase::new(Value::Null).into())
+    Ok(None)
 }
 
 #[derive(RwebResponse)]
@@ -244,17 +249,24 @@ pub async fn post_session(
     let payload = payload.into_inner();
     debug!("payload {} {}", payload, session);
     debug!("session {}", session);
-    if let Some(session_obj) = Session::get_session(&data.pool, session)
-        .await
-        .map_err(Into::<Error>::into)?
-    {
+    set_session_from_cache(&data, session, &secret_key, &session_key, payload.clone()).await?;
+    Ok(JsonBase::new(payload).into())
+}
+
+async fn set_session_from_cache(
+    data: &AppState,
+    session: Uuid,
+    secret_key: &str,
+    session_key: &str,
+    payload: Value,
+) -> HttpResult<()> {
+    if let Some(session_obj) = Session::get_session(&data.pool, session).await? {
         if session_obj.secret_key != secret_key {
             return Err(Error::BadRequest("Bad Secret".into()).into());
         }
         let session_data = session_obj
             .set_session_data(&data.pool, &session_key, payload.clone())
-            .await
-            .map_err(Into::<Error>::into)?;
+            .await?;
         debug!("session_data {:?}", session_data);
         data.session_cache.set_data(
             session,
@@ -263,7 +275,7 @@ pub async fn post_session(
             &session_data.session_value,
         )?;
     }
-    Ok(JsonBase::new(payload).into())
+    Ok(())
 }
 
 #[derive(RwebResponse)]
@@ -278,25 +290,30 @@ pub async fn delete_session(
     #[data] data: AppState,
     session_key: StackString,
 ) -> WarpResult<DeleteSessionResponse> {
-    if let Some(session_obj) = Session::get_session(&data.pool, session)
-        .await
-        .map_err(Into::<Error>::into)?
-    {
+    delete_session_data_from_cache(&data, session, &secret_key, &session_key).await?;
+    data.session_cache
+        .remove_data(session, &secret_key, &session_key)?;
+    Ok(HtmlBase::new("done").into())
+}
+
+async fn delete_session_data_from_cache(
+    data: &AppState,
+    session: Uuid,
+    secret_key: &str,
+    session_key: &str,
+) -> HttpResult<()> {
+    if let Some(session_obj) = Session::get_session(&data.pool, session).await? {
         if session_obj.secret_key != secret_key {
             return Err(Error::BadRequest("Bad Secret".into()).into());
         }
         if let Some(session_data) = session_obj
             .get_session_data(&data.pool, &session_key)
-            .await
-            .map_err(Into::<Error>::into)?
+            .await?
         {
-            session_data
-                .delete(&data.pool)
-                .await
-                .map_err(Into::<Error>::into)?;
+            session_data.delete(&data.pool).await?;
         }
     }
-    Ok(HtmlBase::new("done").into())
+    Ok(())
 }
 
 #[derive(Schema, Serialize)]
@@ -321,9 +338,13 @@ pub async fn list_session_obj(
     #[filter = "LoggedUser::filter"] user: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<SessionDataObjResponse> {
+    let values = list_session_objs(&data, &user).await?;
+    Ok(JsonBase::new(values).into())
+}
+
+async fn list_session_objs(data: &AppState, user: &LoggedUser) -> HttpResult<Vec<SessionDataObj>> {
     let values: Vec<SessionDataObj> = SessionData::get_by_session_id(&data.pool, user.session)
-        .await
-        .map_err(Into::<Error>::into)?
+        .await?
         .into_iter()
         .map(|s| SessionDataObj {
             session_id: user.session,
@@ -332,7 +353,7 @@ pub async fn list_session_obj(
             created_at: s.created_at,
         })
         .collect();
-    Ok(JsonBase::new(values).into())
+    Ok(values)
 }
 
 #[derive(RwebResponse)]
@@ -344,26 +365,23 @@ pub async fn list_sessions(
     #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<ListSessionsResponse> {
-    let lines: Vec<_> = Session::get_session_summary(&data.pool)
-        .await
-        .map_err(Into::<Error>::into)?
-        .into_iter()
-        .map(|s| {
-            format!(
-                r#"<tr style="text-align: center">
-                   <td>{}</td>
-                   <td>{}</td>
-                   <td>{}</td>
-                   <td>{}</td>
-                   </tr>
-                "#,
-                s.session_id,
-                s.email_address,
-                s.created_at.format("%Y-%m-%dT%H:%M:%SZ"),
-                s.number_of_data_objects,
-            )
-        })
-        .collect();
+    let lines = list_sessions_lines(&data).await?.into_iter()
+    .map(|s| {
+        format!(
+            r#"<tr style="text-align: center">
+               <td>{id}</td>
+               <td>{email}</td>
+               <td>{created_at}</td>
+               <td>{n_obj}</td>
+               <td><input type="button" name="delete" value="Delete" onclick="delete_session('{id}');"/></td>
+               </tr>
+            "#,
+            id=s.session_id,
+            email=s.email_address,
+            created_at=s.created_at.format("%Y-%m-%dT%H:%M:%SZ"),
+            n_obj=s.number_of_data_objects,
+        )
+    }).join("\n");
     let body = format!(
         r#"<table border="1" class="dataframe" style="text-align: center">
             <thead><tr>
@@ -371,12 +389,19 @@ pub async fn list_sessions(
             <th>Email Address</th>
             <th>Created At</th>
             <th>Number of Data Objects</th>
+            <th></th>
             </tr></thead>
             <tbody>{}</tbody>
             </table>"#,
-        lines.join("\n")
+        lines
     );
     Ok(HtmlBase::new(body.into()).into())
+}
+
+async fn list_sessions_lines(data: &AppState) -> HttpResult<Vec<SessionSummary>> {
+    Session::get_session_summary(&data.pool)
+        .await
+        .map_err(Into::into)
 }
 
 #[derive(RwebResponse)]
@@ -388,32 +413,7 @@ pub async fn list_session_data(
     #[filter = "LoggedUser::filter"] user: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<ListSessionDataResponse> {
-    let lines: Vec<_> = SessionData::get_by_session_id(&data.pool, user.session).await.map_err(Into::<Error>::into)?
-        .into_iter().map(|s| {
-            let js = serde_json::to_vec(&s.session_value).unwrap_or_else(|_| Vec::new());
-            let js = js.get(..100).unwrap_or_else(|| &js[..]);
-            let js = match str::from_utf8(js) {
-                Ok(s) => s,
-                Err(error) => {
-                    str::from_utf8(&js[..error.valid_up_to()]).unwrap()
-                }
-            };
-            format!(
-                r#"<tr style="text-align">
-                   <td>{}</td>
-                   <td>{}</td>
-                   <td>{}</td>
-                   <td>{}</td>
-                   <td><input type="button" name="delete" value="Delete" onclick="delete_session('{}');"/></td>
-                   </tr>
-                "#,
-                s.session_id,
-                s.session_key,
-                s.created_at.format("%Y-%m-%dT%H:%M:%SZ"),
-                js,
-                s.session_key,
-            )
-        }).collect();
+    let lines = list_session_data_lines(&data, &user).await?;
     let body = format!(
         r#"<table border="1" class="dataframe">
            <thead><tr>
@@ -430,6 +430,35 @@ pub async fn list_session_data(
     Ok(HtmlBase::new(body.into()).into())
 }
 
+async fn list_session_data_lines(data: &AppState, user: &LoggedUser) -> HttpResult<Vec<String>> {
+    let lines = SessionData::get_by_session_id(&data.pool, user.session).await?
+        .into_iter().map(|s| {
+            let js = serde_json::to_vec(&s.session_value).unwrap_or_else(|_| Vec::new());
+            let js = js.get(..100).unwrap_or_else(|| &js[..]);
+            let js = match str::from_utf8(js) {
+                Ok(s) => s,
+                Err(error) => {
+                    str::from_utf8(&js[..error.valid_up_to()]).unwrap()
+                }
+            };
+            format!(
+                r#"<tr style="text-align">
+                   <td>{id}</td>
+                   <td>{key}</td>
+                   <td>{created_at}</td>
+                   <td>{js}</td>
+                   <td><input type="button" name="delete" value="Delete" onclick="delete_session_data('{key}');"/></td>
+                   </tr>
+                "#,
+                id=s.session_id,
+                key=s.session_key,
+                created_at=s.created_at.format("%Y-%m-%dT%H:%M:%SZ"),
+                js=js,
+            )
+        }).collect();
+    Ok(lines)
+}
+
 #[derive(RwebResponse)]
 #[response(description = "Sessions")]
 struct SessionsResponse(JsonBase<Vec<SessionSummaryWrapper>, Error>);
@@ -440,13 +469,44 @@ pub async fn get_sessions(
     #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<SessionsResponse> {
-    let objects = Session::get_session_summary(&data.pool)
-        .await
-        .map_err(Into::<Error>::into)?
+    let objects = list_sessions_lines(&data)
+        .await?
         .into_iter()
         .map(Into::into)
         .collect();
     Ok(JsonBase::new(objects).into())
+}
+
+#[derive(RwebResponse)]
+#[response(description = "Delete Sessions")]
+struct DeleteSessionsResponse(HtmlBase<&'static str, Error>);
+
+#[derive(Deserialize, Schema, Debug)]
+pub struct SessionQuery {
+    #[schema(description = "Session Key")]
+    pub session_key: Option<StackString>,
+    #[schema(description = "Session")]
+    pub session: Option<Uuid>,
+}
+
+#[delete("/api/sessions")]
+#[openapi(description = "Delete Sessions")]
+pub async fn delete_sessions(
+    #[filter = "LoggedUser::filter"] user: LoggedUser,
+    #[data] data: AppState,
+    session_query: Query<SessionQuery>,
+) -> WarpResult<DeleteSessionsResponse> {
+    let session_query = session_query.into_inner();
+    if let Some(session_key) = &session_query.session_key {
+        delete_session_data_from_cache(&data, user.session, &user.secret_key, session_key).await?;
+        data.session_cache
+            .remove_data(user.session, &user.secret_key, session_key)?;
+    }
+    if let Some(session) = session_query.session {
+        delete_user_session(session, &data.pool).await?;
+        data.session_cache.remove_session(session);
+    }
+    Ok(HtmlBase::new("finished").into())
 }
 
 #[derive(Deserialize, Schema)]
