@@ -265,7 +265,7 @@ async fn set_session_from_cache(
             return Err(Error::BadRequest("Bad Secret".into()));
         }
         let session_data = session_obj
-            .set_session_data(&data.pool, &session_key, payload.clone())
+            .set_session_data(&data.pool, session_key, payload.clone())
             .await?;
         debug!("session_data {:?}", session_data);
         data.session_cache.set_data(
