@@ -3,7 +3,7 @@ openapi: 3.0.1
 info:
   title: Rust Auth Server
   description: Authorization Server written in rust using jwt/jws/jwe and featuring integration with Google OAuth
-  version: 0.7.9
+  version: 0.7.13
 paths:
   /api/auth:
     get:
@@ -307,6 +307,12 @@ paths:
                   number_of_invitations:
                     description: Number of Invitations
                     type: integer
+                  number_of_sessions:
+                    description: Number of Sessions
+                    type: integer
+                  number_of_entries:
+                    description: Number of Data Entries
+                    type: integer
                   quota:
                     properties:
                       max_24_hour_send:
@@ -357,6 +363,8 @@ paths:
                 required:
                   - number_of_users
                   - number_of_invitations
+                  - number_of_sessions
+                  - number_of_entries
                   - quota
                   - stats
         "400":
@@ -422,6 +430,138 @@ paths:
       responses:
         "201":
           description: Delete Session Object
+          content:
+            text/plain:
+              schema:
+                type: string
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /api/session-data:
+    get:
+      description: Session Data
+      responses:
+        "200":
+          description: Session Data
+          content:
+            application/json:
+              schema:
+                items:
+                  properties:
+                    session_id:
+                      description: Session ID
+                      format: uuid
+                      type: string
+                    session_key:
+                      description: Session Key
+                      type: string
+                    session_value:
+                      description: Session Data
+                      nullable: true
+                      type: object
+                    created_at:
+                      description: Create At
+                      format: date-time
+                      type: string
+                  type: object
+                  required:
+                    - session_id
+                    - session_key
+                    - created_at
+                type: array
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /api/sessions:
+    get:
+      description: Open Sessions
+      responses:
+        "200":
+          description: Sessions
+          content:
+            application/json:
+              schema:
+                items:
+                  properties:
+                    session_id:
+                      description: Session ID
+                      format: uuid
+                      type: string
+                    email_address:
+                      description: Email Address
+                      type: string
+                    last_accessed:
+                      description: Last Accessed
+                      format: date-time
+                      type: string
+                    created_at:
+                      description: Create At
+                      format: date-time
+                      type: string
+                    number_of_data_objects:
+                      description: Number of Data Objects
+                      type: integer
+                  type: object
+                  required:
+                    - session_id
+                    - email_address
+                    - last_accessed
+                    - created_at
+                    - number_of_data_objects
+                type: array
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+    delete:
+      description: Delete Sessions
+      parameters:
+        - name: session_key
+          in: query
+          required: false
+          schema:
+            description: Session Key
+            nullable: true
+            type: string
+        - name: session
+          in: query
+          required: false
+          schema:
+            description: Session
+            format: uuid
+            nullable: true
+            type: string
+      responses:
+        "200":
+          description: Delete Sessions
+          content:
+            text/plain:
+              schema:
+                type: string
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /api/list-sessions:
+    get:
+      responses:
+        "200":
+          description: List Sessions
+          content:
+            text/plain:
+              schema:
+                type: string
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /api/list-session-data:
+    get:
+      responses:
+        "200":
+          description: List Session Data
           content:
             text/plain:
               schema:
