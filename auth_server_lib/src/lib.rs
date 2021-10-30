@@ -10,11 +10,15 @@
 
 pub mod auth_user_config;
 pub mod config;
+pub mod invitation;
 pub mod pgpool;
 pub mod session;
 pub mod session_data;
 pub mod toml_entry;
 pub mod user;
+
+pub use postgres_query::extract::Error as QueryError;
+pub use tokio_postgres::Error as PostgresError;
 
 use lazy_static::lazy_static;
 use rand::{
