@@ -5,14 +5,17 @@ use argon2::{
 };
 use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
-use postgres_query::{query, FromSqlRow};
+use postgres_query::{client::GenericClient, query, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use uuid::Uuid;
 
 use authorized_users::AuthorizedUser;
 
-use crate::{get_random_string, pgpool::PgPool};
+use crate::{
+    get_random_string,
+    pgpool::{PgPool, PgTransaction},
+};
 
 lazy_static! {
     static ref ARGON: Argon = Argon::new().expect("Failed to init Argon");
@@ -110,12 +113,35 @@ impl User {
     }
 
     pub async fn get_by_email(email: &str, pool: &PgPool) -> Result<Option<Self>, Error> {
+        let mut conn = pool.get().await?;
+        let tran = conn.transaction().await?;
+        let conn: &PgTransaction = &tran;
+        let result = Self::get_by_email_conn(email, conn).await?;
+        tran.commit().await?;
+        Ok(result)
+    }
+
+    async fn get_by_email_conn<C>(email: &str, conn: &C) -> Result<Option<Self>, Error>
+    where
+        C: GenericClient + Sync,
+    {
         let query = query!("SELECT * FROM users WHERE email = $email", email = email);
-        let conn = pool.get().await?;
         query.fetch_opt(&conn).await.map_err(Into::into)
     }
 
     pub async fn insert(&self, pool: &PgPool) -> Result<(), Error> {
+        let mut conn = pool.get().await?;
+        let tran = conn.transaction().await?;
+        let conn: &PgTransaction = &tran;
+        self.insert_conn(conn).await?;
+        tran.commit().await?;
+        Ok(())
+    }
+
+    async fn insert_conn<C>(&self, conn: &C) -> Result<(), Error>
+    where
+        C: GenericClient + Sync,
+    {
         let query = query!(
             "
             INSERT INTO users (email, password, created_at)
@@ -124,33 +150,59 @@ impl User {
             password = self.password,
             created_at = self.created_at
         );
-        let conn = pool.get().await?;
         query.execute(&conn).await?;
         Ok(())
     }
 
     pub async fn update(&self, pool: &PgPool) -> Result<(), Error> {
+        let mut conn = pool.get().await?;
+        let tran = conn.transaction().await?;
+        let conn: &PgTransaction = &tran;
+        self.update_conn(conn).await?;
+        tran.commit().await?;
+        Ok(())
+    }
+
+    async fn update_conn<C>(&self, conn: &C) -> Result<(), Error>
+    where
+        C: GenericClient + Sync,
+    {
         let query = query!(
             "UPDATE users set password = $password WHERE email = $email",
             password = self.password,
             email = self.email,
         );
-        let conn = pool.get().await?;
         query.execute(&conn).await?;
         Ok(())
     }
 
     pub async fn upsert(&self, pool: &PgPool) -> Result<(), Error> {
-        if Self::get_by_email(&self.email, pool).await?.is_some() {
-            self.update(pool).await
+        let mut conn = pool.get().await?;
+        let tran = conn.transaction().await?;
+        let conn: &PgTransaction = &tran;
+        if Self::get_by_email_conn(&self.email, conn).await?.is_some() {
+            self.update_conn(conn).await?;
         } else {
-            self.insert(pool).await
+            self.insert_conn(conn).await?;
         }
+        tran.commit().await?;
+        Ok(())
     }
 
     pub async fn delete(&self, pool: &PgPool) -> Result<(), Error> {
+        let mut conn = pool.get().await?;
+        let tran = conn.transaction().await?;
+        let conn: &PgTransaction = &tran;
+        self.delete_conn(conn).await?;
+        tran.commit().await?;
+        Ok(())
+    }
+
+    async fn delete_conn<C>(&self, conn: &C) -> Result<(), Error>
+    where
+        C: GenericClient + Sync,
+    {
         let query = query!("DELETE FROM users WHERE email = $email", email = self.email);
-        let conn = pool.get().await?;
         query.execute(&conn).await?;
         Ok(())
     }
