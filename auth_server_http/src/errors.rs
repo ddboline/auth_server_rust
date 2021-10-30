@@ -3,7 +3,6 @@ use auth_server_ext::google_openid::OpenidError;
 use http::{Error as HTTPError, StatusCode};
 use indexmap::IndexMap;
 use log::error;
-use postgres_query::extract::Error as QueryError;
 use rusoto_core::RusotoError;
 use rusoto_ses::{GetSendQuotaError, GetSendStatisticsError, SendEmailError};
 use rweb::{
@@ -23,10 +22,10 @@ use std::{
 };
 use thiserror::Error;
 use tokio::{task::JoinError, time::error::Elapsed};
-use tokio_postgres::Error as PostgresError;
 use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
 
+use auth_server_lib::{PostgresError, QueryError};
 use authorized_users::TRIGGER_DB_UPDATE;
 
 #[derive(Debug, Error)]
