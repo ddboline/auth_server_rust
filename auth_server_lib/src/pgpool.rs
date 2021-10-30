@@ -4,6 +4,8 @@ use stack_string::StackString;
 use std::fmt;
 use tokio_postgres::{Config as PgConfig, NoTls};
 
+pub use tokio_postgres::Transaction as PgTransaction;
+
 /// Wrapper around `deadpool_postgres::Pool`, two pools are considered equal if
 /// they have the same connection string The only way to use `PgPool` is through
 /// the get method, which returns a `PooledConnection` object
@@ -51,7 +53,7 @@ impl PgPool {
             pgurl: pgurl.into(),
             pool: Some(
                 config
-                    .create_pool(NoTls)
+                    .create_pool(None, NoTls)
                     .unwrap_or_else(|_| panic!("Failed to create pool {}", pgurl)),
             ),
         }
