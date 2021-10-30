@@ -1,12 +1,12 @@
 use anyhow::Error;
 use chrono::{DateTime, Utc};
-use postgres_query::{query, FromSqlRow};
+use postgres_query::{client::GenericClient, query, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use stack_string::StackString;
 use uuid::Uuid;
 
-use crate::pgpool::PgPool;
+use crate::pgpool::{PgPool, PgTransaction};
 
 #[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug)]
 pub struct SessionData {
@@ -37,6 +37,14 @@ impl SessionData {
     }
 
     pub async fn get_by_id(pool: &PgPool, id: Uuid) -> Result<Option<Self>, Error> {
+        let conn = pool.get().await?;
+        Self::get_by_id_conn(&conn, id).await.map_err(Into::into)
+    }
+
+    async fn get_by_id_conn<C>(conn: &C, id: Uuid) -> Result<Option<Self>, Error>
+    where
+        C: GenericClient + Sync,
+    {
         let query = query!(
             "
                 SELECT * FROM session_values
@@ -44,8 +52,7 @@ impl SessionData {
             ",
             id = id,
         );
-        let conn = pool.get().await?;
-        query.fetch_opt(&conn).await.map_err(Into::into)
+        query.fetch_opt(conn).await.map_err(Into::into)
     }
 
     pub async fn get_by_session_id(pool: &PgPool, session_id: Uuid) -> Result<Vec<Self>, Error> {
@@ -81,7 +88,10 @@ impl SessionData {
         Ok(count)
     }
 
-    pub async fn insert(&self, pool: &PgPool) -> Result<(), Error> {
+    async fn insert_conn<C>(&self, conn: &C) -> Result<(), Error>
+    where
+        C: GenericClient + Sync,
+    {
         let query = query!(
             "
                 INSERT INTO session_values (id, session_id, session_key, session_value)
@@ -92,12 +102,14 @@ impl SessionData {
             session_key = self.session_key,
             session_value = self.session_value,
         );
-        let conn = pool.get().await?;
-        query.execute(&conn).await?;
+        query.execute(conn).await?;
         Ok(())
     }
 
-    pub async fn update(&self, pool: &PgPool) -> Result<(), Error> {
+    async fn update_conn<C>(&self, conn: &C) -> Result<(), Error>
+    where
+        C: GenericClient + Sync,
+    {
         let query = query!(
             "
                 UPDATE session_values
@@ -111,22 +123,45 @@ impl SessionData {
             session_key = self.session_key,
             session_value = self.session_value
         );
-        let conn = pool.get().await?;
-        query.execute(&conn).await?;
+        query.execute(conn).await?;
         Ok(())
     }
 
     pub async fn upsert(&self, pool: &PgPool) -> Result<(), Error> {
-        if Self::get_by_id(pool, self.id).await?.is_some() {
-            self.update(pool).await
+        let mut conn = pool.get().await?;
+        let tran = conn.transaction().await?;
+        let conn: &PgTransaction = &tran;
+        self.update_conn(conn).await?;
+        tran.commit().await?;
+        Ok(())
+    }
+
+    pub async fn upsert_conn<C>(&self, conn: &C) -> Result<(), Error>
+    where
+        C: GenericClient + Sync,
+    {
+        if Self::get_by_id_conn(conn, self.id).await?.is_some() {
+            self.update_conn(conn).await?;
         } else {
-            self.insert(pool).await
+            self.insert_conn(conn).await?;
         }
+        Ok(())
     }
 
     pub async fn delete(&self, pool: &PgPool) -> Result<(), Error> {
+        let mut conn = pool.get().await?;
+        let tran = conn.transaction().await?;
+        let conn: &PgTransaction = &tran;
+        self.delete_conn(conn).await?;
+        tran.commit().await?;
+        Ok(())
+    }
+
+    async fn delete_conn<C>(&self, conn: &C) -> Result<(), Error>
+    where
+        C: GenericClient + Sync,
+    {
         let query = query!("DELETE FROM session_values WHERE id = $id", id = self.id);
-        let conn = pool.get().await?;
         query.execute(&conn).await?;
         Ok(())
     }
