@@ -11,12 +11,12 @@ use tokio::task::spawn_blocking;
 use uuid::Uuid;
 
 use auth_server_ext::{
-    invitation::Invitation,
+    send_invitation,
     ses_client::{SesInstance, Statistics},
 };
 use auth_server_lib::{
-    auth_user_config::AuthUserConfig, config::Config, pgpool::PgPool, session::Session,
-    session_data::SessionData, user::User,
+    auth_user_config::AuthUserConfig, config::Config, invitation::Invitation, pgpool::PgPool,
+    session::Session, session_data::SessionData, user::User,
 };
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 
@@ -141,21 +141,26 @@ impl AuthServerOptions {
                 }
             }
             AuthServerOptions::SendInvite { email } => {
+                let ses = SesInstance::new(None);
                 let invitation = Invitation::from_email(email);
                 invitation
                     .insert(pool)
                     .await
                     .context("Failed to insert invitation")?;
-                invitation
-                    .send_invitation(&config.sending_email_address, config.callback_url.as_str())
-                    .await
-                    .with_context(|| {
-                        format!(
-                            "Failed to send invitation {} {}",
-                            config.sending_email_address,
-                            config.callback_url.as_str()
-                        )
-                    })?;
+                send_invitation(
+                    &ses,
+                    &invitation,
+                    &config.sending_email_address,
+                    config.callback_url.as_str(),
+                )
+                .await
+                .with_context(|| {
+                    format!(
+                        "Failed to send invitation {} {}",
+                        config.sending_email_address,
+                        config.callback_url.as_str()
+                    )
+                })?;
                 stdout.send(format!("Invitation {} sent to {}", invitation.id, email));
             }
             AuthServerOptions::RmInvites { ids } => {
@@ -369,8 +374,9 @@ mod test {
     use stdout_channel::{MockStdout, StdoutChannel};
     use uuid::Uuid;
 
-    use auth_server_ext::invitation::Invitation;
-    use auth_server_lib::{config::Config, pgpool::PgPool, user::User, AUTH_APP_MUTEX};
+    use auth_server_lib::{
+        config::Config, invitation::Invitation, pgpool::PgPool, user::User, AUTH_APP_MUTEX,
+    };
 
     use crate::AuthServerOptions;
 
