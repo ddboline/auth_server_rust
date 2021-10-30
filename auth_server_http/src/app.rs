@@ -10,7 +10,7 @@ use stack_string::StackString;
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{task::spawn, time::interval};
 
-use auth_server_ext::google_openid::GoogleClient;
+use auth_server_ext::{google_openid::GoogleClient, ses_client::SesInstance};
 use auth_server_lib::{config::Config, pgpool::PgPool, session::Session, user::User};
 use authorized_users::{get_secrets, update_secret, AUTHORIZED_USERS, TRIGGER_DB_UPDATE};
 
@@ -35,6 +35,7 @@ pub struct AppState {
     pub config: Config,
     pub pool: PgPool,
     pub google_client: GoogleClient,
+    pub ses: SesInstance,
     pub session_cache: SessionDataCache,
 }
 
@@ -108,6 +109,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
     }
 
     let google_client = GoogleClient::new(&config).await?;
+    let ses = SesInstance::new(None);
     let pool = PgPool::new(&config.database_url);
 
     let update_handle = spawn(_update_db(
@@ -118,8 +120,9 @@ async fn run_app(config: Config) -> Result<(), Error> {
 
     let app = AppState {
         config: config.clone(),
-        pool: pool.clone(),
-        google_client: google_client.clone(),
+        pool,
+        google_client,
+        ses,
         session_cache: SessionDataCache::new(),
     };
 
@@ -170,12 +173,14 @@ async fn run_app(config: Config) -> Result<(), Error> {
 #[allow(clippy::similar_names)]
 pub async fn run_test_app(config: Config) -> Result<(), Error> {
     let google_client = GoogleClient::new(&config).await?;
+    let ses = SesInstance::new(None);
     let pool = PgPool::new(&config.database_url);
 
     let app = AppState {
         config: config.clone(),
-        pool: pool.clone(),
-        google_client: google_client.clone(),
+        pool,
+        google_client,
+        ses,
         session_cache: SessionDataCache::new(),
     };
 
@@ -229,10 +234,10 @@ mod tests {
         time::{sleep, Duration},
     };
 
-    use auth_server_ext::{google_openid::GoogleClient, invitation::Invitation};
+    use auth_server_ext::{google_openid::GoogleClient, ses_client::SesInstance};
     use auth_server_lib::{
-        config::Config, get_random_string, pgpool::PgPool, session::Session, user::User,
-        AUTH_APP_MUTEX,
+        config::Config, get_random_string, invitation::Invitation, pgpool::PgPool,
+        session::Session, user::User, AUTH_APP_MUTEX,
     };
     use authorized_users::{get_random_key, JWT_SECRET, KEY_LENGTH, SECRET_KEY};
 
@@ -472,12 +477,14 @@ mod tests {
     async fn test_api_spec() -> Result<(), Error> {
         let config = Config::init_config()?;
         let google_client = GoogleClient::new(&config).await?;
+        let ses = SesInstance::new(None);
         let pool = PgPool::new(&config.database_url);
 
         let app = AppState {
             config: config.clone(),
-            pool: pool.clone(),
-            google_client: google_client.clone(),
+            pool,
+            google_client,
+            ses,
             session_cache: SessionDataCache::new(),
         };
 
