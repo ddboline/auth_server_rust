@@ -1,12 +1,16 @@
 use anyhow::Error;
 use chrono::{DateTime, Duration, Utc};
-use postgres_query::{query, FromSqlRow};
+use postgres_query::{client::GenericClient, query, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use stack_string::StackString;
 use uuid::Uuid;
 
-use crate::{get_random_string, pgpool::PgPool, session_data::SessionData};
+use crate::{
+    get_random_string,
+    pgpool::{PgPool, PgTransaction},
+    session_data::SessionData,
+};
 
 #[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug)]
 pub struct Session {
@@ -56,9 +60,20 @@ impl Session {
     }
 
     pub async fn get_session(pool: &PgPool, id: Uuid) -> Result<Option<Self>, Error> {
+        let mut conn = pool.get().await?;
+        let tran = conn.transaction().await?;
+        let conn: &PgTransaction = &tran;
+        let result = Self::get_session_conn(conn, id).await?;
+        tran.commit().await?;
+        Ok(result)
+    }
+
+    pub async fn get_session_conn<C>(conn: &C, id: Uuid) -> Result<Option<Self>, Error>
+    where
+        C: GenericClient + Sync,
+    {
         let query = query!("SELECT * FROM sessions WHERE id = $id", id = id);
-        let conn = pool.get().await?;
-        query.fetch_opt(&conn).await.map_err(Into::into)
+        query.fetch_opt(conn).await.map_err(Into::into)
     }
 
     pub async fn get_all_sessions(pool: &PgPool) -> Result<Vec<Self>, Error> {
@@ -99,6 +114,18 @@ impl Session {
     }
 
     pub async fn insert(&self, pool: &PgPool) -> Result<(), Error> {
+        let mut conn = pool.get().await?;
+        let tran = conn.transaction().await?;
+        let conn: &PgTransaction = &tran;
+        self.insert_conn(conn).await?;
+        tran.commit().await?;
+        Ok(())
+    }
+
+    async fn insert_conn<C>(&self, conn: &C) -> Result<(), Error>
+    where
+        C: GenericClient + Sync,
+    {
         let query = query!(
             "
             INSERT INTO sessions (id, email, secret_key)
@@ -107,26 +134,52 @@ impl Session {
             email = self.email,
             secret_key = self.secret_key,
         );
-        let conn = pool.get().await?;
         query.execute(&conn).await?;
         Ok(())
     }
 
     pub async fn upsert(&self, pool: &PgPool) -> Result<(), Error> {
-        if Self::get_session(pool, self.id).await?.is_none() {
-            self.insert(pool).await?;
+        let mut conn = pool.get().await?;
+        let tran = conn.transaction().await?;
+        let conn: &PgTransaction = &tran;
+        if Self::get_session_conn(conn, self.id).await?.is_none() {
+            self.insert_conn(conn).await?;
         }
+        tran.commit().await?;
         Ok(())
     }
 
     pub async fn delete(&self, pool: &PgPool) -> Result<(), Error> {
+        let mut conn = pool.get().await?;
+        let tran = conn.transaction().await?;
+        let conn: &PgTransaction = &tran;
+        self.delete_conn(conn).await?;
+        tran.commit().await?;
+        Ok(())
+    }
+
+    async fn delete_conn<C>(&self, conn: &C) -> Result<(), Error>
+    where
+        C: GenericClient + Sync,
+    {
         let query = query!("DELETE FROM sessions WHERE id = $id", id = self.id);
-        let conn = pool.get().await?;
         query.execute(&conn).await?;
         Ok(())
     }
 
     pub async fn cleanup(pool: &PgPool, expiration_seconds: i64) -> Result<(), Error> {
+        let mut conn = pool.get().await?;
+        let tran = conn.transaction().await?;
+        let conn: &PgTransaction = &tran;
+        Self::cleanup_conn(conn, expiration_seconds).await?;
+        tran.commit().await?;
+        Ok(())
+    }
+
+    async fn cleanup_conn<C>(conn: &C, expiration_seconds: i64) -> Result<(), Error>
+    where
+        C: GenericClient + Sync,
+    {
         let time = Utc::now() - Duration::seconds(expiration_seconds);
         let query = query!(
             "
@@ -139,14 +192,12 @@ impl Session {
             ",
             time = time,
         );
-        let conn = pool.get().await?;
-        query.execute(&conn).await?;
+        query.execute(conn).await?;
         let query = query!(
             "DELETE FROM sessions WHERE last_accessed < $time",
             time = time
         );
-        let conn = pool.get().await?;
-        query.execute(&conn).await?;
+        query.execute(conn).await?;
         Ok(())
     }
 
@@ -155,6 +206,22 @@ impl Session {
         pool: &PgPool,
         session_key: &str,
     ) -> Result<Option<SessionData>, Error> {
+        let mut conn = pool.get().await?;
+        let tran = conn.transaction().await?;
+        let conn: &PgTransaction = &tran;
+        let result = self.get_session_data_conn(conn, session_key).await?;
+        tran.commit().await?;
+        Ok(result)
+    }
+
+    async fn get_session_data_conn<C>(
+        &self,
+        conn: &C,
+        session_key: &str,
+    ) -> Result<Option<SessionData>, Error>
+    where
+        C: GenericClient + Sync,
+    {
         let query = query!(
             "
                 SELECT *
@@ -165,7 +232,6 @@ impl Session {
             id = self.id,
             session_key = session_key
         );
-        let conn = pool.get().await?;
         query.fetch_opt(&conn).await.map_err(Into::into)
     }
 
@@ -182,14 +248,33 @@ impl Session {
         session_key: &str,
         session_value: Value,
     ) -> Result<SessionData, Error> {
+        let mut conn = pool.get().await?;
+        let tran = conn.transaction().await?;
+        let conn: &PgTransaction = &tran;
+        let result = self
+            .set_session_data_conn(conn, session_key, session_value)
+            .await?;
+        tran.commit().await?;
+        Ok(result)
+    }
+
+    pub async fn set_session_data_conn<C>(
+        &self,
+        conn: &C,
+        session_key: &str,
+        session_value: Value,
+    ) -> Result<SessionData, Error>
+    where
+        C: GenericClient + Sync,
+    {
         let session_data =
-            if let Some(mut session_data) = self.get_session_data(pool, session_key).await? {
+            if let Some(mut session_data) = self.get_session_data_conn(conn, session_key).await? {
                 session_data.session_value = session_value;
                 session_data
             } else {
                 SessionData::new(self.id, session_key, session_value)
             };
-        session_data.upsert(pool).await?;
+        session_data.upsert_conn(conn).await?;
         Ok(session_data)
     }
 }
