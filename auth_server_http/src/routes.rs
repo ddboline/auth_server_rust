@@ -13,12 +13,13 @@ use uuid::Uuid;
 
 use auth_server_ext::{
     google_openid::GoogleClient,
-    invitation::Invitation,
+    send_invitation,
     ses_client::{SesInstance, Statistics},
 };
 use auth_server_lib::{
     config::Config,
-    pgpool::PgPool,
+    invitation::Invitation,
+    pgpool::{PgPool, PgTransaction},
     session::{Session, SessionSummary},
     session_data::SessionData,
     user::User,
@@ -260,14 +261,19 @@ async fn set_session_from_cache(
     session_key: &str,
     payload: Value,
 ) -> HttpResult<()> {
-    if let Some(session_obj) = Session::get_session(&data.pool, session).await? {
+    let mut conn = data.pool.get().await?;
+    let tran = conn.transaction().await?;
+    let conn: &PgTransaction = &tran;
+
+    if let Some(session_obj) = Session::get_session_conn(conn, session).await? {
         if session_obj.secret_key != secret_key {
             return Err(Error::BadRequest("Bad Secret".into()));
         }
         let session_data = session_obj
-            .set_session_data(&data.pool, session_key, payload.clone())
+            .set_session_data_conn(conn, session_key, payload.clone())
             .await?;
         debug!("session_data {:?}", session_data);
+        tran.commit().await?;
         data.session_cache.set_data(
             session,
             secret_key,
@@ -545,23 +551,26 @@ pub async fn register_email(
     #[data] data: AppState,
     invitation: Json<CreateInvitation>,
 ) -> WarpResult<ApiInvitationResponse> {
-    let invitation =
-        register_email_invitation(invitation.into_inner(), &data.pool, &data.config).await?;
+    let invitation = invitation.into_inner();
+    let invitation = register_email_invitation(invitation, &data).await?;
     let resp = JsonBase::new(invitation.into());
     Ok(resp.into())
 }
 
 async fn register_email_invitation(
     invitation: CreateInvitation,
-    pool: &PgPool,
-    config: &Config,
+    data: &AppState,
 ) -> HttpResult<Invitation> {
     let email = invitation.email;
     let invitation = Invitation::from_email(&email);
-    invitation.insert(pool).await?;
-    invitation
-        .send_invitation(&config.sending_email_address, config.callback_url.as_str())
-        .await?;
+    invitation.insert(&data.pool).await?;
+    send_invitation(
+        &data.ses,
+        &invitation,
+        &data.config.sending_email_address,
+        data.config.callback_url.as_str(),
+    )
+    .await?;
     Ok(invitation)
 }
 
