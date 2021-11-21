@@ -164,7 +164,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
         .or(spec_yaml_path)
         .recover(error_response)
         .with(cors);
-    let addr: SocketAddr = format!("127.0.0.1:{}", config.port).parse()?;
+    let addr: SocketAddr = format!("{}:{}", config.host, config.port).parse()?;
     debug!("{:?}", addr);
     rweb::serve(routes).bind(addr).await;
     update_handle.await.map_err(Into::into)
@@ -196,7 +196,7 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
         .build();
 
     let routes = auth_path.recover(error_response).with(cors);
-    let addr: SocketAddr = format!("127.0.0.1:{}", port).parse()?;
+    let addr: SocketAddr = format!("{}:{}", config.host, port).parse()?;
     rweb::serve(routes).bind(addr).await;
     Ok(())
 }

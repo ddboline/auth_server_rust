@@ -19,6 +19,8 @@ pub struct ConfigInner {
     pub callback_url: Url,
     #[serde(default = "default_domain")]
     pub domain: StackString,
+    #[serde(default = "default_host")]
+    pub host: StackString,
     #[serde(default = "default_port")]
     pub port: u32,
     #[serde(default = "default_expiration_seconds")]
@@ -48,6 +50,9 @@ fn default_sending_email_address() -> StackString {
 }
 fn default_domain() -> StackString {
     "localhost".into()
+}
+fn default_host() -> StackString {
+    "0.0.0.0".into()
 }
 fn default_port() -> u32 {
     3000
