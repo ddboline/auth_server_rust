@@ -22,7 +22,6 @@ COPY --from=buildstage /auth_server_rust/bin/* /usr/bin/
 
 STOPSIGNAL SIGTERM
 
-EXPOSE 3097
+EXPOSE 3000
 
 CMD ["/usr/bin/auth-server-rust"]
-
