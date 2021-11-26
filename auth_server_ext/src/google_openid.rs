@@ -98,12 +98,12 @@ impl GoogleClient {
     }
 
     pub async fn wait_csrf(&self, csrf_state: impl AsRef<str>) -> Result<(), Error> {
-        let (notify, is_ready) = if let Some(state) = self.csrf_tokens.lock().await.get(csrf_state.as_ref())
-        {
-            (state.notify.clone(), state.is_ready.clone())
-        } else {
-            return Ok(());
-        };
+        let (notify, is_ready) =
+            if let Some(state) = self.csrf_tokens.lock().await.get(csrf_state.as_ref()) {
+                (state.notify.clone(), state.is_ready.clone())
+            } else {
+                return Ok(());
+            };
         if is_ready.load() != TokenState::New {
             return Ok(());
         }
@@ -145,7 +145,11 @@ impl GoogleClient {
         Ok(Some(user))
     }
 
-    async fn request_userinfo(&self, code: impl AsRef<str>, nonce: impl AsRef<str>) -> Result<Userinfo, Error> {
+    async fn request_userinfo(
+        &self,
+        code: impl AsRef<str>,
+        nonce: impl AsRef<str>,
+    ) -> Result<Userinfo, Error> {
         let token = self
             .client
             .authenticate(code.as_ref(), Some(nonce.as_ref()), None)

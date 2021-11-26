@@ -4,11 +4,11 @@ use stack_string::StackString;
 use std::{
     collections::HashMap,
     convert::{TryFrom, TryInto},
+    fmt::Debug,
     fs,
     path::Path,
     str::FromStr,
 };
-use std::fmt::Debug;
 
 use crate::toml_entry::{Entry, TomlEntry};
 
@@ -19,7 +19,8 @@ pub struct AuthUserConfig(HashMap<StackString, Entry>);
 
 impl AuthUserConfig {
     pub fn new<P>(p: P) -> Result<Self, Error>
-    where P: AsRef<Path>
+    where
+        P: AsRef<Path>,
     {
         let p = p.as_ref();
         Self::from_path(p)

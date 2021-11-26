@@ -112,7 +112,10 @@ impl User {
         Ok(count)
     }
 
-    pub async fn get_by_email(email: impl AsRef<str>, pool: &PgPool) -> Result<Option<Self>, Error> {
+    pub async fn get_by_email(
+        email: impl AsRef<str>,
+        pool: &PgPool,
+    ) -> Result<Option<Self>, Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
         let conn: &PgTransaction = &tran;

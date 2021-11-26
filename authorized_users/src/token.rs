@@ -9,9 +9,9 @@ use biscuit::{
 };
 use derive_more::{Display, From, Into};
 use log::debug;
+use stack_string::StackString;
 use std::convert::TryInto;
 use uuid::Uuid;
-use stack_string::StackString;
 
 use crate::{
     claim::{Claim, PrivateClaim},
@@ -110,7 +110,13 @@ mod tests {
             secret_key: secret.into(),
         };
 
-        let token = Token::create_token(user.email.clone(), "localhost", 3600, session, user.secret_key.clone())?;
+        let token = Token::create_token(
+            user.email.clone(),
+            "localhost",
+            3600,
+            session,
+            user.secret_key.clone(),
+        )?;
 
         debug!("token {}", token);
 
