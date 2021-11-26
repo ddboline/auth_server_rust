@@ -49,7 +49,7 @@ impl Default for SessionSummary {
 }
 
 impl Session {
-    pub fn new(email: &str) -> Self {
+    pub fn new(email: impl Into<StackString>) -> Self {
         Self {
             id: Uuid::new_v4(),
             email: email.into(),
@@ -100,7 +100,8 @@ impl Session {
         query.fetch(&conn).await.map_err(Into::into)
     }
 
-    pub async fn get_by_email(pool: &PgPool, email: &str) -> Result<Vec<Self>, Error> {
+    pub async fn get_by_email(pool: &PgPool, email: impl AsRef<str>) -> Result<Vec<Self>, Error> {
+        let email = email.as_ref();
         let query = query!("SELECT * FROM sessions WHERE email = $email", email = email);
         let conn = pool.get().await?;
         query.fetch(&conn).await.map_err(Into::into)
@@ -204,7 +205,7 @@ impl Session {
     pub async fn get_session_data(
         &self,
         pool: &PgPool,
-        session_key: &str,
+        session_key: impl AsRef<str>,
     ) -> Result<Option<SessionData>, Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
@@ -217,11 +218,12 @@ impl Session {
     async fn get_session_data_conn<C>(
         &self,
         conn: &C,
-        session_key: &str,
+        session_key: impl AsRef<str>,
     ) -> Result<Option<SessionData>, Error>
     where
         C: GenericClient + Sync,
     {
+        let session_key = session_key.as_ref();
         let query = query!(
             "
                 SELECT *
@@ -245,9 +247,10 @@ impl Session {
     pub async fn set_session_data(
         &self,
         pool: &PgPool,
-        session_key: &str,
+        session_key: impl AsRef<str>,
         session_value: Value,
     ) -> Result<SessionData, Error> {
+        let session_key = session_key.as_ref();
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
         let conn: &PgTransaction = &tran;
@@ -261,12 +264,13 @@ impl Session {
     pub async fn set_session_data_conn<C>(
         &self,
         conn: &C,
-        session_key: &str,
+        session_key: impl AsRef<str>,
         session_value: Value,
     ) -> Result<SessionData, Error>
     where
         C: GenericClient + Sync,
     {
+        let session_key = session_key.as_ref();
         let session_data =
             if let Some(mut session_data) = self.get_session_data_conn(conn, session_key).await? {
                 session_data.session_value = session_value;

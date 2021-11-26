@@ -11,6 +11,7 @@ use derive_more::{Display, From, Into};
 use log::debug;
 use std::convert::TryInto;
 use uuid::Uuid;
+use stack_string::StackString;
 
 use crate::{
     claim::{Claim, PrivateClaim},
@@ -22,16 +23,16 @@ const KM_ALGORITHM: KeyManagementAlgorithm = KeyManagementAlgorithm::A256GCMKW;
 const CE_ALGORITHM: ContentEncryptionAlgorithm = ContentEncryptionAlgorithm::A256GCM;
 
 #[derive(From, Into, Display)]
-pub struct Token(String);
+pub struct Token(StackString);
 
 impl Token {
     #[allow(clippy::similar_names)]
     pub fn create_token(
-        email: &str,
-        domain: &str,
+        email: impl Into<StackString>,
+        domain: impl Into<StackString>,
         expiration_seconds: i64,
         session: Uuid,
-        secret_key: &str,
+        secret_key: impl Into<StackString>,
     ) -> Result<Self, Error> {
         let claims = Claim::with_email(email, domain, expiration_seconds, session, secret_key);
         let claimset = ClaimsSet {
@@ -63,7 +64,7 @@ impl Token {
         };
         let encrypted_jwe = jwe.encrypt(&SECRET_KEY.get_jwk_secret(), &options)?;
 
-        Ok(Token(encrypted_jwe.unwrap_encrypted().to_string()))
+        Ok(Token(encrypted_jwe.unwrap_encrypted().to_string().into()))
     }
 
     #[allow(clippy::similar_names)]
@@ -109,7 +110,7 @@ mod tests {
             secret_key: secret.into(),
         };
 
-        let token = Token::create_token(&user.email, "localhost", 3600, session, &user.secret_key)?;
+        let token = Token::create_token(user.email.clone(), "localhost", 3600, session, user.secret_key.clone())?;
 
         debug!("token {}", token);
 

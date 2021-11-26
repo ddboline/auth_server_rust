@@ -56,7 +56,7 @@ impl Entry {
         Ok(emails)
     }
 
-    pub async fn add_user(&self, email: &str) -> Result<(), Error> {
+    pub async fn add_user(&self, email: impl AsRef<str>) -> Result<(), Error> {
         let pool = self.get_pool();
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
@@ -66,10 +66,11 @@ impl Entry {
         Ok(())
     }
 
-    async fn add_user_conn<C>(&self, conn: &C, email: &str) -> Result<(), Error>
+    async fn add_user_conn<C>(&self, conn: &C, email: impl AsRef<str>) -> Result<(), Error>
     where
         C: GenericClient + Sync,
     {
+        let email = email.as_ref();
         let query = format!(
             "INSERT INTO {table} ({email_field}) VALUES ($email)",
             table = self.table,
@@ -80,7 +81,7 @@ impl Entry {
         Ok(())
     }
 
-    pub async fn remove_user(&self, email: &str) -> Result<(), Error> {
+    pub async fn remove_user(&self, email: impl AsRef<str>) -> Result<(), Error> {
         let pool = self.get_pool();
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
@@ -90,10 +91,11 @@ impl Entry {
         Ok(())
     }
 
-    async fn remove_user_conn<C>(&self, conn: &C, email: &str) -> Result<(), Error>
+    async fn remove_user_conn<C>(&self, conn: &C, email: impl AsRef<str>) -> Result<(), Error>
     where
         C: GenericClient + Sync,
     {
+        let email = email.as_ref();
         let query = format!(
             "DELETE FROM {table} WHERE {email_field} = $email",
             table = self.table,

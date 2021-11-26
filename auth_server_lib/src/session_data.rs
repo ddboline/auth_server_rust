@@ -19,7 +19,7 @@ pub struct SessionData {
 }
 
 impl SessionData {
-    pub fn new(session_id: Uuid, key: &str, value: Value) -> Self {
+    pub fn new(session_id: Uuid, key: impl Into<StackString>, value: Value) -> Self {
         Self {
             id: Uuid::new_v4(),
             session_id,
@@ -67,8 +67,9 @@ impl SessionData {
     pub async fn get_by_session_key(
         pool: &PgPool,
         session_id: Uuid,
-        session_key: &str,
+        session_key: impl AsRef<str>,
     ) -> Result<Option<Self>, Error> {
+        let session_key = session_key.as_ref();
         let query = query!(
             "
                 SELECT * FROM session_values

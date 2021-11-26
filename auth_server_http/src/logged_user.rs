@@ -31,10 +31,11 @@ pub struct UserCookies<'a> {
 impl LoggedUser {
     pub fn get_jwt_cookie(
         &self,
-        domain: &str,
+        domain: impl AsRef<str>,
         expiration_seconds: i64,
         secure: bool,
     ) -> Result<UserCookies<'static>, Error> {
+        let domain = domain.as_ref();
         let session = self.session;
         let session_id = Cookie::build("session-id", session.to_string())
             .path("/")
@@ -44,11 +45,11 @@ impl LoggedUser {
             .secure(secure)
             .finish();
         let token = Token::create_token(
-            &self.email,
+            self.email.clone(),
             domain,
             expiration_seconds,
             session,
-            &self.secret_key,
+            self.secret_key.clone(),
         )?;
         let jwt = Cookie::build("jwt", token.to_string())
             .path("/")
@@ -62,10 +63,11 @@ impl LoggedUser {
 
     pub fn clear_jwt_cookie(
         &self,
-        domain: &str,
+        domain: impl AsRef<str>,
         expiration_seconds: i64,
         secure: bool,
     ) -> Result<UserCookies<'static>, Error> {
+        let domain = domain.as_ref();
         let session = self.session;
         let session_id = Cookie::build("session-id", session.to_string())
             .path("/")
@@ -139,7 +141,8 @@ impl TryFrom<Token> for LoggedUser {
 impl FromStr for LoggedUser {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let token: Token = s.to_string().into();
+        let s: StackString = s.into();
+        let token: Token = s.into();
         token.try_into()
     }
 }

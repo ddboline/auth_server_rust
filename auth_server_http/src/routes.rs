@@ -109,7 +109,7 @@ pub async fn login(
     let (user, session, UserCookies { session_id, jwt }) =
         login_user_jwt(auth_data, &data.pool, &data.config).await?;
 
-    data.session_cache.add_session(&session);
+    data.session_cache.add_session(session);
 
     let resp = JsonBase::new(user)
         .with_cookie(&session_id.encoded().to_string())
@@ -201,7 +201,7 @@ pub async fn get_session(
         return Ok(JsonBase::new(value).into());
     }
     if let Some(session_data) =
-        get_session_from_cache(&data, session, &secret_key, &session_key).await?
+        get_session_from_cache(&data, session, secret_key, session_key).await?
     {
         return Ok(JsonBase::new(session_data.session_value).into());
     }
@@ -211,15 +211,15 @@ pub async fn get_session(
 async fn get_session_from_cache(
     data: &AppState,
     session: Uuid,
-    secret_key: &str,
-    session_key: &str,
+    secret_key: StackString,
+    session_key: StackString,
 ) -> HttpResult<Option<SessionData>> {
     if let Some(session_obj) = Session::get_session(&data.pool, session).await? {
         if session_obj.secret_key != secret_key {
             return Err(Error::BadRequest("Bad Secret".into()));
         }
         if let Some(session_data) = session_obj
-            .get_session_data(&data.pool, session_key)
+            .get_session_data(&data.pool, &session_key)
             .await?
         {
             data.session_cache.set_data(
@@ -250,15 +250,15 @@ pub async fn post_session(
     let payload = payload.into_inner();
     debug!("payload {} {}", payload, session);
     debug!("session {}", session);
-    set_session_from_cache(&data, session, &secret_key, &session_key, payload.clone()).await?;
+    set_session_from_cache(&data, session, secret_key, session_key, payload.clone()).await?;
     Ok(JsonBase::new(payload).into())
 }
 
 async fn set_session_from_cache(
     data: &AppState,
     session: Uuid,
-    secret_key: &str,
-    session_key: &str,
+    secret_key: StackString,
+    session_key: StackString,
     payload: Value,
 ) -> HttpResult<()> {
     let mut conn = data.pool.get().await?;
@@ -270,7 +270,7 @@ async fn set_session_from_cache(
             return Err(Error::BadRequest("Bad Secret".into()));
         }
         let session_data = session_obj
-            .set_session_data_conn(conn, session_key, payload.clone())
+            .set_session_data_conn(conn, &session_key, payload.clone())
             .await?;
         debug!("session_data {:?}", session_data);
         tran.commit().await?;
@@ -298,18 +298,18 @@ pub async fn delete_session(
 ) -> WarpResult<DeleteSessionResponse> {
     delete_session_data_from_cache(&data, session, &secret_key, &session_key).await?;
     data.session_cache
-        .remove_data(session, &secret_key, &session_key)?;
+        .remove_data(session, secret_key, session_key)?;
     Ok(HtmlBase::new("done").into())
 }
 
 async fn delete_session_data_from_cache(
     data: &AppState,
     session: Uuid,
-    secret_key: &str,
-    session_key: &str,
+    secret_key: impl AsRef<str>,
+    session_key: impl AsRef<str>,
 ) -> HttpResult<()> {
     if let Some(session_obj) = Session::get_session(&data.pool, session).await? {
-        if session_obj.secret_key != secret_key {
+        if session_obj.secret_key != secret_key.as_ref() {
             return Err(Error::BadRequest("Bad Secret".into()));
         }
         if let Some(session_data) = session_obj
@@ -562,13 +562,13 @@ async fn register_email_invitation(
     data: &AppState,
 ) -> HttpResult<Invitation> {
     let email = invitation.email;
-    let invitation = Invitation::from_email(&email);
+    let invitation = Invitation::from_email(email);
     invitation.insert(&data.pool).await?;
     send_invitation(
         &data.ses,
         &invitation,
         &data.config.sending_email_address,
-        data.config.callback_url.as_str(),
+        &data.config.callback_url,
     )
     .await?;
     Ok(invitation)
@@ -603,7 +603,7 @@ async fn register_user_object(
 ) -> HttpResult<AuthorizedUser> {
     if let Some(invitation) = Invitation::get_by_uuid(invitation_id, pool).await? {
         if invitation.expires_at > Utc::now() {
-            let user = User::from_details(&invitation.email, &user_data.password);
+            let user = User::from_details(invitation.email.clone(), &user_data.password);
             user.upsert(pool).await?;
             invitation.delete(pool).await?;
             let user: AuthorizedUser = user.into();

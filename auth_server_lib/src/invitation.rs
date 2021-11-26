@@ -15,7 +15,7 @@ pub struct Invitation {
 }
 
 impl Invitation {
-    pub fn from_email(email: &str) -> Self {
+    pub fn from_email<T: Into<StackString>>(email: T) -> Self {
         Self {
             id: Uuid::new_v4(),
             email: email.into(),

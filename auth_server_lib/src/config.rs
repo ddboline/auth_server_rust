@@ -85,7 +85,7 @@ fn default_auth_user_config_path() -> PathBuf {
 pub struct Config(Arc<ConfigInner>);
 
 impl Config {
-    pub fn from_inner(inner: ConfigInner) -> Self {
+    fn from_inner(inner: ConfigInner) -> Self {
         Self(Arc::new(inner))
     }
 

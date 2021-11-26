@@ -105,7 +105,7 @@ enum AuthServerOptions {
 impl AuthServerOptions {
     #[allow(clippy::too_many_lines)]
     pub async fn process_args(
-        &self,
+        self,
         pool: &PgPool,
         stdout: &StdoutChannel<StackString>,
     ) -> Result<(), Error> {
@@ -142,7 +142,7 @@ impl AuthServerOptions {
             }
             AuthServerOptions::SendInvite { email } => {
                 let ses = SesInstance::new(None);
-                let invitation = Invitation::from_email(email);
+                let invitation = Invitation::from_email(email.clone());
                 invitation
                     .insert(pool)
                     .await
@@ -151,7 +151,7 @@ impl AuthServerOptions {
                     &ses,
                     &invitation,
                     &config.sending_email_address,
-                    config.callback_url.as_str(),
+                    &config.callback_url,
                 )
                 .await
                 .with_context(|| {
@@ -165,7 +165,7 @@ impl AuthServerOptions {
             }
             AuthServerOptions::RmInvites { ids } => {
                 for id in ids {
-                    if let Some(invitation) = Invitation::get_by_uuid(*id, pool)
+                    if let Some(invitation) = Invitation::get_by_uuid(id, pool)
                         .await
                         .with_context(|| format!("Failed to get id {}", id))?
                     {
@@ -177,7 +177,7 @@ impl AuthServerOptions {
                 }
             }
             AuthServerOptions::Add { email, password } => {
-                if User::get_by_email(email, pool)
+                if User::get_by_email(email.clone(), pool)
                     .await
                     .with_context(|| format!("failed to get_by_email {}", email))?
                     .is_none()
@@ -192,7 +192,7 @@ impl AuthServerOptions {
                 }
             }
             AuthServerOptions::Rm { email } => {
-                for session in Session::get_by_email(pool, email)
+                for session in Session::get_by_email(pool, email.clone())
                     .await
                     .with_context(|| format!("failed to get sessions by email {}", email))?
                 {
@@ -201,7 +201,7 @@ impl AuthServerOptions {
                     }
                     session.delete(pool).await?;
                 }
-                if let Some(user) = User::get_by_email(email, pool)
+                if let Some(user) = User::get_by_email(email.clone(), pool)
                     .await
                     .with_context(|| format!("failed to get_by_email {}", email))?
                 {
@@ -217,13 +217,12 @@ impl AuthServerOptions {
                 invitation_id,
                 password,
             } => {
-                let uuid = *invitation_id;
-                if let Some(invitation) = Invitation::get_by_uuid(uuid, pool)
+                if let Some(invitation) = Invitation::get_by_uuid(invitation_id, pool)
                     .await
-                    .with_context(|| format!("Failed to get id {}", uuid))?
+                    .with_context(|| format!("Failed to get id {}", invitation_id))?
                 {
                     if invitation.expires_at > Utc::now() {
-                        let user = User::from_details(&invitation.email, password);
+                        let user = User::from_details(invitation.email.clone(), password);
                         user.upsert(pool).await?;
                         invitation.delete(pool).await?;
                         let user: AuthorizedUser = user.into();
@@ -235,7 +234,7 @@ impl AuthServerOptions {
                 }
             }
             AuthServerOptions::Change { email, password } => {
-                if let Some(mut user) = User::get_by_email(email, pool).await? {
+                if let Some(mut user) = User::get_by_email(email.clone(), pool).await? {
                     user.set_password(password);
                     user.update(pool).await?;
                     stdout.send(format!("Password updated for {}", email));
@@ -244,7 +243,7 @@ impl AuthServerOptions {
                 }
             }
             AuthServerOptions::Verify { email, password } => {
-                if let Some(user) = User::get_by_email(email, pool).await? {
+                if let Some(user) = User::get_by_email(email.clone(), pool).await? {
                     let password = password.clone();
                     if spawn_blocking(move || user.verify_password(&password)).await?? {
                         stdout.send("Password correct".to_string());
@@ -297,7 +296,7 @@ impl AuthServerOptions {
                     stdout.send(serde_json::to_string(&session)?);
                 }
             }
-            &AuthServerOptions::ListSessionData { id } => {
+            AuthServerOptions::ListSessionData { id } => {
                 if let Some(id) = id {
                     if let Some(session_obj) = Session::get_session(pool, id).await? {
                         for session_data in session_obj.get_all_session_data(pool).await? {
@@ -312,7 +311,7 @@ impl AuthServerOptions {
             }
             AuthServerOptions::RmSessions { ids } => {
                 for id in ids {
-                    if let Some(session) = Session::get_session(pool, *id).await? {
+                    if let Some(session) = Session::get_session(pool, id).await? {
                         for session_data in session.get_all_session_data(pool).await? {
                             session_data.delete(pool).await?;
                         }

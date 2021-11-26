@@ -207,9 +207,9 @@ pub fn get_random_nonce() -> [u8; 12] {
     Standard.sample(&mut rng)
 }
 
-pub async fn get_secrets<T: AsRef<Path>>(
-    secret_path: T,
-    jwt_secret_path: T,
+pub async fn get_secrets(
+    secret_path: impl AsRef<Path>,
+    jwt_secret_path: impl AsRef<Path>,
 ) -> Result<(), anyhow::Error> {
     SECRET_KEY.read_from_file(secret_path.as_ref()).await?;
     JWT_SECRET.read_from_file(jwt_secret_path.as_ref()).await

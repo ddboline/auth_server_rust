@@ -29,7 +29,8 @@ impl PartialEq for PgPool {
 
 impl PgPool {
     #[allow(clippy::missing_panics_doc)]
-    pub fn new(pgurl: &str) -> Self {
+    pub fn new(pgurl: impl AsRef<str>) -> Self {
+        let pgurl = pgurl.as_ref();
         let pgconf: PgConfig = pgurl.parse().expect("Failed to parse Url");
 
         let mut config = Config::default();

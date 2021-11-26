@@ -37,7 +37,7 @@ pub struct CsrfTokenCache {
 }
 
 impl CsrfTokenCache {
-    fn new(nonce: &str) -> Self {
+    fn new(nonce: impl Into<StackString>) -> Self {
         let notify = Arc::new(Notify::new());
         let is_ready = Arc::new(AtomicCell::new(TokenState::New));
         Self {
@@ -97,8 +97,8 @@ impl GoogleClient {
         Ok((csrf_state, authorize_url))
     }
 
-    pub async fn wait_csrf(&self, csrf_state: &str) -> Result<(), Error> {
-        let (notify, is_ready) = if let Some(state) = self.csrf_tokens.lock().await.get(csrf_state)
+    pub async fn wait_csrf(&self, csrf_state: impl AsRef<str>) -> Result<(), Error> {
+        let (notify, is_ready) = if let Some(state) = self.csrf_tokens.lock().await.get(csrf_state.as_ref())
         {
             (state.notify.clone(), state.is_ready.clone())
         } else {
@@ -113,8 +113,8 @@ impl GoogleClient {
 
     pub async fn run_callback(
         &self,
-        code: &str,
-        state: &str,
+        code: impl AsRef<str>,
+        state: impl AsRef<str>,
         pool: &PgPool,
     ) -> Result<Option<AuthorizedUser>, Error> {
         let CsrfTokenCache {
@@ -126,7 +126,7 @@ impl GoogleClient {
             .csrf_tokens
             .lock()
             .await
-            .remove(state)
+            .remove(state.as_ref())
             .ok_or_else(|| format_err!("CSRF Token Invalid"))?;
         if (Utc::now() - timestamp).num_seconds() > 3600 {
             is_ready.store(TokenState::Expired);
@@ -145,10 +145,10 @@ impl GoogleClient {
         Ok(Some(user))
     }
 
-    async fn request_userinfo(&self, code: &str, nonce: &str) -> Result<Userinfo, Error> {
+    async fn request_userinfo(&self, code: impl AsRef<str>, nonce: impl AsRef<str>) -> Result<Userinfo, Error> {
         let token = self
             .client
-            .authenticate(code, Some(nonce), None)
+            .authenticate(code.as_ref(), Some(nonce.as_ref()), None)
             .await
             .map_err(|e| format_err!("Openid Error {:?}", e))?;
         self.client

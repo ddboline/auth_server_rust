@@ -11,20 +11,22 @@ use auth_server_lib::session::Session;
 
 use crate::errors::ServiceError as Error;
 
+type SessionDataMapInner = HashMap<Uuid, (StackString, HashMap<StackString, Value>)>;
+
 #[derive(Deref, DerefMut, Debug, Default, Clone)]
-pub struct SessionDataMap(HashMap<Uuid, (StackString, HashMap<StackString, Value>)>);
+pub struct SessionDataMap(SessionDataMapInner);
 
 impl SessionDataMap {
     pub fn new() -> Self {
         Self(HashMap::new())
     }
 
-    pub fn from_map(cache: HashMap<Uuid, (StackString, HashMap<StackString, Value>)>) -> Self {
+    pub fn from_map(cache: SessionDataMapInner) -> Self {
         Self(cache)
     }
 
-    pub fn add_session(&mut self, session: &Session) {
-        self.insert(session.id, (session.secret_key.clone(), HashMap::new()));
+    pub fn add_session(&mut self, session: Session) {
+        self.insert(session.id, (session.secret_key, HashMap::new()));
     }
 
     pub fn remove_session(&mut self, session_id: Uuid) {
@@ -40,7 +42,7 @@ impl SessionDataCache {
         Self(Arc::new(ArcSwap::new(Arc::new(SessionDataMap::new()))))
     }
 
-    pub fn add_session(&self, session: &Session) {
+    pub fn add_session(&self, session: Session) {
         let mut session_data_cache = (*self.load().clone()).clone();
         session_data_cache.add_session(session);
         self.store(Arc::new(session_data_cache));
@@ -55,15 +57,15 @@ impl SessionDataCache {
     pub fn get_data(
         &self,
         session_id: Uuid,
-        secret_key: &str,
-        session_key: &str,
+        secret_key: impl AsRef<str>,
+        session_key: impl AsRef<str>,
     ) -> Result<Option<Value>, Error> {
         if let Some((secret, session_map)) = self.load().get(&session_id) {
-            if secret != secret_key {
+            if secret != secret_key.as_ref() {
                 return Err(Error::BadRequest("Bad Secret".into()));
             }
             debug!("got cache");
-            if let Some(value) = session_map.get(session_key) {
+            if let Some(value) = session_map.get(session_key.as_ref()) {
                 return Ok(Some(value.clone()));
             }
         }
@@ -73,20 +75,22 @@ impl SessionDataCache {
     pub fn set_data(
         &self,
         session_id: Uuid,
-        secret_key: &str,
-        session_key: &str,
+        secret_key: impl Into<StackString>,
+        session_key: impl Into<StackString>,
         session_value: &Value,
     ) -> Result<(), Error> {
+        let secret_key = secret_key.into();
+        let session_key = session_key.into();
         let mut session_data_cache = (*self.load().clone()).clone();
         if let Some((secret, session_map)) = session_data_cache.get_mut(&session_id) {
-            if secret != secret_key {
+            if secret != &secret_key {
                 return Err(Error::BadRequest("Bad Secret".into()));
             }
-            *session_map.entry(session_key.into()).or_default() = session_value.clone();
+            *session_map.entry(session_key).or_default() = session_value.clone();
         } else {
             let mut session_map = HashMap::new();
-            session_map.insert(session_key.into(), session_value.clone());
-            session_data_cache.insert(session_id, (secret_key.into(), session_map));
+            session_map.insert(session_key, session_value.clone());
+            session_data_cache.insert(session_id, (secret_key, session_map));
         }
         self.store(Arc::new(session_data_cache));
         Ok(())
@@ -95,15 +99,15 @@ impl SessionDataCache {
     pub fn remove_data(
         &self,
         session_id: Uuid,
-        secret_key: &str,
-        session_key: &str,
+        secret_key: impl AsRef<str>,
+        session_key: impl AsRef<str>,
     ) -> Result<(), Error> {
         let mut session_data_cache = (*self.load().clone()).clone();
         if let Some((secret, session_map)) = session_data_cache.get_mut(&session_id) {
-            if secret != secret_key {
+            if secret != secret_key.as_ref() {
                 return Err(Error::BadRequest("Bad Secret".into()));
             }
-            session_map.remove(session_key);
+            session_map.remove(session_key.as_ref());
         }
         self.store(Arc::new(session_data_cache));
         Ok(())

@@ -38,25 +38,25 @@ impl SesInstance {
 
     pub async fn send_email(
         &self,
-        src: &str,
-        dest: &str,
-        sub: &str,
-        msg: &str,
+        src: impl Into<String>,
+        dest: impl Into<String>,
+        sub: impl Into<String>,
+        msg: impl Into<String>,
     ) -> Result<(), Error> {
         let req = SendEmailRequest {
-            source: src.to_string(),
+            source: src.into(),
             destination: Destination {
-                to_addresses: Some(vec![dest.to_string()]),
+                to_addresses: Some(vec![dest.into()]),
                 ..Destination::default()
             },
             message: Message {
                 subject: Content {
-                    data: sub.to_string(),
+                    data: sub.into(),
                     ..Content::default()
                 },
                 body: Body {
                     html: Some(Content {
-                        data: msg.to_string(),
+                        data: msg.into(),
                         ..Content::default()
                     }),
                     ..Body::default()

@@ -38,15 +38,15 @@ impl Argon {
         )))
     }
 
-    fn hash_password(&self, plain: &str) -> Result<String, ArgonError> {
+    fn hash_password(&self, plain: impl AsRef<[u8]>) -> Result<String, ArgonError> {
         let salt = get_random_string(16);
-        let hash = self.0.hash_password(plain.as_bytes(), &salt)?;
+        let hash = self.0.hash_password(plain.as_ref(), &salt)?;
         Ok(hash.to_string())
     }
 
-    fn verify_password(&self, hashed: &str, password: &str) -> Result<(), ArgonError> {
+    fn verify_password(&self, hashed: &str, password: impl AsRef<[u8]>) -> Result<(), ArgonError> {
         self.0
-            .verify_password(password.as_bytes(), &PasswordHash::new(hashed)?)
+            .verify_password(password.as_ref(), &PasswordHash::new(hashed)?)
     }
 }
 
@@ -59,9 +59,9 @@ pub struct User {
 }
 
 impl User {
-    pub fn from_details(email: &str, password: &str) -> Self {
+    pub fn from_details(email: impl Into<StackString>, password: impl AsRef<str>) -> Self {
         let password = ARGON
-            .hash_password(password)
+            .hash_password(password.as_ref())
             .expect("Argon Hash Failed")
             .into();
         Self {
@@ -71,14 +71,14 @@ impl User {
         }
     }
 
-    pub fn set_password(&mut self, password: &str) {
+    pub fn set_password(&mut self, password: impl AsRef<str>) {
         self.password = ARGON
-            .hash_password(password)
+            .hash_password(password.as_ref())
             .expect("Argon Hash Failed")
             .into();
     }
 
-    pub fn verify_password(&self, password: &str) -> Result<bool, Error> {
+    pub fn verify_password(&self, password: impl AsRef<[u8]>) -> Result<bool, Error> {
         match ARGON.verify_password(&self.password, password) {
             Ok(()) => Ok(true),
             Err(ArgonError::Password) => Ok(false),
@@ -86,11 +86,11 @@ impl User {
         }
     }
 
-    pub fn fake_verify(password: &str) -> Result<(), Error> {
-        let password = if password == FAKE_PASSWORD.as_str() {
+    pub fn fake_verify(password: impl AsRef<str>) -> Result<(), Error> {
+        let password = if password.as_ref() == FAKE_PASSWORD.as_str() {
             ALTERNATE_FAKE.as_str()
         } else {
-            password
+            password.as_ref()
         };
         match ARGON.verify_password(&FAKE_PASSWORD, password) {
             Err(ArgonError::Password) => Ok(()),
@@ -112,7 +112,7 @@ impl User {
         Ok(count)
     }
 
-    pub async fn get_by_email(email: &str, pool: &PgPool) -> Result<Option<Self>, Error> {
+    pub async fn get_by_email(email: impl AsRef<str>, pool: &PgPool) -> Result<Option<Self>, Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
         let conn: &PgTransaction = &tran;
@@ -121,10 +121,11 @@ impl User {
         Ok(result)
     }
 
-    async fn get_by_email_conn<C>(email: &str, conn: &C) -> Result<Option<Self>, Error>
+    async fn get_by_email_conn<C>(email: impl AsRef<str>, conn: &C) -> Result<Option<Self>, Error>
     where
         C: GenericClient + Sync,
     {
+        let email = email.as_ref();
         let query = query!("SELECT * FROM users WHERE email = $email", email = email);
         query.fetch_opt(&conn).await.map_err(Into::into)
     }

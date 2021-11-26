@@ -13,6 +13,7 @@ pub mod ses_client;
 
 use anyhow::Error;
 use log::debug;
+use url::Url;
 
 use auth_server_lib::invitation::Invitation;
 
@@ -21,8 +22,8 @@ use crate::ses_client::SesInstance;
 pub async fn send_invitation(
     ses: &SesInstance,
     invite: &Invitation,
-    sending_email: &str,
-    callback_url: &str,
+    sending_email: impl AsRef<str>,
+    callback_url: &Url,
 ) -> Result<(), Error> {
     let email_body = format!(
         "Please click on the link below to complete registration. <br/>
@@ -39,8 +40,8 @@ pub async fn send_invitation(
     );
 
     ses.send_email(
-        sending_email,
-        &invite.email,
+        sending_email.as_ref(),
+        invite.email.as_str(),
         "You have been invited to join Simple-Auth-Server Rust",
         &email_body,
     )
@@ -64,11 +65,12 @@ mod tests {
 
         let email = format!("ddboline+{}@gmail.com", get_random_string(32));
         let new_invitation = Invitation::from_email(&email);
+        let callback_url = "https://localhost".parse()?;
         send_invitation(
             &ses,
             &new_invitation,
             &config.sending_email_address,
-            "test_url",
+            &callback_url,
         )
         .await?;
         Ok(())

@@ -28,11 +28,11 @@ pub struct PrivateClaim {
 // struct to get converted to token and back
 impl Claim {
     pub fn with_email(
-        email: &str,
-        domain: &str,
+        email: impl Into<StackString>,
+        domain: impl Into<StackString>,
         expiration_seconds: i64,
         session: Uuid,
-        secret_key: &str,
+        secret_key: impl Into<StackString>,
     ) -> Self {
         Self {
             domain: domain.into(),

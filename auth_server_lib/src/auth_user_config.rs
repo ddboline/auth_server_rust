@@ -8,6 +8,7 @@ use std::{
     path::Path,
     str::FromStr,
 };
+use std::fmt::Debug;
 
 use crate::toml_entry::{Entry, TomlEntry};
 
@@ -17,7 +18,14 @@ type ConfigToml = HashMap<String, TomlEntry>;
 pub struct AuthUserConfig(HashMap<StackString, Entry>);
 
 impl AuthUserConfig {
-    pub fn new(p: &Path) -> Result<Self, Error> {
+    pub fn new<P>(p: P) -> Result<Self, Error>
+    where P: AsRef<Path>
+    {
+        let p = p.as_ref();
+        Self::from_path(p)
+    }
+
+    fn from_path(p: &Path) -> Result<Self, Error> {
         let data = fs::read_to_string(p).with_context(|| format!("Failed to open {:?}", p))?;
         let config: ConfigToml =
             toml::from_str(&data).with_context(|| format!("Failed to parse toml in {:?}", p))?;
