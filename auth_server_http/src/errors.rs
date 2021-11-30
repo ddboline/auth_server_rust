@@ -67,8 +67,8 @@ pub enum ServiceError {
 // we can return early in our handlers if UUID provided by the user is not valid
 // and provide a custom message
 impl From<ParseError> for ServiceError {
-    fn from(_: ParseError) -> Self {
-        Self::BadRequest("Invalid UUID".into())
+    fn from(e: ParseError) -> Self {
+        Self::BadRequest(format!("Invalid UUID {:?}", e))
     }
 }
 

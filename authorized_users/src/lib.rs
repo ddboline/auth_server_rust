@@ -37,6 +37,7 @@ use tokio::{
     fs::{self, File},
     io::AsyncReadExt,
 };
+use std::collections::HashSet;
 
 pub const KEY_LENGTH: usize = 32;
 
@@ -90,18 +91,19 @@ impl AuthorizedUsers {
         Ok(())
     }
 
-    pub fn merge_users(&self, users: &[StackString]) -> Result<(), anyhow::Error> {
+    pub fn merge_users(&self, users: impl IntoIterator<Item=impl Into<StackString>>) -> Result<(), anyhow::Error> {
+        let users: HashSet<StackString> = users.into_iter().map(Into::into).collect();
         let mut auth_map = (*self.0.load().clone()).clone();
         let not_auth_users: Vec<_> = auth_map
             .keys()
-            .filter(|user| !users.contains(user))
+            .filter(|user| !users.contains(*user))
             .cloned()
             .collect();
         for user in not_auth_users {
-            auth_map.insert(user.clone(), AuthStatus::NotAuthorized);
+            auth_map.insert(user, AuthStatus::NotAuthorized);
         }
         for user in users {
-            auth_map.insert(user.clone(), AuthStatus::Authorized(Utc::now()));
+            auth_map.insert(user, AuthStatus::Authorized(Utc::now()));
         }
         self.0.store(Arc::new(auth_map));
         Ok(())
@@ -168,7 +170,8 @@ impl AuthSecret {
         self.0.store(Some(key));
     }
 
-    pub async fn read_from_file(&self, p: &Path) -> Result<(), anyhow::Error> {
+    pub async fn read_from_file(&self, p: impl AsRef<Path>) -> Result<(), anyhow::Error> {
+        let p = p.as_ref();
         if p.exists() {
             let mut secret = [0_u8; KEY_LENGTH];
             let mut f = File::open(p).await?;
@@ -184,7 +187,8 @@ impl AuthSecret {
     }
 }
 
-pub async fn update_secret(p: &Path) -> Result<(), anyhow::Error> {
+pub async fn update_secret(p: impl AsRef<Path>) -> Result<(), anyhow::Error> {
+    let p = p.as_ref();
     if p.exists() {
         Ok(())
     } else {
@@ -192,7 +196,7 @@ pub async fn update_secret(p: &Path) -> Result<(), anyhow::Error> {
     }
 }
 
-pub async fn create_secret(p: &Path) -> Result<(), anyhow::Error> {
+pub async fn create_secret(p: impl AsRef<Path>) -> Result<(), anyhow::Error> {
     fs::write(p, &get_random_key()).await?;
     Ok(())
 }

@@ -18,15 +18,14 @@ type ConfigToml = HashMap<String, TomlEntry>;
 pub struct AuthUserConfig(HashMap<StackString, Entry>);
 
 impl AuthUserConfig {
-    pub fn new<P>(p: P) -> Result<Self, Error>
-    where
-        P: AsRef<Path>,
+    pub fn new(p: impl AsRef<Path>) -> Result<Self, Error>
     {
         let p = p.as_ref();
         Self::from_path(p)
     }
 
-    fn from_path(p: &Path) -> Result<Self, Error> {
+    fn from_path(p: impl AsRef<Path>) -> Result<Self, Error> {
+        let p = p.as_ref();
         let data = fs::read_to_string(p).with_context(|| format!("Failed to open {:?}", p))?;
         let config: ConfigToml =
             toml::from_str(&data).with_context(|| format!("Failed to parse toml in {:?}", p))?;

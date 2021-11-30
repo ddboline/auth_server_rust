@@ -1,5 +1,5 @@
 use anyhow::{format_err, Error};
-use base64::{encode_config, URL_SAFE_NO_PAD};
+use base64::{URL_SAFE_NO_PAD, encode_config_slice};
 use chrono::{DateTime, Utc};
 use crossbeam::atomic::AtomicCell;
 use log::{debug, error};
@@ -10,7 +10,7 @@ use rand::{
     thread_rng,
 };
 use stack_string::StackString;
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration, str};
 use tokio::{
     sync::{Mutex, Notify},
     time::sleep,
@@ -177,7 +177,13 @@ impl GoogleClient {
 fn get_token_string() -> StackString {
     let mut rng = thread_rng();
     let random_bytes: [u8; 16] = Standard.sample(&mut rng);
-    encode_config(&random_bytes, URL_SAFE_NO_PAD).into()
+    let mut buf = [0u8; 22];
+    let encoded_size = encode_config_slice(random_bytes, URL_SAFE_NO_PAD, &mut buf);
+    assert!(encoded_size == 22);
+    let buf = str::from_utf8(&buf).expect("Invalid buffer");
+    let mut output = StackString::new();
+    output.push_str(buf);
+    output
 }
 
 async fn get_google_client(config: &Config) -> Result<DiscoveredClient, OpenidError> {

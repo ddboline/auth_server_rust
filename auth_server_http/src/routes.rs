@@ -872,7 +872,7 @@ async fn test_login_user_jwt(
                 session: session.id,
                 secret_key: session.secret_key.clone(),
             };
-            AUTHORIZED_USERS.merge_users(&[user.email.clone()])?;
+            AUTHORIZED_USERS.merge_users([user.email.clone()])?;
             let mut user: LoggedUser = user.into();
             user.session = session.id;
             let cookies = user.get_jwt_cookie(&config.domain, config.expiration_seconds, false)?;
