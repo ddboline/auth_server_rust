@@ -26,6 +26,7 @@ use rand::{
 use stack_string::StackString;
 use std::{
     cell::Cell,
+    collections::HashSet,
     path::Path,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -37,7 +38,6 @@ use tokio::{
     fs::{self, File},
     io::AsyncReadExt,
 };
-use std::collections::HashSet;
 
 pub const KEY_LENGTH: usize = 32;
 
@@ -91,7 +91,10 @@ impl AuthorizedUsers {
         Ok(())
     }
 
-    pub fn merge_users(&self, users: impl IntoIterator<Item=impl Into<StackString>>) -> Result<(), anyhow::Error> {
+    pub fn merge_users(
+        &self,
+        users: impl IntoIterator<Item = impl Into<StackString>>,
+    ) -> Result<(), anyhow::Error> {
         let users: HashSet<StackString> = users.into_iter().map(Into::into).collect();
         let mut auth_map = (*self.0.load().clone()).clone();
         let not_auth_users: Vec<_> = auth_map

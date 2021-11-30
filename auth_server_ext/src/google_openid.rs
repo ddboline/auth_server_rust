@@ -1,5 +1,5 @@
 use anyhow::{format_err, Error};
-use base64::{URL_SAFE_NO_PAD, encode_config_slice};
+use base64::{encode_config_slice, URL_SAFE_NO_PAD};
 use chrono::{DateTime, Utc};
 use crossbeam::atomic::AtomicCell;
 use log::{debug, error};
@@ -10,7 +10,7 @@ use rand::{
     thread_rng,
 };
 use stack_string::StackString;
-use std::{collections::HashMap, sync::Arc, time::Duration, str};
+use std::{collections::HashMap, str, sync::Arc, time::Duration};
 use tokio::{
     sync::{Mutex, Notify},
     time::sleep,

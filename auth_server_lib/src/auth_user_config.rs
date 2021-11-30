@@ -18,8 +18,7 @@ type ConfigToml = HashMap<String, TomlEntry>;
 pub struct AuthUserConfig(HashMap<StackString, Entry>);
 
 impl AuthUserConfig {
-    pub fn new(p: impl AsRef<Path>) -> Result<Self, Error>
-    {
+    pub fn new(p: impl AsRef<Path>) -> Result<Self, Error> {
         let p = p.as_ref();
         Self::from_path(p)
     }

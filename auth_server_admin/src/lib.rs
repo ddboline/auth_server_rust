@@ -398,7 +398,9 @@ mod test {
 
         AuthServerOptions::SendInvite {
             email: email.clone().into(),
-        }.process_args(&pool, &stdout).await?;
+        }
+        .process_args(&pool, &stdout)
+        .await?;
         stdout.close().await?;
         let invitation_uuid: Uuid = mock_stdout.lock().await[0]
             .split_whitespace()
@@ -415,7 +417,9 @@ mod test {
         let mock_stderr = MockStdout::new();
         let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
 
-        AuthServerOptions::ListInvites.process_args(&pool, &stdout).await?;
+        AuthServerOptions::ListInvites
+            .process_args(&pool, &stdout)
+            .await?;
 
         stdout.close().await?;
 
@@ -438,7 +442,9 @@ mod test {
         AuthServerOptions::Register {
             invitation_id: invitation.id,
             password: password.into(),
-        }.process_args(&pool, &stdout).await?;
+        }
+        .process_args(&pool, &stdout)
+        .await?;
 
         stdout.close().await?;
 
@@ -470,7 +476,9 @@ mod test {
         AuthServerOptions::Change {
             email: email.clone().into(),
             password: password.clone().into(),
-        }.process_args(&pool, &stdout).await?;
+        }
+        .process_args(&pool, &stdout)
+        .await?;
 
         stdout.close().await?;
 
@@ -489,7 +497,9 @@ mod test {
         AuthServerOptions::Verify {
             email: email.clone().into(),
             password: password.into(),
-        }.process_args(&pool, &stdout).await?;
+        }
+        .process_args(&pool, &stdout)
+        .await?;
 
         stdout.close().await?;
 
@@ -504,7 +514,9 @@ mod test {
 
         AuthServerOptions::Rm {
             email: email.into(),
-        }.process_args(&pool, &stdout).await?;
+        }
+        .process_args(&pool, &stdout)
+        .await?;
 
         stdout.close().await?;
 
@@ -514,7 +526,9 @@ mod test {
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
         let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
-        AuthServerOptions::Status.process_args(&pool, &stdout).await?;
+        AuthServerOptions::Status
+            .process_args(&pool, &stdout)
+            .await?;
 
         stdout.close().await?;
 
@@ -531,7 +545,9 @@ mod test {
         AuthServerOptions::Add {
             email: email.clone().into(),
             password: password.into(),
-        }.process_args(&pool, &stdout).await?;
+        }
+        .process_args(&pool, &stdout)
+        .await?;
         stdout.close().await?;
 
         let mock_stdout = MockStdout::new();
@@ -541,7 +557,9 @@ mod test {
         AuthServerOptions::AddToApp {
             email: email.clone().into(),
             app: "movie_collection_rust".into(),
-        }.process_args(&pool, &stdout).await?;
+        }
+        .process_args(&pool, &stdout)
+        .await?;
         stdout.close().await?;
 
         let mock_stdout = MockStdout::new();
@@ -551,7 +569,9 @@ mod test {
         AuthServerOptions::RemoveFromApp {
             email: email.clone().into(),
             app: "movie_collection_rust".into(),
-        }.process_args(&pool, &stdout).await?;
+        }
+        .process_args(&pool, &stdout)
+        .await?;
         stdout.close().await?;
 
         let mock_stdout = MockStdout::new();
@@ -560,7 +580,9 @@ mod test {
 
         AuthServerOptions::Rm {
             email: email.clone().into(),
-        }.process_args(&pool, &stdout).await?;
+        }
+        .process_args(&pool, &stdout)
+        .await?;
         stdout.close().await?;
 
         let mock_stdout = MockStdout::new();
@@ -569,7 +591,9 @@ mod test {
 
         AuthServerOptions::SendInvite {
             email: email.clone().into(),
-        }.process_args(&pool, &stdout).await?;
+        }
+        .process_args(&pool, &stdout)
+        .await?;
         stdout.close().await?;
         let invitation_uuid: Uuid = mock_stdout.lock().await[0]
             .split_whitespace()
@@ -579,7 +603,9 @@ mod test {
 
         AuthServerOptions::RmInvites {
             ids: vec![invitation_uuid.clone()],
-        }.process_args(&pool, &stdout).await?;
+        }
+        .process_args(&pool, &stdout)
+        .await?;
         stdout.close().await?;
         assert!(Invitation::get_by_uuid(invitation_uuid, &pool)
             .await?
