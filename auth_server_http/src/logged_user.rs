@@ -141,8 +141,9 @@ impl TryFrom<Token> for LoggedUser {
 impl FromStr for LoggedUser {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let s: StackString = s.into();
-        let token: Token = s.into();
+        let mut buf = StackString::new();
+        buf.push_str(s);
+        let token: Token = buf.into();
         token.try_into()
     }
 }
