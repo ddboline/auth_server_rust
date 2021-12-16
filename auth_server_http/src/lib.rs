@@ -85,3 +85,21 @@ struct _SessionSummaryWrapper {
     #[schema(description = "Number of Data Objects")]
     number_of_data_objects: i64,
 }
+
+#[cfg(test)]
+mod test {
+    use rweb_helper::derive_rweb_test;
+
+    use crate::{
+        SesQuotasWrapper, _SesQuotasWrapper,
+        EmailStatsWrapper, _EmailStatsWrapper,
+        SessionSummaryWrapper, _SessionSummaryWrapper,
+    };
+
+    #[test]
+    fn test_types() {
+        derive_rweb_test!(SesQuotasWrapper, _SesQuotasWrapper);
+        derive_rweb_test!(EmailStatsWrapper, _EmailStatsWrapper);
+        derive_rweb_test!(SessionSummaryWrapper, _SessionSummaryWrapper);
+    }
+}
