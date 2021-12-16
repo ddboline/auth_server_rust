@@ -91,9 +91,8 @@ mod test {
     use rweb_helper::derive_rweb_test;
 
     use crate::{
-        SesQuotasWrapper, _SesQuotasWrapper,
-        EmailStatsWrapper, _EmailStatsWrapper,
-        SessionSummaryWrapper, _SessionSummaryWrapper,
+        EmailStatsWrapper, SesQuotasWrapper, SessionSummaryWrapper, _EmailStatsWrapper,
+        _SesQuotasWrapper, _SessionSummaryWrapper,
     };
 
     #[test]
