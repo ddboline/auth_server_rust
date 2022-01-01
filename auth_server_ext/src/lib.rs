@@ -13,6 +13,7 @@ pub mod ses_client;
 
 use anyhow::Error;
 use log::debug;
+use stack_string::StackString;
 use url::Url;
 
 use auth_server_lib::invitation::Invitation;
@@ -25,6 +26,7 @@ pub async fn send_invitation(
     sending_email: impl AsRef<str>,
     callback_url: &Url,
 ) -> Result<(), Error> {
+    let dt_str = StackString::from_display(invite.expires_at.format("%I:%M %p %A, %-d %B, %C%y"))?;
     let email_body = format!(
         "Please click on the link below to complete registration. <br/>
          <a href=\"{url}?id={id}&email={email}\">
@@ -33,10 +35,7 @@ pub async fn send_invitation(
         url = callback_url,
         id = invite.id,
         email = invite.email,
-        exp = invite
-            .expires_at
-            .format("%I:%M %p %A, %-d %B, %C%y")
-            .to_string(),
+        exp = dt_str,
     );
 
     ses.send_email(

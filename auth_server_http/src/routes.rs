@@ -110,10 +110,13 @@ pub async fn login(
         login_user_jwt(auth_data, &data.pool, &data.config).await?;
 
     data.session_cache.add_session(session);
+    let session_str =
+        StackString::from_display(session_id.encoded()).map_err(Into::<Error>::into)?;
+    let jwt_str = StackString::from_display(jwt.encoded()).map_err(Into::<Error>::into)?;
 
     let resp = JsonBase::new(user)
-        .with_cookie(&session_id.encoded().to_string())
-        .with_cookie(&jwt.encoded().to_string());
+        .with_cookie(&session_str)
+        .with_cookie(&jwt_str);
     Ok(resp.into())
 }
 

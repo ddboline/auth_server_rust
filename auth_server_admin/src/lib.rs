@@ -125,7 +125,7 @@ impl AuthServerOptions {
                         user.email,
                         auth_app_map
                             .get(&user.email)
-                            .map_or_else(|| "".to_string(), |apps| apps.iter().join(" "))
+                            .map_or_else(|| String::new(), |apps| apps.iter().join(" "))
                     ));
                 }
             }
@@ -246,9 +246,9 @@ impl AuthServerOptions {
                 if let Some(user) = User::get_by_email(email.clone(), pool).await? {
                     let password = password.clone();
                     if spawn_blocking(move || user.verify_password(&password)).await?? {
-                        stdout.send("Password correct".to_string());
+                        stdout.send("Password correct");
                     } else {
-                        stdout.send("Password incorrect".to_string());
+                        stdout.send("Password incorrect");
                     }
                 } else {
                     stdout.send(format!("User {} does not exist", email));

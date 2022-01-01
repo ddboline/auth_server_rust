@@ -19,10 +19,10 @@ use crate::{
 
 lazy_static! {
     static ref ARGON: Argon = Argon::new().expect("Failed to init Argon");
-    static ref FAKE_PASSWORD: String = ARGON
+    static ref FAKE_PASSWORD: StackString = ARGON
         .hash_password("password")
         .expect("Failed to generate password");
-    static ref ALTERNATE_FAKE: String = ARGON
+    static ref ALTERNATE_FAKE: StackString = ARGON
         .hash_password("fake password")
         .expect("Failed to generate password");
 }
@@ -38,10 +38,10 @@ impl Argon {
         )))
     }
 
-    fn hash_password(&self, plain: impl AsRef<[u8]>) -> Result<String, ArgonError> {
+    fn hash_password(&self, plain: impl AsRef<[u8]>) -> Result<StackString, Error> {
         let salt = get_random_string(16);
         let hash = self.0.hash_password(plain.as_ref(), &salt)?;
-        Ok(hash.to_string())
+        StackString::from_display(hash).map_err(Into::into)
     }
 
     fn verify_password(&self, hashed: &str, password: impl AsRef<[u8]>) -> Result<(), ArgonError> {

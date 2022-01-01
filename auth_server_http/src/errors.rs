@@ -18,7 +18,7 @@ use serde_json::Error as SerdeJsonError;
 use std::{
     borrow::Cow,
     convert::{From, Infallible},
-    fmt::Debug,
+    fmt::{Debug, Error as FmtError},
 };
 use thiserror::Error;
 use tokio::{task::JoinError, time::error::Elapsed};
@@ -62,6 +62,8 @@ pub enum ServiceError {
     InvalidUri(#[from] InvalidUri),
     #[error("TimeoutElapsed {0}")]
     TimeoutElapsed(#[from] Elapsed),
+    #[error("FmtError {0}")]
+    FmtError(#[from] FmtError),
 }
 
 // we can return early in our handlers if UUID provided by the user is not valid
@@ -81,9 +83,9 @@ impl From<OpenidError> for ServiceError {
 impl Reject for ServiceError {}
 
 #[derive(Serialize)]
-struct ErrorMessage {
+struct ErrorMessage<'a> {
     code: u16,
-    message: String,
+    message: &'a str,
 }
 
 fn login_html() -> impl Reply {
@@ -145,7 +147,7 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
 
     let reply = rweb::reply::json(&ErrorMessage {
         code: code.as_u16(),
-        message: message.to_string(),
+        message,
     });
     let reply = rweb::reply::with_status(reply, code);
 
