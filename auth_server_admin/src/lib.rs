@@ -125,7 +125,7 @@ impl AuthServerOptions {
                         user.email,
                         auth_app_map
                             .get(&user.email)
-                            .map_or_else(|| String::new(), |apps| apps.iter().join(" "))
+                            .map_or_else(String::new, |apps| apps.iter().join(" "))
                     ));
                 }
             }

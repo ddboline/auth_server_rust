@@ -62,8 +62,7 @@ impl User {
     pub fn from_details(email: impl Into<StackString>, password: impl AsRef<str>) -> Self {
         let password = ARGON
             .hash_password(password.as_ref())
-            .expect("Argon Hash Failed")
-            .into();
+            .expect("Argon Hash Failed");
         Self {
             email: email.into(),
             password,
@@ -74,8 +73,7 @@ impl User {
     pub fn set_password(&mut self, password: impl AsRef<str>) {
         self.password = ARGON
             .hash_password(password.as_ref())
-            .expect("Argon Hash Failed")
-            .into();
+            .expect("Argon Hash Failed");
     }
 
     pub fn verify_password(&self, password: impl AsRef<[u8]>) -> Result<bool, Error> {
