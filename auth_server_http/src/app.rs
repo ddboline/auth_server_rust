@@ -6,8 +6,8 @@ use rweb::{
     openapi::{self, Info},
     Filter, Reply,
 };
-use stack_string::StackString;
-use std::{net::SocketAddr, sync::Arc, time::Duration};
+use stack_string::{format_sstr, StackString};
+use std::{fmt::Write, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{task::spawn, time::interval};
 
 use auth_server_ext::{google_openid::GoogleClient, ses_client::SesInstance};
@@ -164,7 +164,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
         .or(spec_yaml_path)
         .recover(error_response)
         .with(cors);
-    let addr: SocketAddr = format!("{}:{}", config.host, config.port).parse()?;
+    let addr: SocketAddr = format_sstr!("{}:{}", config.host, config.port).parse()?;
     debug!("{:?}", addr);
     rweb::serve(routes).bind(addr).await;
     update_handle.await.map_err(Into::into)
@@ -196,7 +196,7 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
         .build();
 
     let routes = auth_path.recover(error_response).with(cors);
-    let addr: SocketAddr = format!("{}:{}", config.host, port).parse()?;
+    let addr: SocketAddr = format_sstr!("{}:{}", config.host, port).parse()?;
     rweb::serve(routes).bind(addr).await;
     Ok(())
 }
@@ -228,7 +228,8 @@ mod tests {
     use maplit::hashmap;
     use reqwest::header::HeaderValue;
     use rweb::openapi;
-    use std::env;
+    use stack_string::{format_sstr, StackString};
+    use std::{env, fmt::Write};
     use tokio::{
         task::spawn,
         time::{sleep, Duration},
@@ -261,7 +262,7 @@ mod tests {
         let _lock = AUTH_APP_MUTEX.lock().await;
 
         env::set_var("TESTENV", "true");
-        let email = format!("{}@localhost", get_random_string(32));
+        let email = format_sstr!("{}@localhost", get_random_string(32));
         let password = get_random_string(32);
 
         let mut secret_key = [0u8; KEY_LENGTH];
@@ -286,14 +287,14 @@ mod tests {
         sleep(Duration::from_secs(10)).await;
 
         let client = reqwest::Client::builder().cookie_store(true).build()?;
-        let url = format!("http://localhost:{}/api/auth", test_port);
+        let url = format_sstr!("http://localhost:{}/api/auth", test_port);
         let data = hashmap! {
             "email" => &email,
             "password" => &password,
         };
         debug!("login");
         let resp: LoggedUser = client
-            .post(&url)
+            .post(url.as_str())
             .json(&data)
             .send()
             .await?
@@ -305,7 +306,7 @@ mod tests {
 
         debug!("get me");
         let resp: LoggedUser = client
-            .get(&url)
+            .get(url.as_str())
             .send()
             .await?
             .error_for_status()?
@@ -337,7 +338,7 @@ mod tests {
         let config = Config::init_config()?;
 
         let pool = PgPool::new(&config.database_url);
-        let email = format!("{}@localhost", get_random_string(32));
+        let email = format_sstr!("{}@localhost", get_random_string(32));
         let password = get_random_string(32);
         let invitation = Invitation::from_email(&email);
         invitation.insert(&pool).await?;
@@ -349,9 +350,10 @@ mod tests {
 
         sleep(Duration::from_secs(10)).await;
 
-        let url = format!(
+        let url = format_sstr!(
             "http://localhost:{}/api/register/{}",
-            test_port, &invitation.id
+            test_port,
+            &invitation.id
         );
         let data = hashmap! {
             "password" => &password,
@@ -360,7 +362,7 @@ mod tests {
         let client = reqwest::Client::builder().cookie_store(true).build()?;
         debug!("register");
         let resp: LoggedUser = client
-            .post(&url)
+            .post(url.as_str())
             .json(&data)
             .send()
             .await?
@@ -374,14 +376,14 @@ mod tests {
             .await?
             .is_none());
 
-        let url = format!("http://localhost:{}/api/auth", test_port);
+        let url = format_sstr!("http://localhost:{}/api/auth", test_port);
         let data = hashmap! {
             "email" => &email,
             "password" => &password,
         };
         debug!("login");
         let resp: LoggedUser = client
-            .post(&url)
+            .post(url.as_str())
             .json(&data)
             .send()
             .await?
@@ -394,7 +396,7 @@ mod tests {
         debug!("get me");
 
         let resp: LoggedUser = client
-            .get(&url)
+            .get(url.as_str())
             .send()
             .await?
             .error_for_status()?
@@ -403,7 +405,7 @@ mod tests {
         debug!("I am: {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
-        let url = format!("http://localhost:{}/api/password_change", test_port);
+        let url = format_sstr!("http://localhost:{}/api/password_change", test_port);
         let new_password = get_random_string(32);
         let data = hashmap! {
             "email" => &email,
@@ -411,7 +413,7 @@ mod tests {
         };
         debug!("change password");
         let output: PasswordChangeOutput = client
-            .post(&url)
+            .post(url.as_str())
             .json(&data)
             .send()
             .await?
@@ -421,7 +423,7 @@ mod tests {
         debug!("password changed {:?}", output);
         assert_eq!(output.message.as_str(), "password updated");
 
-        let url = format!("http://localhost:{}/api/session/test", test_port);
+        let url = format_sstr!("http://localhost:{}/api/session/test", test_port);
         let data = hashmap! {
             "key" => "value",
         };
@@ -429,7 +431,7 @@ mod tests {
         let value = HeaderValue::from_str(&resp.session.to_string())?;
         let secret = HeaderValue::from_str(&resp.secret_key)?;
         let resp = client
-            .post(&url)
+            .post(url.as_str())
             .json(&data)
             .header("session", value.clone())
             .header("secret-key", secret.clone())
@@ -439,7 +441,7 @@ mod tests {
         debug!("{:?}", resp);
         debug!("GET session");
         let resp: std::collections::HashMap<String, String> = client
-            .get(&url)
+            .get(url.as_str())
             .header("session", value)
             .header("secret-key", secret)
             .send()
@@ -449,15 +451,16 @@ mod tests {
             .await?;
         debug!("{:?}", resp);
         assert_eq!(resp.len(), 1);
-        let url = format!("http://localhost:{}/api/auth", test_port);
-        let resp: String = client
-            .delete(&url)
+        let url = format_sstr!("http://localhost:{}/api/auth", test_port);
+        let resp: StackString = client
+            .delete(url.as_str())
             .send()
             .await?
             .error_for_status()?
             .text()
-            .await?;
-        assert_eq!(resp, format!(r#""{} has been logged out""#, email));
+            .await?
+            .into();
+        assert_eq!(resp, format_sstr!(r#""{} has been logged out""#, email));
 
         let sessions = Session::get_by_email(&pool, &email).await?;
         for session in sessions {

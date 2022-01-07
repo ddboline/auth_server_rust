@@ -1,6 +1,7 @@
 use anyhow::{format_err, Error};
 use rweb::Schema;
 use serde::Deserialize;
+use stack_string::StackString;
 use tokio::task::spawn_blocking;
 
 use auth_server_lib::{pgpool::PgPool, user::User};
@@ -8,9 +9,9 @@ use auth_server_lib::{pgpool::PgPool, user::User};
 #[derive(Debug, Deserialize, Schema)]
 pub struct AuthRequest {
     #[schema(description = "Email Address")]
-    pub email: String,
+    pub email: StackString,
     #[schema(description = "Password")]
-    pub password: String,
+    pub password: StackString,
 }
 
 impl AuthRequest {
@@ -35,6 +36,8 @@ impl AuthRequest {
 #[cfg(test)]
 mod test {
     use anyhow::Error;
+    use stack_string::format_sstr;
+    use std::fmt::Write;
 
     use auth_server_lib::{config::Config, get_random_string, pgpool::PgPool};
 
@@ -45,7 +48,7 @@ mod test {
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
 
-        let email = format!("{}@localhost", get_random_string(32));
+        let email = format_sstr!("{}@localhost", get_random_string(32));
         let password = get_random_string(32);
 
         let req = AuthRequest { email, password };

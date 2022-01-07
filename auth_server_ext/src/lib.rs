@@ -13,7 +13,8 @@ pub mod ses_client;
 
 use anyhow::Error;
 use log::debug;
-use stack_string::StackString;
+use stack_string::{format_sstr, StackString};
+use std::fmt::Write;
 use url::Url;
 
 use auth_server_lib::invitation::Invitation;
@@ -26,8 +27,8 @@ pub async fn send_invitation(
     sending_email: impl AsRef<str>,
     callback_url: &Url,
 ) -> Result<(), Error> {
-    let dt_str = StackString::from_display(invite.expires_at.format("%I:%M %p %A, %-d %B, %C%y"))?;
-    let email_body = format!(
+    let dt_str = StackString::from_display(invite.expires_at.format("%I:%M %p %A, %-d %B, %C%y"));
+    let email_body = format_sstr!(
         "Please click on the link below to complete registration. <br/>
          <a href=\"{url}?id={id}&email={email}\">
          {url}</a> <br>
@@ -52,6 +53,8 @@ pub async fn send_invitation(
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
+    use stack_string::format_sstr;
+    use std::fmt::Write;
 
     use auth_server_lib::{config::Config, get_random_string, invitation::Invitation};
 
@@ -62,7 +65,7 @@ mod tests {
         let config = Config::init_config()?;
         let ses = SesInstance::new(None);
 
-        let email = format!("ddboline+{}@gmail.com", get_random_string(32));
+        let email = format_sstr!("ddboline+{}@gmail.com", get_random_string(32));
         let new_invitation = Invitation::from_email(&email);
         let callback_url = "https://localhost".parse()?;
         send_invitation(

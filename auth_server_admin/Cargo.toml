@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_admin"
-version = "0.7.20"
+version = "0.7.21"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -40,8 +40,8 @@ arc-swap = "1.2"
 im = "15.0"
 toml = "0.5"
 itertools = "0.10"
-refinery = {version="0.7", features=["tokio-postgres"]}
-stack-string = { version="0.4", features=["postgres_types"] }
+refinery = {version="0.8", features=["tokio-postgres"]}
+stack-string = { version="0.5", features=["postgres_types"] }
 stdout-channel = "0.4"
 
 [dev-dependencies]

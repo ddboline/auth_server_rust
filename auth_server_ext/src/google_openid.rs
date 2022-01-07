@@ -204,6 +204,8 @@ async fn get_google_client(config: &Config) -> Result<DiscoveredClient, OpenidEr
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
+    use stack_string::format_sstr;
+    use std::fmt::Write;
 
     use auth_server_lib::{config::Config, AUTH_APP_MUTEX};
 
@@ -216,13 +218,13 @@ mod tests {
 
         let client = GoogleClient::new(&config).await?;
         let (_, url) = client.get_auth_url().await?;
-        let redirect_uri = format!(
+        let redirect_uri = format_sstr!(
             "redirect_uri=https%3A%2F%2F{}%2Fapi%2Fcallback",
             config.domain
         );
 
         assert_eq!(url.domain(), Some("accounts.google.com"));
-        assert!(url.as_str().contains(&redirect_uri));
+        assert!(url.as_str().contains(redirect_uri.as_str()));
         assert!(url.as_str().contains("scope=openid+email"));
         assert!(url.as_str().contains("response_type=code"));
         Ok(())

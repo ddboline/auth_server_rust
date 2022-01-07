@@ -91,6 +91,8 @@ mod tests {
     use anyhow::Error;
     use futures::try_join;
     use log::debug;
+    use stack_string::format_sstr;
+    use std::fmt::Write;
 
     use crate::{config::Config, get_random_string, pgpool::PgPool, AUTH_APP_MUTEX};
 
@@ -101,8 +103,8 @@ mod tests {
         let _lock = AUTH_APP_MUTEX.lock().await;
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
-        let email = format!("{}@localhost", get_random_string(32));
-        let invitation = Invitation::from_email(&email);
+        let email = format_sstr!("{}@localhost", get_random_string(32));
+        let invitation = Invitation::from_email(email);
         let uuid = invitation.id;
         invitation.insert(&pool).await?;
 

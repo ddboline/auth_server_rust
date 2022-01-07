@@ -5,8 +5,8 @@ use log::{debug, error};
 use rweb::{delete, get, post, Json, Query, Rejection, Schema};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use stack_string::StackString;
-use std::{convert::Infallible, str, time::Duration};
+use stack_string::{format_sstr, StackString};
+use std::{convert::Infallible, fmt::Write, str, time::Duration};
 use tokio::time::{sleep, timeout};
 use url::Url;
 use uuid::Uuid;
@@ -110,9 +110,8 @@ pub async fn login(
         login_user_jwt(auth_data, &data.pool, &data.config).await?;
 
     data.session_cache.add_session(session);
-    let session_str =
-        StackString::from_display(session_id.encoded()).map_err(Into::<Error>::into)?;
-    let jwt_str = StackString::from_display(jwt.encoded()).map_err(Into::<Error>::into)?;
+    let session_str = StackString::from_display(session_id.encoded());
+    let jwt_str = StackString::from_display(jwt.encoded());
 
     let resp = JsonBase::new(user)
         .with_cookie(&session_str)
@@ -135,13 +134,13 @@ async fn login_user_jwt(
     user.secret_key = session.secret_key.clone();
     let cookies = user
         .get_jwt_cookie(&config.domain, config.expiration_seconds, config.secure)
-        .map_err(|e| Error::BadRequest(format!("Failed to create_token {}", e)))?;
+        .map_err(|e| Error::BadRequest(format_sstr!("Failed to create_token {}", e)))?;
     Ok((user, session, cookies))
 }
 
 #[derive(RwebResponse)]
 #[response(description = "Status Message", status = "CREATED")]
-struct ApiAuthDeleteResponse(JsonBase<String, Error>);
+struct ApiAuthDeleteResponse(JsonBase<StackString, Error>);
 
 #[delete("/api/auth")]
 #[openapi(description = "Log out")]
@@ -156,7 +155,7 @@ pub async fn logout(
         data.config.expiration_seconds,
         data.config.secure,
     )?;
-    let body = format!("{} has been logged out", user.email);
+    let body = format_sstr!("{} has been logged out", user.email);
     let resp = JsonBase::new(body)
         .with_cookie(&session_id.encoded().to_string())
         .with_cookie(&jwt.encoded().to_string());
@@ -376,7 +375,7 @@ pub async fn list_sessions(
 ) -> WarpResult<ListSessionsResponse> {
     let lines = list_sessions_lines(&data).await?.into_iter()
     .map(|s| {
-        format!(
+        format_sstr!(
             r#"<tr style="text-align: center">
                <td>{id}</td>
                <td>{email}</td>
@@ -391,7 +390,7 @@ pub async fn list_sessions(
             n_obj=s.number_of_data_objects,
         )
     }).join("\n");
-    let body = format!(
+    let body = format_sstr!(
         r#"<table border="1" class="dataframe" style="text-align: center">
             <thead><tr>
             <th>Session ID</th>
@@ -423,7 +422,7 @@ pub async fn list_session_data(
     #[data] data: AppState,
 ) -> WarpResult<ListSessionDataResponse> {
     let lines = list_session_data_lines(&data, &user).await?;
-    let body = format!(
+    let body = format_sstr!(
         r#"<table border="1" class="dataframe">
            <thead><tr>
            <th>Session ID</th>
@@ -439,7 +438,10 @@ pub async fn list_session_data(
     Ok(HtmlBase::new(body.into()).into())
 }
 
-async fn list_session_data_lines(data: &AppState, user: &LoggedUser) -> HttpResult<Vec<String>> {
+async fn list_session_data_lines(
+    data: &AppState,
+    user: &LoggedUser,
+) -> HttpResult<Vec<StackString>> {
     let lines = SessionData::get_by_session_id(&data.pool, user.session).await?
         .into_iter().map(|s| {
             let js = serde_json::to_vec(&s.session_value).unwrap_or_else(|_| Vec::new());
@@ -450,7 +452,7 @@ async fn list_session_data_lines(data: &AppState, user: &LoggedUser) -> HttpResu
                     str::from_utf8(&js[..error.valid_up_to()]).unwrap()
                 }
             };
-            format!(
+            format_sstr!(
                 r#"<tr style="text-align">
                    <td>{id}</td>
                    <td>{key}</td>

@@ -1,8 +1,8 @@
 use anyhow::{format_err, Error};
 use postgres_query::{client::GenericClient, query_dyn};
 use serde::{Deserialize, Serialize};
-use stack_string::StackString;
-use std::convert::TryFrom;
+use stack_string::{format_sstr, StackString};
+use std::{convert::TryFrom, fmt::Write};
 use url::Url;
 
 use crate::pgpool::{PgPool, PgTransaction};
@@ -44,7 +44,7 @@ impl Entry {
 
     pub async fn get_authorized_users(&self) -> Result<Vec<StackString>, Error> {
         let pool = self.get_pool();
-        let query = format!(
+        let query = format_sstr!(
             "SELECT {email_field} FROM {table}",
             table = self.table,
             email_field = self.email_field
@@ -71,7 +71,7 @@ impl Entry {
         C: GenericClient + Sync,
     {
         let email = email.as_ref();
-        let query = format!(
+        let query = format_sstr!(
             "INSERT INTO {table} ({email_field}) VALUES ($email)",
             table = self.table,
             email_field = self.email_field,
@@ -96,7 +96,7 @@ impl Entry {
         C: GenericClient + Sync,
     {
         let email = email.as_ref();
-        let query = format!(
+        let query = format_sstr!(
             "DELETE FROM {table} WHERE {email_field} = $email",
             table = self.table,
             email_field = self.email_field

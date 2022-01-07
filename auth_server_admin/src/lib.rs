@@ -3,8 +3,11 @@ use chrono::Utc;
 use futures::{future::try_join_all, try_join};
 use itertools::Itertools;
 use refinery::embed_migrations;
-use stack_string::StackString;
-use std::collections::{BTreeSet, HashMap};
+use stack_string::{format_sstr, StackString};
+use std::{
+    collections::{BTreeSet, HashMap},
+    fmt::Write,
+};
 use stdout_channel::StdoutChannel;
 use structopt::StructOpt;
 use tokio::task::spawn_blocking;
@@ -120,7 +123,7 @@ impl AuthServerOptions {
                     .await
                     .context("Failed to get_authorized_users")?
                 {
-                    stdout.send(format!(
+                    stdout.send(format_sstr!(
                         "{} {}",
                         user.email,
                         auth_app_map
@@ -134,10 +137,10 @@ impl AuthServerOptions {
                     .await
                     .context("Failed to get_all")?
                 {
-                    stdout.send(
-                        serde_json::to_string(&invite)
-                            .with_context(|| format!("Failed to parse invite {:?}", invite))?,
-                    );
+                    stdout
+                        .send(serde_json::to_string(&invite).with_context(|| {
+                            format_sstr!("Failed to parse invite {:?}", invite)
+                        })?);
                 }
             }
             AuthServerOptions::SendInvite { email } => {
@@ -155,46 +158,50 @@ impl AuthServerOptions {
                 )
                 .await
                 .with_context(|| {
-                    format!(
+                    format_sstr!(
                         "Failed to send invitation {} {}",
                         config.sending_email_address,
                         config.callback_url.as_str()
                     )
                 })?;
-                stdout.send(format!("Invitation {} sent to {}", invitation.id, email));
+                stdout.send(format_sstr!(
+                    "Invitation {} sent to {}",
+                    invitation.id,
+                    email
+                ));
             }
             AuthServerOptions::RmInvites { ids } => {
                 for id in ids {
                     if let Some(invitation) = Invitation::get_by_uuid(id, pool)
                         .await
-                        .with_context(|| format!("Failed to get id {}", id))?
+                        .with_context(|| format_sstr!("Failed to get id {}", id))?
                     {
                         invitation
                             .delete(pool)
                             .await
-                            .with_context(|| format!("Failed to delete {}", invitation.id))?;
+                            .with_context(|| format_sstr!("Failed to delete {}", invitation.id))?;
                     }
                 }
             }
             AuthServerOptions::Add { email, password } => {
                 if User::get_by_email(email.clone(), pool)
                     .await
-                    .with_context(|| format!("failed to get_by_email {}", email))?
+                    .with_context(|| format_sstr!("failed to get_by_email {}", email))?
                     .is_none()
                 {
                     let user = User::from_details(email, password);
                     user.insert(pool)
                         .await
-                        .with_context(|| format!("Failed to insert {:?}", user))?;
-                    stdout.send(format!("Add user {}", user.email));
+                        .with_context(|| format_sstr!("Failed to insert {:?}", user))?;
+                    stdout.send(format_sstr!("Add user {}", user.email));
                 } else {
-                    stdout.send(format!("User {} exists", email));
+                    stdout.send(format_sstr!("User {} exists", email));
                 }
             }
             AuthServerOptions::Rm { email } => {
                 for session in Session::get_by_email(pool, email.clone())
                     .await
-                    .with_context(|| format!("failed to get sessions by email {}", email))?
+                    .with_context(|| format_sstr!("failed to get sessions by email {}", email))?
                 {
                     for session_data in session.get_all_session_data(pool).await? {
                         session_data.delete(pool).await?;
@@ -203,14 +210,14 @@ impl AuthServerOptions {
                 }
                 if let Some(user) = User::get_by_email(email.clone(), pool)
                     .await
-                    .with_context(|| format!("failed to get_by_email {}", email))?
+                    .with_context(|| format_sstr!("failed to get_by_email {}", email))?
                 {
                     user.delete(pool)
                         .await
-                        .with_context(|| format!("Failed to delete {:?}", user))?;
-                    stdout.send(format!("Deleted user {}", user.email));
+                        .with_context(|| format_sstr!("Failed to delete {:?}", user))?;
+                    stdout.send(format_sstr!("Deleted user {}", user.email));
                 } else {
-                    stdout.send(format!("User {} does not exist", email));
+                    stdout.send(format_sstr!("User {} does not exist", email));
                 }
             }
             AuthServerOptions::Register {
@@ -219,7 +226,7 @@ impl AuthServerOptions {
             } => {
                 if let Some(invitation) = Invitation::get_by_uuid(invitation_id, pool)
                     .await
-                    .with_context(|| format!("Failed to get id {}", invitation_id))?
+                    .with_context(|| format_sstr!("Failed to get id {}", invitation_id))?
                 {
                     if invitation.expires_at > Utc::now() {
                         let user = User::from_details(invitation.email.clone(), password);
@@ -237,9 +244,9 @@ impl AuthServerOptions {
                 if let Some(mut user) = User::get_by_email(email.clone(), pool).await? {
                     user.set_password(password);
                     user.update(pool).await?;
-                    stdout.send(format!("Password updated for {}", email));
+                    stdout.send(format_sstr!("Password updated for {}", email));
                 } else {
-                    stdout.send(format!("User {} does not exist", email));
+                    stdout.send(format_sstr!("User {} does not exist", email));
                 }
             }
             AuthServerOptions::Verify { email, password } => {
@@ -251,7 +258,7 @@ impl AuthServerOptions {
                         stdout.send("Password incorrect");
                     }
                 } else {
-                    stdout.send(format!("User {} does not exist", email));
+                    stdout.send(format_sstr!("User {} does not exist", email));
                 }
             }
             AuthServerOptions::Status => {
@@ -261,12 +268,13 @@ impl AuthServerOptions {
                     Invitation::get_number_invitations(pool),
                     ses.get_statistics(),
                 )?;
-                stdout.send(format!(
+                stdout.send(format_sstr!(
                     "Users: {}\nInvitations: {}\n",
-                    number_users, number_invitations
+                    number_users,
+                    number_invitations
                 ));
-                stdout.send(format!("{:#?}", quotas));
-                stdout.send(format!("{:#?}", stats,));
+                stdout.send(format_sstr!("{:#?}", quotas));
+                stdout.send(format_sstr!("{:#?}", stats,));
             }
             AuthServerOptions::AddToApp { email, app } => {
                 if let Ok(auth_user_config) = AuthUserConfig::new(&config.auth_user_config_path) {
@@ -369,7 +377,8 @@ mod test {
         distributions::{Alphanumeric, DistString},
         thread_rng,
     };
-    use std::collections::HashSet;
+    use stack_string::format_sstr;
+    use std::{collections::HashSet, fmt::Write};
     use stdout_channel::{MockStdout, StdoutChannel};
     use uuid::Uuid;
 
@@ -389,7 +398,7 @@ mod test {
         let _lock = AUTH_APP_MUTEX.lock().await;
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
-        let email = format!("ddboline+{}@gmail.com", get_random_string(32));
+        let email = format_sstr!("ddboline+{}@gmail.com", get_random_string(32));
         let password = get_random_string(32);
 
         let mock_stdout = MockStdout::new();
@@ -451,7 +460,7 @@ mod test {
         assert_eq!(mock_stderr.lock().await.len(), 0);
         assert_eq!(mock_stdout.lock().await.len(), 1);
         debug!("{} {}", email, mock_stdout.lock().await.join("\n"));
-        assert!(mock_stdout.lock().await[0].contains(&email));
+        assert!(mock_stdout.lock().await[0].contains(email.as_str()));
 
         let users = User::get_authorized_users(&pool).await?;
 
@@ -535,7 +544,7 @@ mod test {
         assert_eq!(mock_stderr.lock().await.len(), 0);
         assert!(mock_stdout.lock().await.join("").contains("EmailStats"));
 
-        let email = format!("ddboline+{}@gmail.com", get_random_string(32));
+        let email = format_sstr!("ddboline+{}@gmail.com", get_random_string(32));
         let password = get_random_string(32);
 
         let mock_stdout = MockStdout::new();

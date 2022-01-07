@@ -1,10 +1,10 @@
 use anyhow::{Context, Error};
 use derive_more::{Deref, IntoIterator};
-use stack_string::StackString;
+use stack_string::{format_sstr, StackString};
 use std::{
     collections::HashMap,
     convert::{TryFrom, TryInto},
-    fmt::Debug,
+    fmt::{Debug, Write},
     fs,
     path::Path,
     str::FromStr,
@@ -25,9 +25,9 @@ impl AuthUserConfig {
 
     fn from_path(p: impl AsRef<Path>) -> Result<Self, Error> {
         let p = p.as_ref();
-        let data = fs::read_to_string(p).with_context(|| format!("Failed to open {:?}", p))?;
-        let config: ConfigToml =
-            toml::from_str(&data).with_context(|| format!("Failed to parse toml in {:?}", p))?;
+        let data = fs::read_to_string(p).with_context(|| format_sstr!("Failed to open {:?}", p))?;
+        let config: ConfigToml = toml::from_str(&data)
+            .with_context(|| format_sstr!("Failed to parse toml in {:?}", p))?;
         config.try_into()
     }
 }
@@ -36,7 +36,7 @@ impl FromStr for AuthUserConfig {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let config: ConfigToml =
-            toml::from_str(s).with_context(|| format!("Failed to parse toml {}", s))?;
+            toml::from_str(s).with_context(|| format_sstr!("Failed to parse toml {}", s))?;
         config.try_into()
     }
 }

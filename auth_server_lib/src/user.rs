@@ -41,7 +41,7 @@ impl Argon {
     fn hash_password(&self, plain: impl AsRef<[u8]>) -> Result<StackString, Error> {
         let salt = get_random_string(16);
         let hash = self.0.hash_password(plain.as_ref(), &salt)?;
-        StackString::from_display(hash).map_err(Into::into)
+        Ok(StackString::from_display(hash))
     }
 
     fn verify_password(&self, hashed: &str, password: impl AsRef<[u8]>) -> Result<(), ArgonError> {
@@ -225,6 +225,8 @@ mod tests {
     use anyhow::Error;
     use chrono::Utc;
     use log::debug;
+    use stack_string::format_sstr;
+    use std::fmt::Write;
 
     use crate::{
         config::Config,
@@ -240,7 +242,7 @@ mod tests {
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
 
-        let email = format!("{}@localhost", get_random_string(32));
+        let email = format_sstr!("{}@localhost", get_random_string(32));
 
         assert_eq!(User::get_by_email(&email, &pool).await?, None);
 

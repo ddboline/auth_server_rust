@@ -15,10 +15,11 @@ use rweb::{
 };
 use serde::Serialize;
 use serde_json::Error as SerdeJsonError;
+use stack_string::{format_sstr, StackString};
 use std::{
     borrow::Cow,
     convert::{From, Infallible},
-    fmt::{Debug, Error as FmtError},
+    fmt::{Debug, Error as FmtError, Write},
 };
 use thiserror::Error;
 use tokio::{task::JoinError, time::error::Elapsed};
@@ -33,7 +34,7 @@ pub enum ServiceError {
     #[error("Internal Server Error")]
     InternalServerError,
     #[error("BadRequest: {0}")]
-    BadRequest(String),
+    BadRequest(StackString),
     #[error("Unauthorized")]
     Unauthorized,
     #[error("blocking error {0}")]
@@ -70,13 +71,13 @@ pub enum ServiceError {
 // and provide a custom message
 impl From<ParseError> for ServiceError {
     fn from(e: ParseError) -> Self {
-        Self::BadRequest(format!("Invalid UUID {:?}", e))
+        Self::BadRequest(format_sstr!("Invalid UUID {:?}", e))
     }
 }
 
 impl From<OpenidError> for ServiceError {
     fn from(e: OpenidError) -> Self {
-        Self::BadRequest(format!("Openid Error {:?}", e))
+        Self::BadRequest(format_sstr!("Openid Error {:?}", e))
     }
 }
 
