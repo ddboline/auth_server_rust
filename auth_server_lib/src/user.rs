@@ -215,7 +215,7 @@ impl From<User> for AuthorizedUser {
         Self {
             email: user.email,
             session: Uuid::new_v4(),
-            secret_key: get_random_string(16).into(),
+            secret_key: get_random_string(16),
         }
     }
 }

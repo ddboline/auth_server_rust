@@ -55,7 +55,7 @@ impl Session {
             email: email.into(),
             created_at: Utc::now(),
             last_accessed: Utc::now(),
-            secret_key: get_random_string(16).into(),
+            secret_key: get_random_string(16),
         }
     }
 

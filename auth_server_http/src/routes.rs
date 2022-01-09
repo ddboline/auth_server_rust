@@ -403,7 +403,7 @@ pub async fn list_sessions(
             </table>"#,
         lines
     );
-    Ok(HtmlBase::new(body.into()).into())
+    Ok(HtmlBase::new(body).into())
 }
 
 async fn list_sessions_lines(data: &AppState) -> HttpResult<Vec<SessionSummary>> {
@@ -435,7 +435,7 @@ pub async fn list_session_data(
            </table>"#,
         lines.join("\n")
     );
-    Ok(HtmlBase::new(body.into()).into())
+    Ok(HtmlBase::new(body).into())
 }
 
 async fn list_session_data_lines(
@@ -872,8 +872,9 @@ async fn test_login_user_jwt(
 ) -> HttpResult<(LoggedUser, UserCookies<'static>)> {
     if let Ok(s) = std::env::var("TESTENV") {
         if &s == "true" {
+            let email = auth_data.email;
             let user = AuthorizedUser {
-                email: auth_data.email.into(),
+                email,
                 session: session.id,
                 secret_key: session.secret_key.clone(),
             };

@@ -26,6 +26,7 @@ use rand::{
     distributions::{Alphanumeric, DistString, Distribution},
     thread_rng,
 };
+use smallvec::SmallVec;
 use tokio::sync::Mutex;
 
 lazy_static! {
@@ -37,10 +38,8 @@ pub fn get_random_string(n: usize) -> StackString {
     if n > MAX_INLINE {
         Alphanumeric.sample_string(&mut rng, n).into()
     } else {
-        let mut buf = [0u8; MAX_INLINE];
-        for i in 0..n {
-            buf[i] = Alphanumeric.sample(&mut rng);
-        }
+        let buf: SmallVec<[u8; MAX_INLINE]> =
+            (0..n).map(|_| Alphanumeric.sample(&mut rng)).collect();
         StackString::from_utf8_lossy(&buf[0..n])
     }
 }
