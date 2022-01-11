@@ -383,7 +383,8 @@ mod test {
     use uuid::Uuid;
 
     use auth_server_lib::{
-        config::Config, invitation::Invitation, pgpool::PgPool, user::User, AUTH_APP_MUTEX,
+        config::Config, invitation::Invitation, pgpool::PgPool, session::Session, user::User,
+        AUTH_APP_MUTEX,
     };
 
     use crate::AuthServerOptions;
@@ -619,6 +620,51 @@ mod test {
         assert!(Invitation::get_by_uuid(invitation_uuid, &pool)
             .await?
             .is_none());
+
+        let user = User::from_details("test@example.com", "abc123");
+        user.insert(&pool).await?;
+        let session = Session::new("test@example.com");
+        session.insert(&pool).await?;
+        let session_data = session
+            .set_session_data(&pool, "test", "TEST DATA".into())
+            .await?;
+
+        let mock_stdout = MockStdout::new();
+        let mock_stderr = MockStdout::new();
+        let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
+
+        AuthServerOptions::ListSessions {
+            email: Some("test@example.com".into()),
+        }
+        .process_args(&pool, &stdout)
+        .await?;
+        stdout.close().await?;
+        for line in mock_stdout.lock().await.iter() {
+            assert!(line.contains("test@example.com"));
+        }
+
+        let mock_stdout = MockStdout::new();
+        let mock_stderr = MockStdout::new();
+        let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
+
+        AuthServerOptions::ListSessionData {
+            id: Some(session_data.session_id),
+        }
+        .process_args(&pool, &stdout)
+        .await?;
+        stdout.close().await?;
+        for line in mock_stdout.lock().await.iter() {
+            assert!(line.contains("TEST DATA"));
+        }
+
+        AuthServerOptions::RmSessions {
+            ids: vec![session_data.session_id],
+        }
+        .process_args(&pool, &stdout)
+        .await?;
+        stdout.close().await?;
+
+        user.delete(&pool).await?;
 
         Ok(())
     }

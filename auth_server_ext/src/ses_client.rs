@@ -130,3 +130,14 @@ pub struct Statistics {
     pub quotas: SesQuotas,
     pub stats: EmailStats,
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::ses_client::SesInstance;
+
+    #[test]
+    fn test_debug() {
+        let ses = SesInstance::default();
+        assert_eq!(&format!("{:?}", ses), "SesInstance");
+    }
+}

@@ -53,6 +53,7 @@ impl CsrfTokenCache {
 pub struct GoogleClient {
     client: Arc<DiscoveredClient>,
     csrf_tokens: Arc<Mutex<HashMap<StackString, CsrfTokenCache>>>,
+    mock_email: Option<StackString>,
 }
 
 impl GoogleClient {
@@ -64,6 +65,7 @@ impl GoogleClient {
                     return Ok(Self {
                         client: Arc::new(client),
                         csrf_tokens,
+                        mock_email: None,
                     });
                 }
                 Err(OpenidError::ClientError(ClientError::Reqwest(e))) => {
@@ -134,12 +136,17 @@ impl GoogleClient {
             return Err(format_err!("Token expired"));
         }
         debug!("Nonce {:?}", nonce);
-        let userinfo = self.request_userinfo(code, &nonce).await?;
-        let user_email = &userinfo.email.ok_or_else(|| format_err!("No userinfo"))?;
-        let user = User::get_by_email(user_email, pool)
-            .await?
-            .ok_or_else(|| format_err!("No User"))?
-            .into();
+        let user = match &self.mock_email {
+            Some(mock_email) => Self::mock_user(mock_email.as_str()),
+            None => {
+                let userinfo = self.request_userinfo(code, &nonce).await?;
+                let user_email = &userinfo.email.ok_or_else(|| format_err!("No userinfo"))?;
+                User::get_by_email(user_email, pool)
+                    .await?
+                    .ok_or_else(|| format_err!("No User"))?
+                    .into()
+            }
+        };
         is_ready.store(TokenState::Authorized);
         notify.notify_waiters();
         Ok(Some(user))
@@ -159,6 +166,13 @@ impl GoogleClient {
             .request_userinfo(&token)
             .await
             .map_err(|e| format_err!("Openid Error {:?}", e))
+    }
+
+    fn mock_user(mock_email: &str) -> AuthorizedUser {
+        AuthorizedUser {
+            email: mock_email.into(),
+            ..AuthorizedUser::default()
+        }
     }
 
     pub async fn cleanup_token_map(&self) {
@@ -206,8 +220,9 @@ mod tests {
     use anyhow::Error;
     use stack_string::format_sstr;
     use std::fmt::Write;
+    use tokio::task::spawn;
 
-    use auth_server_lib::{config::Config, AUTH_APP_MUTEX};
+    use auth_server_lib::{config::Config, pgpool::PgPool, AUTH_APP_MUTEX};
 
     use crate::google_openid::{get_token_string, GoogleClient};
 
@@ -215,9 +230,11 @@ mod tests {
     async fn test_google_openid() -> Result<(), Error> {
         let _lock = AUTH_APP_MUTEX.lock().await;
         let config = Config::init_config()?;
+        let pool = PgPool::new(&config.database_url);
 
-        let client = GoogleClient::new(&config).await?;
-        let (_, url) = client.get_auth_url().await?;
+        let mut client = GoogleClient::new(&config).await?;
+        client.mock_email = Some("test@example.com".into());
+        let (state, url) = client.get_auth_url().await?;
         let redirect_uri = format_sstr!(
             "redirect_uri=https%3A%2F%2F{}%2Fapi%2Fcallback",
             config.domain
@@ -227,6 +244,20 @@ mod tests {
         assert!(url.as_str().contains(redirect_uri.as_str()));
         assert!(url.as_str().contains("scope=openid+email"));
         assert!(url.as_str().contains("response_type=code"));
+
+        let task = spawn({
+            let state = state.clone();
+            let client = client.clone();
+            async move { client.wait_csrf(&state).await }
+        });
+
+        let result = client
+            .run_callback("mock_code", state.as_str(), &pool)
+            .await?;
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().email, "test@example.com");
+
+        task.await??;
         Ok(())
     }
 
