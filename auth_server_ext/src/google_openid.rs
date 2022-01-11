@@ -219,8 +219,11 @@ async fn get_google_client(config: &Config) -> Result<DiscoveredClient, OpenidEr
 mod tests {
     use anyhow::Error;
     use stack_string::format_sstr;
-    use std::fmt::Write;
-    use tokio::task::spawn;
+    use std::{fmt::Write, time::SystemTime};
+    use tokio::{
+        task::{spawn, JoinHandle},
+        time::{sleep, Duration},
+    };
 
     use auth_server_lib::{config::Config, pgpool::PgPool, AUTH_APP_MUTEX};
 
@@ -245,19 +248,26 @@ mod tests {
         assert!(url.as_str().contains("scope=openid+email"));
         assert!(url.as_str().contains("response_type=code"));
 
-        let task = spawn({
+        let task: JoinHandle<Result<_, Error>> = spawn({
             let state = state.clone();
             let client = client.clone();
-            async move { client.wait_csrf(&state).await }
+            let time = SystemTime::now();
+            async move {
+                client.wait_csrf(&state).await?;
+                let elapsed = time.elapsed()?;
+                Ok(elapsed.as_secs_f64())
+            }
         });
 
+        sleep(Duration::from_secs(2)).await;
         let result = client
             .run_callback("mock_code", state.as_str(), &pool)
             .await?;
         assert!(result.is_some());
         assert_eq!(result.unwrap().email, "test@example.com");
 
-        task.await??;
+        let x = task.await??;
+        assert!(x > 2.0);
         Ok(())
     }
 

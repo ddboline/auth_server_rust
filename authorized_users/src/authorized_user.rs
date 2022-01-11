@@ -21,8 +21,27 @@ impl TryFrom<Token> for AuthorizedUser {
     }
 }
 
-impl AuthorizedUser {
-    pub fn with_session(&mut self, session: Uuid) {
-        self.session = session;
+#[cfg(test)]
+mod tests {
+    use anyhow::Error;
+    use std::convert::TryInto;
+    use uuid::Uuid;
+
+    use crate::{get_random_key, token::Token, AuthorizedUser, JWT_SECRET, KEY_LENGTH, SECRET_KEY};
+
+    #[test]
+    fn test_auth_user() -> Result<(), Error> {
+        let mut secret_key = [0u8; KEY_LENGTH];
+        secret_key.copy_from_slice(&get_random_key());
+
+        SECRET_KEY.set(secret_key);
+        JWT_SECRET.set(secret_key);
+
+        let key = "0123456789abcdef";
+        let session = Uuid::new_v4();
+        let token = Token::create_token("test@example.com", "example.com", 3600, session, key)?;
+        let user: AuthorizedUser = token.try_into()?;
+        assert_eq!(user.session, session);
+        Ok(())
     }
 }
