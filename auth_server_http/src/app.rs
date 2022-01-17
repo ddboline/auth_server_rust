@@ -164,7 +164,8 @@ async fn run_app(config: Config) -> Result<(), Error> {
         .or(spec_yaml_path)
         .recover(error_response)
         .with(cors);
-    let addr: SocketAddr = format_sstr!("{}:{}", config.host, config.port).parse()?;
+    let addr: SocketAddr =
+        format_sstr!("{host}:{port}", host = config.host, port = config.port).parse()?;
     debug!("{:?}", addr);
     rweb::serve(routes).bind(addr).await;
     update_handle.await.map_err(Into::into)
@@ -196,7 +197,7 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
         .build();
 
     let routes = auth_path.recover(error_response).with(cors);
-    let addr: SocketAddr = format_sstr!("{}:{}", config.host, port).parse()?;
+    let addr: SocketAddr = format_sstr!("{host}:{port}", host = config.host).parse()?;
     rweb::serve(routes).bind(addr).await;
     Ok(())
 }
@@ -287,7 +288,7 @@ mod tests {
         sleep(Duration::from_secs(10)).await;
 
         let client = reqwest::Client::builder().cookie_store(true).build()?;
-        let url = format_sstr!("http://localhost:{}/api/auth", test_port);
+        let url = format_sstr!("http://localhost:{test_port}/api/auth");
         let data = hashmap! {
             "email" => &email,
             "password" => &password,
@@ -351,9 +352,8 @@ mod tests {
         sleep(Duration::from_secs(10)).await;
 
         let url = format_sstr!(
-            "http://localhost:{}/api/register/{}",
-            test_port,
-            &invitation.id
+            "http://localhost:{test_port}/api/register/{id}",
+            id = invitation.id
         );
         let data = hashmap! {
             "password" => &password,
@@ -376,7 +376,7 @@ mod tests {
             .await?
             .is_none());
 
-        let url = format_sstr!("http://localhost:{}/api/auth", test_port);
+        let url = format_sstr!("http://localhost:{test_port}/api/auth");
         let data = hashmap! {
             "email" => &email,
             "password" => &password,
@@ -405,7 +405,7 @@ mod tests {
         debug!("I am: {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
-        let url = format_sstr!("http://localhost:{}/api/password_change", test_port);
+        let url = format_sstr!("http://localhost:{test_port}/api/password_change");
         let new_password = get_random_string(32);
         let data = hashmap! {
             "email" => &email,
@@ -423,7 +423,7 @@ mod tests {
         debug!("password changed {:?}", output);
         assert_eq!(output.message.as_str(), "password updated");
 
-        let url = format_sstr!("http://localhost:{}/api/session/test", test_port);
+        let url = format_sstr!("http://localhost:{test_port}/api/session/test");
         let data = hashmap! {
             "key" => "value",
         };
@@ -451,7 +451,7 @@ mod tests {
             .await?;
         debug!("{:?}", resp);
         assert_eq!(resp.len(), 1);
-        let url = format_sstr!("http://localhost:{}/api/auth", test_port);
+        let url = format_sstr!("http://localhost:{test_port}/api/auth");
         let resp: StackString = client
             .delete(url.as_str())
             .send()
@@ -460,7 +460,7 @@ mod tests {
             .text()
             .await?
             .into();
-        assert_eq!(resp, format_sstr!(r#""{} has been logged out""#, email));
+        assert_eq!(resp, format_sstr!(r#""{email} has been logged out""#));
 
         let sessions = Session::get_by_email(&pool, &email).await?;
         for session in sessions {

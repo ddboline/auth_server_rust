@@ -25,9 +25,9 @@ impl AuthUserConfig {
 
     fn from_path(p: impl AsRef<Path>) -> Result<Self, Error> {
         let p = p.as_ref();
-        let data = fs::read_to_string(p).with_context(|| format_sstr!("Failed to open {:?}", p))?;
-        let config: ConfigToml = toml::from_str(&data)
-            .with_context(|| format_sstr!("Failed to parse toml in {:?}", p))?;
+        let data = fs::read_to_string(p).with_context(|| format_sstr!("Failed to open {p:?}"))?;
+        let config: ConfigToml =
+            toml::from_str(&data).with_context(|| format_sstr!("Failed to parse toml in {p:?}"))?;
         config.try_into()
     }
 }
@@ -36,7 +36,7 @@ impl FromStr for AuthUserConfig {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let config: ConfigToml =
-            toml::from_str(s).with_context(|| format_sstr!("Failed to parse toml {}", s))?;
+            toml::from_str(s).with_context(|| format_sstr!("Failed to parse toml {s}"))?;
         config.try_into()
     }
 }

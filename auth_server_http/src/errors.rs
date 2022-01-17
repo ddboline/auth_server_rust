@@ -71,13 +71,13 @@ pub enum ServiceError {
 // and provide a custom message
 impl From<ParseError> for ServiceError {
     fn from(e: ParseError) -> Self {
-        Self::BadRequest(format_sstr!("Invalid UUID {:?}", e))
+        Self::BadRequest(format_sstr!("Invalid UUID {e:?}"))
     }
 }
 
 impl From<OpenidError> for ServiceError {
     fn from(e: OpenidError) -> Self {
-        Self::BadRequest(format_sstr!("Openid Error {:?}", e))
+        Self::BadRequest(format_sstr!("Openid Error {e:?}"))
     }
 }
 

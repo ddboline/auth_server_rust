@@ -134,7 +134,7 @@ async fn login_user_jwt(
     user.secret_key = session.secret_key.clone();
     let cookies = user
         .get_jwt_cookie(&config.domain, config.expiration_seconds, config.secure)
-        .map_err(|e| Error::BadRequest(format_sstr!("Failed to create_token {}", e)))?;
+        .map_err(|e| Error::BadRequest(format_sstr!("Failed to create_token {e}")))?;
     Ok((user, session, cookies))
 }
 
@@ -399,9 +399,8 @@ pub async fn list_sessions(
             <th>Number of Data Objects</th>
             <th></th>
             </tr></thead>
-            <tbody>{}</tbody>
+            <tbody>{lines}</tbody>
             </table>"#,
-        lines
     );
     Ok(HtmlBase::new(body).into())
 }
@@ -421,7 +420,7 @@ pub async fn list_session_data(
     #[filter = "LoggedUser::filter"] user: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<ListSessionDataResponse> {
-    let lines = list_session_data_lines(&data, &user).await?;
+    let lines = list_session_data_lines(&data, &user).await?.join("\n");
     let body = format_sstr!(
         r#"<table border="1" class="dataframe">
            <thead><tr>
@@ -431,9 +430,8 @@ pub async fn list_session_data(
            <th>Session Value</th>
            <th></th>
            </tr></thead>
-           <tbody>{}</tbody>
-           </table>"#,
-        lines.join("\n")
+           <tbody>{lines}</tbody>
+           </table>"#
     );
     Ok(HtmlBase::new(body).into())
 }
