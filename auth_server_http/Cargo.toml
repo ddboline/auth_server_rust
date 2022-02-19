@@ -48,7 +48,7 @@ serde_yaml = "0.8"
 indexmap = "1.6"
 maplit = "1.0"
 cookie = {version="0.16", features=["percent-encode"]}
-stack-string = { version="0.5", features=["postgres_types", "rweb-openapi"] }
+stack-string = { version="0.6", features=["postgres_types", "rweb-openapi"] }
 stdout-channel = "0.4"
 rweb-helper = {git = "https://github.com/ddboline/rweb_helper.git", tag="0.4.3"}
 
