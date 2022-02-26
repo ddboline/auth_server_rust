@@ -1,6 +1,6 @@
 use cookie::{time::Duration, Cookie};
 use log::debug;
-use rweb::{filters::cookie::cookie, Filter, Rejection, Schema};
+use rweb::{filters::{cookie::cookie, BoxedFilter}, Filter, Rejection, Schema, FromRequest};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::{
@@ -102,6 +102,14 @@ impl LoggedUser {
                     .map(|_| user)
                     .map_err(rweb::reject::custom)
             })
+    }
+}
+
+impl FromRequest for LoggedUser {
+    type Filter = BoxedFilter<(Self,)>;
+
+    fn new() -> Self::Filter {
+        Self::filter().boxed()
     }
 }
 
