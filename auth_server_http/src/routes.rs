@@ -145,7 +145,7 @@ struct ApiAuthDeleteResponse(JsonBase<StackString, Error>);
 #[delete("/api/auth")]
 #[openapi(description = "Log out")]
 pub async fn logout(
-    #[filter = "LoggedUser::filter"] user: LoggedUser,
+    user: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<ApiAuthDeleteResponse> {
     delete_user_session(user.session, &data.pool).await?;
@@ -179,7 +179,7 @@ struct ApiAuthGetResponse(JsonBase<LoggedUser, Error>);
 #[get("/api/auth")]
 #[openapi(description = "Get current username if logged in")]
 pub async fn get_me(
-    #[filter = "LoggedUser::filter"] user: LoggedUser,
+    user: LoggedUser,
 ) -> WarpResult<ApiAuthGetResponse> {
     Ok(JsonBase::new(user).into())
 }
@@ -343,7 +343,7 @@ struct SessionDataObjResponse(JsonBase<Vec<SessionDataObj>, Error>);
 #[get("/api/session-data")]
 #[openapi(description = "Session Data")]
 pub async fn list_session_obj(
-    #[filter = "LoggedUser::filter"] user: LoggedUser,
+    user: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<SessionDataObjResponse> {
     let values = list_session_objs(&data, &user).await?;
@@ -370,7 +370,7 @@ struct ListSessionsResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/list-sessions")]
 pub async fn list_sessions(
-    #[filter = "LoggedUser::filter"] _: LoggedUser,
+    _: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<ListSessionsResponse> {
     let lines = list_sessions_lines(&data).await?.into_iter()
@@ -417,7 +417,7 @@ struct ListSessionDataResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/list-session-data")]
 pub async fn list_session_data(
-    #[filter = "LoggedUser::filter"] user: LoggedUser,
+    user: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<ListSessionDataResponse> {
     let lines = list_session_data_lines(&data, &user).await?.join("\n");
@@ -475,7 +475,7 @@ struct SessionsResponse(JsonBase<Vec<SessionSummaryWrapper>, Error>);
 #[get("/api/sessions")]
 #[openapi(description = "Open Sessions")]
 pub async fn get_sessions(
-    #[filter = "LoggedUser::filter"] _: LoggedUser,
+    _: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<SessionsResponse> {
     let objects = list_sessions_lines(&data)
@@ -501,7 +501,7 @@ pub struct SessionQuery {
 #[delete("/api/sessions")]
 #[openapi(description = "Delete Sessions")]
 pub async fn delete_sessions(
-    #[filter = "LoggedUser::filter"] user: LoggedUser,
+    user: LoggedUser,
     #[data] data: AppState,
     session_query: Query<SessionQuery>,
 ) -> WarpResult<DeleteSessionsResponse> {
@@ -630,7 +630,7 @@ struct ApiPasswordChangeResponse(JsonBase<PasswordChangeOutput, Error>);
 #[post("/api/password_change")]
 #[openapi(description = "Change password for currently logged in user")]
 pub async fn change_password_user(
-    #[filter = "LoggedUser::filter"] user: LoggedUser,
+    user: LoggedUser,
     #[data] data: AppState,
     user_data: Json<UserData>,
 ) -> WarpResult<ApiPasswordChangeResponse> {
