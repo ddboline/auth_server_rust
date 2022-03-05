@@ -72,7 +72,7 @@ impl SesInstance {
             .get_send_statistics()
             .await?
             .send_data_points
-            .unwrap_or_else(Vec::new)
+            .unwrap_or_default()
             .into_iter()
             .filter_map(|point| {
                 Some(EmailStats {
