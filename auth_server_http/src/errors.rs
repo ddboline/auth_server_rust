@@ -102,6 +102,8 @@ fn login_html() -> impl Reply {
     )
 }
 
+/// # Errors
+/// Does not return error (error type is `Infallible`)
 #[allow(clippy::missing_panics_doc)]
 #[allow(clippy::unused_async)]
 pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible> {

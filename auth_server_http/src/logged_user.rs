@@ -29,6 +29,8 @@ pub struct UserCookies<'a> {
 }
 
 impl LoggedUser {
+    /// # Errors
+    /// Returns error if `Token::create_token` fails
     pub fn get_jwt_cookie(
         &self,
         domain: impl AsRef<str>,
@@ -66,7 +68,7 @@ impl LoggedUser {
         domain: impl AsRef<str>,
         expiration_seconds: i64,
         secure: bool,
-    ) -> Result<UserCookies<'static>, Error> {
+    ) -> UserCookies<'static> {
         let domain = domain.as_ref();
         let session = self.session;
         let session_id = Cookie::build("session-id", session.to_string())
@@ -83,9 +85,11 @@ impl LoggedUser {
             .max_age(Duration::seconds(expiration_seconds))
             .secure(secure)
             .finish();
-        Ok(UserCookies { session_id, jwt })
+        UserCookies { session_id, jwt }
     }
 
+    /// # Errors
+    /// Returns `Error::Unauthorized` if session id does not match
     pub fn verify_session_id(&self, session_id: Uuid) -> Result<(), Error> {
         if self.session == session_id {
             Ok(())
@@ -94,6 +98,7 @@ impl LoggedUser {
         }
     }
 
+    #[must_use]
     pub fn filter() -> impl Filter<Extract = (Self,), Error = Rejection> + Copy {
         cookie("session-id")
             .and(cookie("jwt"))

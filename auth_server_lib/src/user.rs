@@ -93,7 +93,7 @@ impl User {
         match ARGON.verify_password(&FAKE_PASSWORD, password) {
             Err(ArgonError::Password) => Ok(()),
             Err(e) => Err(format_err!("{:?}", e)),
-            Ok(()) => Err(format_err!("fake verify should never return true")),
+            Ok(()) => unreachable!(),
         }
     }
 

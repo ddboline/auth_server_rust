@@ -17,10 +17,12 @@ type SessionDataMapInner = HashMap<Uuid, (StackString, HashMap<StackString, Valu
 pub struct SessionDataMap(SessionDataMapInner);
 
 impl SessionDataMap {
+    #[must_use]
     pub fn new() -> Self {
         Self(HashMap::new())
     }
 
+    #[must_use]
     pub fn from_map(cache: SessionDataMapInner) -> Self {
         Self(cache)
     }
@@ -38,6 +40,7 @@ impl SessionDataMap {
 pub struct SessionDataCache(Arc<ArcSwap<SessionDataMap>>);
 
 impl SessionDataCache {
+    #[must_use]
     pub fn new() -> Self {
         Self(Arc::new(ArcSwap::new(Arc::new(SessionDataMap::new()))))
     }
@@ -54,6 +57,8 @@ impl SessionDataCache {
         self.store(Arc::new(session_data_cache));
     }
 
+    /// # Errors
+    /// Returns `Error::BadRequest` if `secret_key` doesn't match secret from session data
     pub fn get_data(
         &self,
         session_id: Uuid,
@@ -72,6 +77,8 @@ impl SessionDataCache {
         Ok(None)
     }
 
+    /// # Errors
+    /// Returns `Error::BadRequest` if `secret_key` doesn't match session secret key
     pub fn set_data(
         &self,
         session_id: Uuid,
@@ -96,6 +103,8 @@ impl SessionDataCache {
         Ok(())
     }
 
+    /// # Errors
+    /// Return `Error:BadRequest` if `secret_key` doesn't match session secret key
     pub fn remove_data(
         &self,
         session_id: Uuid,

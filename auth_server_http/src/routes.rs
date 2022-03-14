@@ -154,7 +154,7 @@ pub async fn logout(
         &data.config.domain,
         data.config.expiration_seconds,
         data.config.secure,
-    )?;
+    );
     let body = format_sstr!("{} has been logged out", user.email);
     let resp = JsonBase::new(body)
         .with_cookie(&session_id.encoded().to_string())

@@ -39,6 +39,8 @@ pub struct AppState {
     pub session_cache: SessionDataCache,
 }
 
+/// # Errors
+/// Returns error if config init fails or if `get_secrets` call fails
 pub async fn start_app() -> Result<(), Error> {
     let config = Config::init_config()?;
     update_secrets(&config).await?;
@@ -171,6 +173,11 @@ async fn run_app(config: Config) -> Result<(), Error> {
     update_handle.await.map_err(Into::into)
 }
 
+/// # Errors
+/// Returns error if
+///     * Google client init fails
+///     * Url parsing fails for host:port
+///     * Binding to socket fails
 #[allow(clippy::similar_names)]
 pub async fn run_test_app(config: Config) -> Result<(), Error> {
     let google_client = GoogleClient::new(&config).await?;
@@ -202,6 +209,11 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
     Ok(())
 }
 
+/// # Errors
+/// Returns error if
+///     * `Session::cleanup` fails
+///     * `User::get_authorized_users` fails
+///     * `AUTHORIZED_USERS.merge_users` fails
 pub async fn fill_auth_from_db(
     pool: &PgPool,
     expiration_seconds: i64,

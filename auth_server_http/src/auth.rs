@@ -15,6 +15,11 @@ pub struct AuthRequest {
 }
 
 impl AuthRequest {
+    /// # Errors
+    /// Returns error if
+    ///     * `User::get_by_email` fails
+    ///     * `user.verify_password` fails or panics
+    ///     * `User::fake_verify` fails or panics
     pub async fn authenticate(&self, pool: &PgPool) -> Result<User, Error> {
         let password = self.password.clone();
         if let Some(user) = User::get_by_email(&self.email, pool).await? {
