@@ -57,6 +57,8 @@ pub struct GoogleClient {
 }
 
 impl GoogleClient {
+    /// # Errors
+    /// Return error if openid client intialization fails
     pub async fn new(config: &Config) -> Result<Self, Error> {
         let csrf_tokens = Arc::new(Mutex::new(HashMap::new()));
         loop {
@@ -80,7 +82,7 @@ impl GoogleClient {
         }
     }
 
-    pub async fn get_auth_url(&self) -> Result<(StackString, Url), Error> {
+    pub async fn get_auth_url(&self) -> (StackString, Url) {
         let options = Options {
             scope: Some("email".into()),
             state: Some(get_token_string().into()),
@@ -96,23 +98,27 @@ impl GoogleClient {
             .lock()
             .await
             .insert(csrf_state.clone(), CsrfTokenCache::new(&nonce));
-        Ok((csrf_state, authorize_url))
+        (csrf_state, authorize_url)
     }
 
-    pub async fn wait_csrf(&self, csrf_state: impl AsRef<str>) -> Result<(), Error> {
+    pub async fn wait_csrf(&self, csrf_state: impl AsRef<str>) {
         let (notify, is_ready) =
             if let Some(state) = self.csrf_tokens.lock().await.get(csrf_state.as_ref()) {
                 (state.notify.clone(), state.is_ready.clone())
             } else {
-                return Ok(());
+                return;
             };
         if is_ready.load() != TokenState::New {
-            return Ok(());
+            return;
         }
         notify.notified().await;
-        Ok(())
     }
 
+    /// # Errors
+    /// Returns error if
+    ///     * CSRF token is invalid
+    ///     * Userinfo request fails or is empty
+    ///     * User in userinfo doesn't exist
     pub async fn run_callback(
         &self,
         code: impl AsRef<str>,
@@ -237,7 +243,7 @@ mod tests {
 
         let mut client = GoogleClient::new(&config).await?;
         client.mock_email = Some("test@example.com".into());
-        let (state, url) = client.get_auth_url().await?;
+        let (state, url) = client.get_auth_url().await;
         let redirect_uri = format_sstr!(
             "redirect_uri=https%3A%2F%2F{}%2Fapi%2Fcallback",
             config.domain
@@ -253,7 +259,7 @@ mod tests {
             let client = client.clone();
             let time = SystemTime::now();
             async move {
-                client.wait_csrf(&state).await?;
+                client.wait_csrf(&state).await;
                 let elapsed = time.elapsed()?;
                 Ok(elapsed.as_secs_f64())
             }
