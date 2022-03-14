@@ -694,7 +694,7 @@ async fn auth_url_body(
     google_client: &GoogleClient,
 ) -> HttpResult<(StackString, Url)> {
     debug!("{:?}", payload.final_url);
-    let (csrf_state, auth_url) = google_client.get_auth_url().await?;
+    let (csrf_state, auth_url) = google_client.get_auth_url().await;
     Ok((csrf_state, auth_url))
 }
 
@@ -715,18 +715,13 @@ pub async fn auth_await(
     query: Query<AuthAwait>,
 ) -> WarpResult<ApiAwaitResponse> {
     let state = query.into_inner().state;
-    timeout(
+    if timeout(
         Duration::from_secs(60),
         data.google_client.wait_csrf(&state),
     )
-    .await
-    .map_or_else(
-        |_| {
-            error!("await timed out");
-            Ok(())
-        },
-        |r| r.map_err(Into::<Error>::into),
-    )?;
+    .await.is_err() {
+        error!("await timed out");
+    }
     sleep(Duration::from_millis(10)).await;
     Ok(HtmlBase::new("").into())
 }
