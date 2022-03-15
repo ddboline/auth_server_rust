@@ -233,7 +233,7 @@ impl AuthServerOptions {
                         user.upsert(pool).await?;
                         invitation.delete(pool).await?;
                         let user: AuthorizedUser = user.into();
-                        AUTHORIZED_USERS.store_auth(user.clone(), true)?;
+                        AUTHORIZED_USERS.store_auth(user.clone(), true);
                         stdout.send(serde_json::to_string(&user)?);
                     } else {
                         invitation.delete(pool).await?;

@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_ext"
-version = "0.7.28"
+version = "0.7.29"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 

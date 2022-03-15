@@ -44,14 +44,17 @@ impl Claim {
         }
     }
 
+    #[must_use]
     pub fn get_email(&self) -> &str {
         self.email.as_str()
     }
 
+    #[must_use]
     pub fn get_session(&self) -> Uuid {
         self.session
     }
 
+    #[must_use]
     pub fn get_registered_claims(&self) -> RegisteredClaims {
         RegisteredClaims {
             issuer: Some(self.domain.clone().into()),
@@ -63,6 +66,7 @@ impl Claim {
         }
     }
 
+    #[must_use]
     pub fn get_private_claims(&self) -> PrivateClaim {
         PrivateClaim {
             email: self.email.clone(),

@@ -23,12 +23,17 @@ impl Invitation {
         }
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn get_all(pool: &PgPool) -> Result<Vec<Self>, Error> {
         let query = query!("SELECT * FROM invitations");
         let conn = pool.get().await?;
         query.fetch(&conn).await.map_err(Into::into)
     }
 
+
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn get_number_invitations(pool: &PgPool) -> Result<i64, Error> {
         let query = query!("SELECT count(*) FROM invitations");
         let conn = pool.get().await?;
@@ -36,12 +41,16 @@ impl Invitation {
         Ok(count)
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn get_by_uuid(uuid: Uuid, pool: &PgPool) -> Result<Option<Self>, Error> {
         let query = query!("SELECT * FROM invitations WHERE id = $id", id = uuid);
         let conn = pool.get().await?;
         query.fetch_opt(&conn).await.map_err(Into::into)
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn insert(&self, pool: &PgPool) -> Result<(), Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
@@ -67,6 +76,8 @@ impl Invitation {
         Ok(())
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn delete(&self, pool: &PgPool) -> Result<(), Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;

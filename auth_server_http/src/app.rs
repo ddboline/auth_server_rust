@@ -229,7 +229,7 @@ pub async fn fill_auth_from_db(
     } else {
         AUTHORIZED_USERS.get_users()
     };
-    AUTHORIZED_USERS.merge_users(users)?;
+    AUTHORIZED_USERS.merge_users(users);
     debug!("{:?}", *AUTHORIZED_USERS);
     Ok(())
 }

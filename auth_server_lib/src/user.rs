@@ -76,6 +76,8 @@ impl User {
             .expect("Argon Hash Failed");
     }
 
+    /// # Errors
+    /// Returns error if parsing password hash fails
     pub fn verify_password(&self, password: impl AsRef<[u8]>) -> Result<bool, Error> {
         match ARGON.verify_password(&self.password, password) {
             Ok(()) => Ok(true),
@@ -84,6 +86,8 @@ impl User {
         }
     }
 
+    /// # Errors
+    /// Returns error if parsing hash fails
     pub fn fake_verify(password: impl AsRef<str>) -> Result<(), Error> {
         let password = if password.as_ref() == FAKE_PASSWORD.as_str() {
             ALTERNATE_FAKE.as_str()
@@ -97,12 +101,16 @@ impl User {
         }
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn get_authorized_users(pool: &PgPool) -> Result<Vec<Self>, Error> {
         let query = query!("SELECT * FROM users");
         let conn = pool.get().await?;
         query.fetch(&conn).await.map_err(Into::into)
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn get_number_users(pool: &PgPool) -> Result<i64, Error> {
         let query = query!("SELECT count(*) FROM users");
         let conn = pool.get().await?;
@@ -110,6 +118,8 @@ impl User {
         Ok(count)
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn get_by_email(
         email: impl AsRef<str>,
         pool: &PgPool,
@@ -131,6 +141,8 @@ impl User {
         query.fetch_opt(&conn).await.map_err(Into::into)
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn insert(&self, pool: &PgPool) -> Result<(), Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
@@ -156,6 +168,8 @@ impl User {
         Ok(())
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn update(&self, pool: &PgPool) -> Result<(), Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
@@ -178,6 +192,8 @@ impl User {
         Ok(())
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn upsert(&self, pool: &PgPool) -> Result<(), Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
@@ -191,6 +207,8 @@ impl User {
         Ok(())
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn delete(&self, pool: &PgPool) -> Result<(), Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;

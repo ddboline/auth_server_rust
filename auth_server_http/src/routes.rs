@@ -610,7 +610,7 @@ async fn register_user_object(
             user.upsert(pool).await?;
             invitation.delete(pool).await?;
             let user: AuthorizedUser = user.into();
-            AUTHORIZED_USERS.store_auth(user.clone(), true)?;
+            AUTHORIZED_USERS.store_auth(user.clone(), true);
             return Ok(user);
         }
         invitation.delete(pool).await?;
@@ -871,7 +871,7 @@ async fn test_login_user_jwt(
                 session: session.id,
                 secret_key: session.secret_key.clone(),
             };
-            AUTHORIZED_USERS.merge_users([user.email.clone()])?;
+            AUTHORIZED_USERS.merge_users([user.email.clone()]);
             let mut user: LoggedUser = user.into();
             user.session = session.id;
             let cookies = user.get_jwt_cookie(&config.domain, config.expiration_seconds, false)?;

@@ -18,6 +18,8 @@ type ConfigToml = HashMap<String, TomlEntry>;
 pub struct AuthUserConfig(HashMap<StackString, Entry>);
 
 impl AuthUserConfig {
+    /// # Errors
+    /// Returns an error if reading or parsing toml file fails
     pub fn new(p: impl AsRef<Path>) -> Result<Self, Error> {
         let p = p.as_ref();
         Self::from_path(p)

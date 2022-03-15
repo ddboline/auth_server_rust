@@ -38,10 +38,13 @@ impl TryFrom<TomlEntry> for Entry {
 }
 
 impl Entry {
+    #[must_use]
     pub fn get_pool(&self) -> PgPool {
         PgPool::new(self.database_url.as_str())
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn get_authorized_users(&self) -> Result<Vec<StackString>, Error> {
         let pool = self.get_pool();
         let query = format_sstr!(
@@ -56,6 +59,8 @@ impl Entry {
         Ok(emails)
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn add_user(&self, email: impl AsRef<str>) -> Result<(), Error> {
         let pool = self.get_pool();
         let mut conn = pool.get().await?;
@@ -81,6 +86,8 @@ impl Entry {
         Ok(())
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn remove_user(&self, email: impl AsRef<str>) -> Result<(), Error> {
         let pool = self.get_pool();
         let mut conn = pool.get().await?;

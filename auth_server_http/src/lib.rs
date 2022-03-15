@@ -3,7 +3,6 @@
 #![allow(clippy::cast_precision_loss)]
 #![allow(clippy::cast_sign_loss)]
 #![allow(clippy::cast_possible_truncation)]
-#![allow(clippy::default_trait_access)]
 #![allow(clippy::unused_async)]
 
 pub mod app;

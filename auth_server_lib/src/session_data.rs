@@ -30,12 +30,16 @@ impl SessionData {
         }
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn get_all_session_data(pool: &PgPool) -> Result<Vec<Self>, Error> {
         let query = query!("SELECT * FROM session_values");
         let conn = pool.get().await?;
         query.fetch(&conn).await.map_err(Into::into)
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn get_by_id(pool: &PgPool, id: Uuid) -> Result<Option<Self>, Error> {
         let conn = pool.get().await?;
         Self::get_by_id_conn(&conn, id).await.map_err(Into::into)
@@ -55,6 +59,8 @@ impl SessionData {
         query.fetch_opt(conn).await.map_err(Into::into)
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn get_by_session_id(pool: &PgPool, session_id: Uuid) -> Result<Vec<Self>, Error> {
         let query = query!(
             "SELECT * FROM session_values WHERE session_id = $session_id ORDER BY created_at",
@@ -64,6 +70,8 @@ impl SessionData {
         query.fetch(&conn).await.map_err(Into::into)
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn get_by_session_key(
         pool: &PgPool,
         session_id: Uuid,
@@ -82,6 +90,8 @@ impl SessionData {
         query.fetch_opt(&conn).await.map_err(Into::into)
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn get_number_entries(pool: &PgPool) -> Result<i64, Error> {
         let query = query!("SELECT count(*) FROM session_values");
         let conn = pool.get().await?;
@@ -128,6 +138,8 @@ impl SessionData {
         Ok(())
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn upsert(&self, pool: &PgPool) -> Result<(), Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
@@ -137,6 +149,8 @@ impl SessionData {
         Ok(())
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn upsert_conn<C>(&self, conn: &C) -> Result<(), Error>
     where
         C: GenericClient + Sync,
@@ -149,6 +163,8 @@ impl SessionData {
         Ok(())
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn delete(&self, pool: &PgPool) -> Result<(), Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;

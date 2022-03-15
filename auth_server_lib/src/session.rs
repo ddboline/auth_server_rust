@@ -59,6 +59,8 @@ impl Session {
         }
     }
 
+    /// # Errors
+    /// Returns error if db connection fails or `get_session_conn` fails
     pub async fn get_session(pool: &PgPool, id: Uuid) -> Result<Option<Self>, Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
@@ -68,6 +70,8 @@ impl Session {
         Ok(result)
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn get_session_conn<C>(conn: &C, id: Uuid) -> Result<Option<Self>, Error>
     where
         C: GenericClient + Sync,
@@ -76,12 +80,16 @@ impl Session {
         query.fetch_opt(conn).await.map_err(Into::into)
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn get_all_sessions(pool: &PgPool) -> Result<Vec<Self>, Error> {
         let query = query!("SELECT * FROM sessions");
         let conn = pool.get().await?;
         query.fetch(&conn).await.map_err(Into::into)
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn get_session_summary(pool: &PgPool) -> Result<Vec<SessionSummary>, Error> {
         let query = query!(
             "
@@ -100,6 +108,8 @@ impl Session {
         query.fetch(&conn).await.map_err(Into::into)
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn get_by_email(pool: &PgPool, email: impl AsRef<str>) -> Result<Vec<Self>, Error> {
         let email = email.as_ref();
         let query = query!("SELECT * FROM sessions WHERE email = $email", email = email);
@@ -107,6 +117,8 @@ impl Session {
         query.fetch(&conn).await.map_err(Into::into)
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn get_number_sessions(pool: &PgPool) -> Result<i64, Error> {
         let query = query!("SELECT count(*) FROM sessions");
         let conn = pool.get().await?;
@@ -114,6 +126,8 @@ impl Session {
         Ok(count)
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn insert(&self, pool: &PgPool) -> Result<(), Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
@@ -139,6 +153,8 @@ impl Session {
         Ok(())
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn upsert(&self, pool: &PgPool) -> Result<(), Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
@@ -150,6 +166,8 @@ impl Session {
         Ok(())
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn delete(&self, pool: &PgPool) -> Result<(), Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
@@ -168,6 +186,8 @@ impl Session {
         Ok(())
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn cleanup(pool: &PgPool, expiration_seconds: i64) -> Result<(), Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
@@ -202,6 +222,8 @@ impl Session {
         Ok(())
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn get_session_data(
         &self,
         pool: &PgPool,
@@ -237,12 +259,16 @@ impl Session {
         query.fetch_opt(&conn).await.map_err(Into::into)
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn get_all_session_data(&self, pool: &PgPool) -> Result<Vec<SessionData>, Error> {
         SessionData::get_by_session_id(pool, self.id)
             .await
             .map_err(Into::into)
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     #[allow(clippy::option_if_let_else)]
     pub async fn set_session_data(
         &self,
@@ -261,6 +287,8 @@ impl Session {
         Ok(result)
     }
 
+    /// # Errors
+    /// Returns error if db query fails
     pub async fn set_session_data_conn<C>(
         &self,
         conn: &C,

@@ -26,6 +26,8 @@ const CE_ALGORITHM: ContentEncryptionAlgorithm = ContentEncryptionAlgorithm::A25
 pub struct Token(StackString);
 
 impl Token {
+    /// # Errors
+    /// Returns error if encoding jwt or encrypting jwe fails
     #[allow(clippy::similar_names)]
     pub fn create_token(
         email: impl Into<StackString>,
@@ -67,6 +69,8 @@ impl Token {
         Ok(Token(encrypted_jwe.unwrap_encrypted().to_string().into()))
     }
 
+    /// # Errors
+    /// Returns error if decrypting jwe or decoding jwt fails
     #[allow(clippy::similar_names)]
     pub fn decode_token(&self) -> Result<Claim, Error> {
         let token: JWE<PrivateClaim, Empty, Empty> = JWE::new_encrypted(&self.0);

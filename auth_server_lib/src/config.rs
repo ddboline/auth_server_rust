@@ -1,4 +1,4 @@
-use anyhow::{format_err, Context, Error};
+use anyhow::{Context, Error};
 use derive_more::Deref;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -89,9 +89,11 @@ impl Config {
         Self(Arc::new(inner))
     }
 
+    /// # Errors
+    /// Returns error if config parsing fails
     pub fn init_config() -> Result<Self, Error> {
         let fname = Path::new("config.env");
-        let config_dir = dirs::config_dir().ok_or_else(|| format_err!("No CONFIG directory"))?;
+        let config_dir = dirs::config_dir().unwrap_or_else(|| "./".into());
         let default_fname = config_dir.join("auth_server_rust").join("config.env");
 
         let env_file = if fname.exists() {

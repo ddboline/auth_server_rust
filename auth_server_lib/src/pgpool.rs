@@ -60,6 +60,8 @@ impl PgPool {
         }
     }
 
+    /// # Errors
+    /// Returns error if pool doesn't exist or extracting client fails
     pub async fn get(&self) -> Result<Client, Error> {
         self.pool
             .as_ref()

@@ -1,12 +1,7 @@
-#![allow(clippy::must_use_candidate)]
-#![allow(clippy::too_many_lines)]
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::cast_precision_loss)]
 #![allow(clippy::cast_sign_loss)]
 #![allow(clippy::cast_possible_truncation)]
-#![allow(clippy::missing_errors_doc)]
-#![allow(clippy::cognitive_complexity)]
-#![allow(clippy::unseparated_literal_suffix)]
 
 pub mod authorized_user;
 pub mod claim;
@@ -65,6 +60,7 @@ enum AuthStatus {
 pub struct AuthorizedUsers(ArcSwap<HashMap<StackString, AuthStatus>>);
 
 impl AuthorizedUsers {
+    #[must_use]
     pub fn new() -> Self {
         Self(ArcSwap::new(Arc::new(HashMap::new())))
     }
@@ -79,7 +75,7 @@ impl AuthorizedUsers {
         false
     }
 
-    pub fn store_auth(&self, user: AuthorizedUser, is_auth: bool) -> Result<(), anyhow::Error> {
+    pub fn store_auth(&self, user: AuthorizedUser, is_auth: bool) {
         let current_time = Utc::now();
         let status = if is_auth {
             AuthStatus::Authorized(current_time)
@@ -88,13 +84,12 @@ impl AuthorizedUsers {
         };
         let auth_map = Arc::new(self.0.load().update(user.email, status));
         self.0.store(auth_map);
-        Ok(())
     }
 
     pub fn merge_users(
         &self,
         users: impl IntoIterator<Item = impl Into<StackString>>,
-    ) -> Result<(), anyhow::Error> {
+    ) {
         let users: HashSet<StackString> = users.into_iter().map(Into::into).collect();
         let mut auth_map = (*self.0.load().clone()).clone();
         let not_auth_users: Vec<_> = auth_map
@@ -109,7 +104,6 @@ impl AuthorizedUsers {
             auth_map.insert(user, AuthStatus::Authorized(Utc::now()));
         }
         self.0.store(Arc::new(auth_map));
-        Ok(())
     }
 
     pub fn get_users(&self) -> Vec<StackString> {
@@ -121,6 +115,7 @@ impl AuthorizedUsers {
 pub struct AuthTrigger(AtomicBool);
 
 impl AuthTrigger {
+    #[must_use]
     pub fn new() -> Self {
         Self(AtomicBool::new(true))
     }
@@ -145,6 +140,7 @@ pub struct AuthSecret(
 );
 
 impl AuthSecret {
+    #[must_use]
     pub fn new(cache: LocalKey<Cell<Option<SecretKey>>>) -> Self {
         Self(AtomicCell::new(None), cache)
     }
@@ -173,6 +169,8 @@ impl AuthSecret {
         self.0.store(Some(key));
     }
 
+    /// # Errors
+    /// Returns error if reading file fails
     pub async fn read_from_file(&self, p: impl AsRef<Path>) -> Result<(), anyhow::Error> {
         let p = p.as_ref();
         if p.exists() {
@@ -190,6 +188,8 @@ impl AuthSecret {
     }
 }
 
+/// # Errors
+/// Return error if `create_secret` fails
 pub async fn update_secret(p: impl AsRef<Path>) -> Result<(), anyhow::Error> {
     let p = p.as_ref();
     if p.exists() {
@@ -199,21 +199,27 @@ pub async fn update_secret(p: impl AsRef<Path>) -> Result<(), anyhow::Error> {
     }
 }
 
+/// # Errors
+/// Return error if writing fails
 pub async fn create_secret(p: impl AsRef<Path>) -> Result<(), anyhow::Error> {
     fs::write(p, &get_random_key()).await?;
     Ok(())
 }
 
+#[must_use]
 pub fn get_random_key() -> SecretKey {
     let mut rng = thread_rng();
     Standard.sample(&mut rng)
 }
 
+#[must_use]
 pub fn get_random_nonce() -> [u8; 12] {
     let mut rng = thread_rng();
     Standard.sample(&mut rng)
 }
 
+/// # Errors
+/// Returns error if reading secrets files fails
 pub async fn get_secrets(
     secret_path: impl AsRef<Path>,
     jwt_secret_path: impl AsRef<Path>,
