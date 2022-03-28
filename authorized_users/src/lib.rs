@@ -86,10 +86,7 @@ impl AuthorizedUsers {
         self.0.store(auth_map);
     }
 
-    pub fn merge_users(
-        &self,
-        users: impl IntoIterator<Item = impl Into<StackString>>,
-    ) {
+    pub fn merge_users(&self, users: impl IntoIterator<Item = impl Into<StackString>>) {
         let users: HashSet<StackString> = users.into_iter().map(Into::into).collect();
         let mut auth_map = (*self.0.load().clone()).clone();
         let not_auth_users: Vec<_> = auth_map

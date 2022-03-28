@@ -19,7 +19,7 @@ use stack_string::{format_sstr, StackString};
 use std::{
     borrow::Cow,
     convert::{From, Infallible},
-    fmt::{Debug, Error as FmtError, Write},
+    fmt::{Debug, Error as FmtError},
 };
 use thiserror::Error;
 use tokio::{task::JoinError, time::error::Elapsed};

@@ -42,7 +42,6 @@ impl AuthRequest {
 mod test {
     use anyhow::Error;
     use stack_string::format_sstr;
-    use std::fmt::Write;
 
     use auth_server_lib::{config::Config, get_random_string, pgpool::PgPool};
 

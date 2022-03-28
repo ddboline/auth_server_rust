@@ -31,7 +31,6 @@ impl Invitation {
         query.fetch(&conn).await.map_err(Into::into)
     }
 
-
     /// # Errors
     /// Returns error if db query fails
     pub async fn get_number_invitations(pool: &PgPool) -> Result<i64, Error> {
@@ -103,7 +102,6 @@ mod tests {
     use futures::try_join;
     use log::debug;
     use stack_string::format_sstr;
-    use std::fmt::Write;
 
     use crate::{config::Config, get_random_string, pgpool::PgPool, AUTH_APP_MUTEX};
 

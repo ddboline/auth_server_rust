@@ -1,6 +1,9 @@
 use cookie::{time::Duration, Cookie};
 use log::debug;
-use rweb::{filters::{cookie::cookie, BoxedFilter}, Filter, Rejection, Schema, FromRequest};
+use rweb::{
+    filters::{cookie::cookie, BoxedFilter},
+    Filter, FromRequest, Rejection, Schema,
+};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::{
@@ -141,13 +144,13 @@ impl From<LoggedUser> for AuthorizedUser {
 impl TryFrom<Token> for LoggedUser {
     type Error = Error;
     fn try_from(token: Token) -> Result<Self, Self::Error> {
-        let user = token.try_into()?;
-        if AUTHORIZED_USERS.is_authorized(&user) {
-            Ok(user.into())
-        } else {
+        if let Ok(user) = token.try_into() {
+            if AUTHORIZED_USERS.is_authorized(&user) {
+                return Ok(user.into());
+            }
             debug!("NOT AUTHORIZED {:?}", user);
-            Err(Error::Unauthorized)
         }
+        Err(Error::Unauthorized)
     }
 }
 

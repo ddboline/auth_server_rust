@@ -7,7 +7,7 @@ use rweb::{
     Filter, Reply,
 };
 use stack_string::{format_sstr, StackString};
-use std::{fmt::Write, net::SocketAddr, sync::Arc, time::Duration};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{task::spawn, time::interval};
 
 use auth_server_ext::{google_openid::GoogleClient, ses_client::SesInstance};
@@ -242,7 +242,7 @@ mod tests {
     use reqwest::header::HeaderValue;
     use rweb::openapi;
     use stack_string::{format_sstr, StackString};
-    use std::{env, fmt::Write};
+    use std::env;
     use tokio::{
         task::spawn,
         time::{sleep, Duration},

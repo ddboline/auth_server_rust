@@ -58,7 +58,8 @@ impl SessionDataCache {
     }
 
     /// # Errors
-    /// Returns `Error::BadRequest` if `secret_key` doesn't match secret from session data
+    /// Returns `Error::BadRequest` if `secret_key` doesn't match secret from
+    /// session data
     pub fn get_data(
         &self,
         session_id: Uuid,
@@ -78,7 +79,8 @@ impl SessionDataCache {
     }
 
     /// # Errors
-    /// Returns `Error::BadRequest` if `secret_key` doesn't match session secret key
+    /// Returns `Error::BadRequest` if `secret_key` doesn't match session secret
+    /// key
     pub fn set_data(
         &self,
         session_id: Uuid,
@@ -104,7 +106,8 @@ impl SessionDataCache {
     }
 
     /// # Errors
-    /// Return `Error:BadRequest` if `secret_key` doesn't match session secret key
+    /// Return `Error:BadRequest` if `secret_key` doesn't match session secret
+    /// key
     pub fn remove_data(
         &self,
         session_id: Uuid,

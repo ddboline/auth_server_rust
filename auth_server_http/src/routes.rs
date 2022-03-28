@@ -6,7 +6,7 @@ use rweb::{delete, get, post, Json, Query, Rejection, Schema};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use stack_string::{format_sstr, StackString};
-use std::{convert::Infallible, fmt::Write, str, time::Duration};
+use std::{convert::Infallible, str, time::Duration};
 use tokio::time::{sleep, timeout};
 use url::Url;
 use uuid::Uuid;
@@ -144,10 +144,7 @@ struct ApiAuthDeleteResponse(JsonBase<StackString, Error>);
 
 #[delete("/api/auth")]
 #[openapi(description = "Log out")]
-pub async fn logout(
-    user: LoggedUser,
-    #[data] data: AppState,
-) -> WarpResult<ApiAuthDeleteResponse> {
+pub async fn logout(user: LoggedUser, #[data] data: AppState) -> WarpResult<ApiAuthDeleteResponse> {
     delete_user_session(user.session, &data.pool).await?;
     data.session_cache.remove_session(user.session);
     let UserCookies { session_id, jwt } = user.clear_jwt_cookie(
@@ -178,9 +175,7 @@ struct ApiAuthGetResponse(JsonBase<LoggedUser, Error>);
 
 #[get("/api/auth")]
 #[openapi(description = "Get current username if logged in")]
-pub async fn get_me(
-    user: LoggedUser,
-) -> WarpResult<ApiAuthGetResponse> {
+pub async fn get_me(user: LoggedUser) -> WarpResult<ApiAuthGetResponse> {
     Ok(JsonBase::new(user).into())
 }
 
@@ -474,10 +469,7 @@ struct SessionsResponse(JsonBase<Vec<SessionSummaryWrapper>, Error>);
 
 #[get("/api/sessions")]
 #[openapi(description = "Open Sessions")]
-pub async fn get_sessions(
-    _: LoggedUser,
-    #[data] data: AppState,
-) -> WarpResult<SessionsResponse> {
+pub async fn get_sessions(_: LoggedUser, #[data] data: AppState) -> WarpResult<SessionsResponse> {
     let objects = list_sessions_lines(&data)
         .await?
         .into_iter()
@@ -719,7 +711,9 @@ pub async fn auth_await(
         Duration::from_secs(60),
         data.google_client.wait_csrf(&state),
     )
-    .await.is_err() {
+    .await
+    .is_err()
+    {
         error!("await timed out");
     }
     sleep(Duration::from_millis(10)).await;

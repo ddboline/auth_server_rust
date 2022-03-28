@@ -4,7 +4,7 @@ use stack_string::{format_sstr, StackString};
 use std::{
     collections::HashMap,
     convert::{TryFrom, TryInto},
-    fmt::{Debug, Write},
+    fmt::Debug,
     fs,
     path::Path,
     str::FromStr,

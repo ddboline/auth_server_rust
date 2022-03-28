@@ -2,7 +2,7 @@ use anyhow::{format_err, Error};
 use postgres_query::{client::GenericClient, query_dyn};
 use serde::{Deserialize, Serialize};
 use stack_string::{format_sstr, StackString};
-use std::{convert::TryFrom, fmt::Write};
+use std::convert::TryFrom;
 use url::Url;
 
 use crate::pgpool::{PgPool, PgTransaction};

@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_rust"
-version = "0.7.29"
+version = "0.7.30"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 

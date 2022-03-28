@@ -10,7 +10,6 @@ pub mod ses_client;
 use anyhow::Error;
 use log::debug;
 use stack_string::{format_sstr, StackString};
-use std::fmt::Write;
 use url::Url;
 
 use auth_server_lib::invitation::Invitation;
@@ -52,7 +51,6 @@ pub async fn send_invitation(
 mod tests {
     use anyhow::Error;
     use stack_string::format_sstr;
-    use std::fmt::Write;
 
     use auth_server_lib::{config::Config, get_random_string, invitation::Invitation};
 

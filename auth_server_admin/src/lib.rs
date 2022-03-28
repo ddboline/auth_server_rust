@@ -4,10 +4,7 @@ use futures::{future::try_join_all, try_join};
 use itertools::Itertools;
 use refinery::embed_migrations;
 use stack_string::{format_sstr, StackString};
-use std::{
-    collections::{BTreeSet, HashMap},
-    fmt::Write,
-};
+use std::collections::{BTreeSet, HashMap};
 use stdout_channel::StdoutChannel;
 use structopt::StructOpt;
 use tokio::task::spawn_blocking;
@@ -376,7 +373,7 @@ mod test {
         thread_rng,
     };
     use stack_string::format_sstr;
-    use std::{collections::HashSet, fmt::Write};
+    use std::collections::HashSet;
     use stdout_channel::{MockStdout, StdoutChannel};
     use uuid::Uuid;
 

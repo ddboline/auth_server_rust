@@ -225,7 +225,7 @@ async fn get_google_client(config: &Config) -> Result<DiscoveredClient, OpenidEr
 mod tests {
     use anyhow::Error;
     use stack_string::format_sstr;
-    use std::{fmt::Write, time::SystemTime};
+    use std::time::SystemTime;
     use tokio::{
         task::{spawn, JoinHandle},
         time::{sleep, Duration},

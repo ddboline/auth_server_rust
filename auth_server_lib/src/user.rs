@@ -244,7 +244,6 @@ mod tests {
     use chrono::Utc;
     use log::debug;
     use stack_string::format_sstr;
-    use std::fmt::Write;
 
     use crate::{
         config::Config,
