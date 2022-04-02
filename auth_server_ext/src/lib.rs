@@ -73,4 +73,15 @@ mod tests {
         .await?;
         Ok(())
     }
+
+    #[test]
+    fn test_time_format() -> Result<(), Error> {
+        use stack_string::StackString;
+        use chrono::{DateTime, Utc};
+
+        let dt: DateTime<Utc> = "2021-05-01T13:12:15Z".parse()?;
+        let dt_str = StackString::from_display(dt.format("%I:%M %p %A, %-d %B, %C%y"));
+        assert_eq!(dt_str, StackString::from("01:12 PM Saturday, 1 May, 2021"));
+        Ok(())
+    }
 }
