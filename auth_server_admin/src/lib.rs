@@ -269,7 +269,7 @@ impl AuthServerOptions {
                     "Users: {number_users}\nInvitations: {number_invitations}\n",
                 ));
                 stdout.send(format_sstr!("{quotas:#?}"));
-                stdout.send(format_sstr!("{stats:#?}"));
+                stdout.send(format_sstr!("{stats}"));
             }
             AuthServerOptions::AddToApp { email, app } => {
                 if let Ok(auth_user_config) = AuthUserConfig::new(&config.auth_user_config_path) {

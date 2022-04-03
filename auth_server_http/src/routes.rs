@@ -382,7 +382,7 @@ pub async fn list_sessions(
             "#,
             id=s.session_id,
             email=s.email_address,
-            created_at=s.created_at.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z")).unwrap(),
+            created_at=s.created_at.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z")).unwrap_or_else(|_| "".into()),
             n_obj=s.number_of_data_objects,
         )
     }).join("\n");
@@ -457,7 +457,7 @@ async fn list_session_data_lines(
                 "#,
                 id=s.session_id,
                 key=s.session_key,
-                created_at=s.created_at.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z")).unwrap(),
+                created_at=s.created_at.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z")).unwrap_or_else(|_| "".into()),
                 js=js,
             )
         }).collect();
