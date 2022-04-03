@@ -9,7 +9,8 @@ pub mod ses_client;
 
 use anyhow::Error;
 use log::debug;
-use stack_string::{format_sstr, StackString};
+use stack_string::format_sstr;
+use time::macros::format_description;
 use url::Url;
 
 use auth_server_lib::invitation::Invitation;
@@ -24,7 +25,9 @@ pub async fn send_invitation(
     sending_email: impl AsRef<str>,
     callback_url: &Url,
 ) -> Result<(), Error> {
-    let dt_str = StackString::from_display(invite.expires_at.format("%I:%M %p %A, %-d %B, %C%y"));
+    let dt_str = invite.expires_at.format(format_description!(
+        "[hour repr:12]:[minute] [period] [weekday], [day padding:none] [month repr:short], [year]"
+    ))?;
     let email_body = format_sstr!(
         "Please click on the link below to complete registration. <br/>
          <a href=\"{url}?id={id}&email={email}\">
@@ -71,6 +74,24 @@ mod tests {
             &callback_url,
         )
         .await?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_time_format() -> Result<(), Error> {
+        use time::macros::{datetime, format_description};
+
+        let dt = datetime!(2021-05-01 13:12:05.012).assume_utc();
+        let dt_str = dt.format(format_description!(
+            "[hour repr:12]:[minute] [period] [weekday], [day padding:none] [month repr:short], \
+             [year]"
+        ))?;
+        assert_eq!(dt_str, String::from("01:12 PM Saturday, 1 May, 2021"));
+
+        let dt_str = dt.format(format_description!(
+            "[year]-[month]-[day]T[hour]:[minute]:[second]Z"
+        ))?;
+        assert_eq!(dt_str, String::from("2021-05-01T13:12:05Z"));
         Ok(())
     }
 }

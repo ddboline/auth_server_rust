@@ -1,8 +1,8 @@
 use anyhow::Error;
-use chrono::{DateTime, Duration, Utc};
 use postgres_query::{client::GenericClient, query, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
+use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::pgpool::{PgPool, PgTransaction};
@@ -11,7 +11,7 @@ use crate::pgpool::{PgPool, PgTransaction};
 pub struct Invitation {
     pub id: Uuid,
     pub email: StackString,
-    pub expires_at: DateTime<Utc>,
+    pub expires_at: OffsetDateTime,
 }
 
 impl Invitation {
@@ -19,7 +19,7 @@ impl Invitation {
         Self {
             id: Uuid::new_v4(),
             email: email.into(),
-            expires_at: Utc::now() + Duration::hours(24),
+            expires_at: OffsetDateTime::now_utc() + Duration::hours(24),
         }
     }
 

@@ -12,10 +12,9 @@ pub mod logged_user;
 pub mod routes;
 pub mod session_data_cache;
 
-use chrono::{DateTime, Utc};
 use derive_more::{From, Into};
 use rweb::Schema;
-use rweb_helper::derive_rweb_schema;
+use rweb_helper::{derive_rweb_schema, DateTimeType};
 use serde::Serialize;
 use stack_string::StackString;
 use uuid::Uuid;
@@ -56,9 +55,9 @@ struct _EmailStatsWrapper {
     #[schema(description = "Number of Rejected Emails")]
     rejects: i64,
     #[schema(description = "Earliest Record")]
-    min_timestamp: Option<DateTime<Utc>>,
+    min_timestamp: Option<DateTimeType>,
     #[schema(description = "Latest Record")]
-    max_timestamp: Option<DateTime<Utc>>,
+    max_timestamp: Option<DateTimeType>,
 }
 
 #[derive(Into, From, Default, Debug, Serialize)]
@@ -74,9 +73,9 @@ struct _SessionSummaryWrapper {
     #[schema(description = "Email Address")]
     email_address: StackString,
     #[schema(description = "Last Accessed")]
-    last_accessed: DateTime<Utc>,
+    last_accessed: DateTimeType,
     #[schema(description = "Create At")]
-    created_at: DateTime<Utc>,
+    created_at: DateTimeType,
     #[schema(description = "Number of Data Objects")]
     number_of_data_objects: i64,
 }

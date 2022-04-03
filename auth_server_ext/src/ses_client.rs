@@ -1,12 +1,13 @@
 #![allow(clippy::default_trait_access)]
 
 use anyhow::Error;
-use chrono::{DateTime, Utc};
 use rusoto_core::Region;
 use rusoto_ses::{Body, Content, Destination, Message, SendEmailRequest, Ses, SesClient};
 use serde::Serialize;
+use stack_string::format_sstr;
 use std::fmt;
 use sts_profile_auth::get_client_sts;
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 #[derive(Clone)]
 pub struct SesInstance {
@@ -87,7 +88,10 @@ impl SesInstance {
                     complaints: point.complaints?,
                     delivery_attempts: point.delivery_attempts?,
                     rejects: point.rejects?,
-                    min_timestamp: Some(point.timestamp?.parse().ok()?),
+                    min_timestamp: point
+                        .timestamp
+                        .as_ref()
+                        .and_then(|t| OffsetDateTime::parse(t, &Rfc3339).ok()),
                     ..EmailStats::default()
                 })
             })
@@ -128,8 +132,36 @@ pub struct EmailStats {
     pub complaints: i64,
     pub delivery_attempts: i64,
     pub rejects: i64,
-    pub min_timestamp: Option<DateTime<Utc>>,
-    pub max_timestamp: Option<DateTime<Utc>>,
+    pub min_timestamp: Option<OffsetDateTime>,
+    pub max_timestamp: Option<OffsetDateTime>,
+}
+
+impl fmt::Display for EmailStats {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "EmailStats(\n\tbounces: {b},\n\tcomplaints: {c},\n\tdelivery_attempts: \
+             {d},\n\trejects: {r},\n{mn}{mx})",
+            b = self.bounces,
+            c = self.complaints,
+            d = self.delivery_attempts,
+            r = self.rejects,
+            mn = if let Some(min_timestamp) =
+                self.min_timestamp.and_then(|t| t.format(&Rfc3339).ok())
+            {
+                format_sstr!("\tmin_timestamp: {min_timestamp},\n")
+            } else {
+                "".into()
+            },
+            mx = if let Some(max_timestamp) =
+                self.max_timestamp.and_then(|t| t.format(&Rfc3339).ok())
+            {
+                format_sstr!("\tmax_timestamp: {max_timestamp},\n")
+            } else {
+                "".into()
+            },
+        )
+    }
 }
 
 #[derive(Debug, Default)]

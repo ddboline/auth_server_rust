@@ -3,11 +3,11 @@ use argon2::{
     password_hash::Error as ArgonError, Algorithm, Argon2, Params, PasswordHash, PasswordHasher,
     PasswordVerifier, Version,
 };
-use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
 use postgres_query::{client::GenericClient, query, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use authorized_users::AuthorizedUser;
@@ -55,7 +55,7 @@ pub struct User {
     pub email: StackString,
     // password here is always the hashed password
     password: StackString,
-    pub created_at: DateTime<Utc>,
+    pub created_at: OffsetDateTime,
 }
 
 impl User {
@@ -66,7 +66,7 @@ impl User {
         Self {
             email: email.into(),
             password,
-            created_at: Utc::now(),
+            created_at: OffsetDateTime::now_utc(),
         }
     }
 
@@ -241,9 +241,9 @@ impl From<User> for AuthorizedUser {
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
-    use chrono::Utc;
     use log::debug;
     use stack_string::format_sstr;
+    use time::OffsetDateTime;
 
     use crate::{
         config::Config,
@@ -292,7 +292,7 @@ mod tests {
             password: "$argon2id$v=19$m=15360,t=2,\
                        p=1$kCY9hyy6ZE3c71Np$kLz4pb6M5IbBz7jLgwG+xxFudnPPvSAWVC5muM/jh8E"
                 .into(),
-            created_at: Utc::now(),
+            created_at: OffsetDateTime::now_utc(),
         };
         assert!(user.verify_password("password").unwrap());
         Ok(())
