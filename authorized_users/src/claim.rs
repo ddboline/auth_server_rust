@@ -1,9 +1,9 @@
 use anyhow::{format_err, Error};
 use biscuit::{ClaimsSet, RegisteredClaims};
-use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::convert::TryFrom;
+use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::AuthorizedUser;
@@ -34,12 +34,15 @@ impl Claim {
         session: Uuid,
         secret_key: impl Into<StackString>,
     ) -> Self {
+        let issued_at = OffsetDateTime::now_utc().unix_timestamp();
+        let expiry =
+            (OffsetDateTime::now_utc() + Duration::seconds(expiration_seconds)).unix_timestamp();
         Self {
             domain: domain.into(),
             email: email.into(),
             session,
-            issued_at: Utc::now().timestamp(),
-            expiry: (Utc::now() + Duration::seconds(expiration_seconds)).timestamp(),
+            issued_at,
+            expiry,
             secret_key: secret_key.into(),
         }
     }

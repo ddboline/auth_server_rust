@@ -1,6 +1,5 @@
 use anyhow::{format_err, Error};
 use base64::{encode_config_slice, URL_SAFE_NO_PAD};
-use chrono::{DateTime, Utc};
 use crossbeam::atomic::AtomicCell;
 use log::{debug, error};
 pub use openid::error::{ClientError, Error as OpenidError};
@@ -11,6 +10,7 @@ use rand::{
 };
 use stack_string::StackString;
 use std::{collections::HashMap, str, sync::Arc, time::Duration};
+use time::OffsetDateTime;
 use tokio::{
     sync::{Mutex, Notify},
     time::sleep,
@@ -31,7 +31,7 @@ enum TokenState {
 #[derive(Clone)]
 pub struct CsrfTokenCache {
     nonce: StackString,
-    timestamp: DateTime<Utc>,
+    timestamp: OffsetDateTime,
     notify: Arc<Notify>,
     is_ready: Arc<AtomicCell<TokenState>>,
 }
@@ -42,7 +42,7 @@ impl CsrfTokenCache {
         let is_ready = Arc::new(AtomicCell::new(TokenState::New));
         Self {
             nonce: nonce.into(),
-            timestamp: Utc::now(),
+            timestamp: OffsetDateTime::now_utc(),
             notify,
             is_ready,
         }
@@ -136,7 +136,7 @@ impl GoogleClient {
             .await
             .remove(state.as_ref())
             .ok_or_else(|| format_err!("CSRF Token Invalid"))?;
-        if (Utc::now() - timestamp).num_seconds() > 3600 {
+        if (OffsetDateTime::now_utc() - timestamp).whole_seconds() > 3600 {
             is_ready.store(TokenState::Expired);
             notify.notify_waiters();
             return Err(format_err!("Token expired"));
@@ -183,7 +183,7 @@ impl GoogleClient {
 
     pub async fn cleanup_token_map(&self) {
         for key in self.csrf_tokens.lock().await.iter().filter_map(|(k, t)| {
-            if (Utc::now() - t.timestamp).num_seconds() > 3600 {
+            if (OffsetDateTime::now_utc() - t.timestamp).whole_seconds() > 3600 {
                 Some(k.clone())
             } else {
                 None

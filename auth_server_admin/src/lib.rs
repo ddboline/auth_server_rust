@@ -1,5 +1,4 @@
 use anyhow::{Context, Error};
-use chrono::Utc;
 use futures::{future::try_join_all, try_join};
 use itertools::Itertools;
 use refinery::embed_migrations;
@@ -7,6 +6,7 @@ use stack_string::{format_sstr, StackString};
 use std::collections::{BTreeSet, HashMap};
 use stdout_channel::StdoutChannel;
 use structopt::StructOpt;
+use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
 use uuid::Uuid;
 
@@ -225,7 +225,7 @@ impl AuthServerOptions {
                     .await
                     .with_context(|| format_sstr!("Failed to get id {invitation_id}"))?
                 {
-                    if invitation.expires_at > Utc::now() {
+                    if invitation.expires_at > OffsetDateTime::now_utc() {
                         let user = User::from_details(invitation.email.clone(), password);
                         user.upsert(pool).await?;
                         invitation.delete(pool).await?;

@@ -1,9 +1,9 @@
 use anyhow::Error;
-use chrono::{DateTime, Duration, Utc};
 use postgres_query::{client::GenericClient, query, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use stack_string::StackString;
+use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::{
@@ -16,8 +16,8 @@ use crate::{
 pub struct Session {
     pub id: Uuid,
     pub email: StackString,
-    pub created_at: DateTime<Utc>,
-    pub last_accessed: DateTime<Utc>,
+    pub created_at: OffsetDateTime,
+    pub last_accessed: OffsetDateTime,
     pub secret_key: StackString,
 }
 
@@ -31,8 +31,8 @@ impl Default for Session {
 pub struct SessionSummary {
     pub session_id: Uuid,
     pub email_address: StackString,
-    pub created_at: DateTime<Utc>,
-    pub last_accessed: DateTime<Utc>,
+    pub created_at: OffsetDateTime,
+    pub last_accessed: OffsetDateTime,
     pub number_of_data_objects: i64,
 }
 
@@ -41,8 +41,8 @@ impl Default for SessionSummary {
         Self {
             session_id: Uuid::new_v4(),
             email_address: "".into(),
-            created_at: Utc::now(),
-            last_accessed: Utc::now(),
+            created_at: OffsetDateTime::now_utc(),
+            last_accessed: OffsetDateTime::now_utc(),
             number_of_data_objects: 0,
         }
     }
@@ -53,8 +53,8 @@ impl Session {
         Self {
             id: Uuid::new_v4(),
             email: email.into(),
-            created_at: Utc::now(),
-            last_accessed: Utc::now(),
+            created_at: OffsetDateTime::now_utc(),
+            last_accessed: OffsetDateTime::now_utc(),
             secret_key: get_random_string(16),
         }
     }
@@ -201,7 +201,7 @@ impl Session {
     where
         C: GenericClient + Sync,
     {
-        let time = Utc::now() - Duration::seconds(expiration_seconds);
+        let time = OffsetDateTime::now_utc() - Duration::seconds(expiration_seconds);
         let query = query!(
             "
                 DELETE FROM session_values d

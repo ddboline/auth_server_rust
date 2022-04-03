@@ -1,12 +1,13 @@
-use chrono::{DateTime, Utc};
 use futures::try_join;
 use itertools::Itertools;
 use log::{debug, error};
 use rweb::{delete, get, post, Json, Query, Rejection, Schema};
+use rweb_helper::DateTimeType;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use stack_string::{format_sstr, StackString};
 use std::{convert::Infallible, str, time::Duration};
+use time::{macros::format_description, OffsetDateTime};
 use tokio::time::{sleep, timeout};
 use url::Url;
 use uuid::Uuid;
@@ -327,8 +328,8 @@ struct SessionDataObj {
     session_key: StackString,
     #[schema(description = "Session Data")]
     session_value: Value,
-    #[schema(description = "Create At")]
-    created_at: DateTime<Utc>,
+    #[schema(description = "Created At")]
+    created_at: DateTimeType,
 }
 
 #[derive(RwebResponse)]
@@ -353,7 +354,7 @@ async fn list_session_objs(data: &AppState, user: &LoggedUser) -> HttpResult<Vec
             session_id: user.session,
             session_key: s.session_key,
             session_value: s.session_value,
-            created_at: s.created_at,
+            created_at: s.created_at.into(),
         })
         .collect();
     Ok(values)
@@ -381,7 +382,7 @@ pub async fn list_sessions(
             "#,
             id=s.session_id,
             email=s.email_address,
-            created_at=s.created_at.format("%Y-%m-%dT%H:%M:%SZ"),
+            created_at=s.created_at.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z")).unwrap(),
             n_obj=s.number_of_data_objects,
         )
     }).join("\n");
@@ -456,7 +457,7 @@ async fn list_session_data_lines(
                 "#,
                 id=s.session_id,
                 key=s.session_key,
-                created_at=s.created_at.format("%Y-%m-%dT%H:%M:%SZ"),
+                created_at=s.created_at.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z")).unwrap(),
                 js=js,
             )
         }).collect();
@@ -523,7 +524,7 @@ pub struct InvitationOutput {
     #[schema(description = "Email Address")]
     pub email: StackString,
     #[schema(description = "Expiration Datetime")]
-    pub expires_at: DateTime<Utc>,
+    pub expires_at: DateTimeType,
 }
 
 impl From<Invitation> for InvitationOutput {
@@ -531,7 +532,7 @@ impl From<Invitation> for InvitationOutput {
         Self {
             id: i.id.to_string().into(),
             email: i.email,
-            expires_at: i.expires_at,
+            expires_at: i.expires_at.into(),
         }
     }
 }
@@ -597,7 +598,7 @@ async fn register_user_object(
     pool: &PgPool,
 ) -> HttpResult<AuthorizedUser> {
     if let Some(invitation) = Invitation::get_by_uuid(invitation_id, pool).await? {
-        if invitation.expires_at > Utc::now() {
+        if invitation.expires_at > OffsetDateTime::now_utc() {
             let user = User::from_details(invitation.email.clone(), &user_data.password);
             user.upsert(pool).await?;
             invitation.delete(pool).await?;

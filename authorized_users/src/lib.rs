@@ -10,7 +10,6 @@ pub mod token;
 use arc_swap::ArcSwap;
 pub use authorized_user::AuthorizedUser;
 use biscuit::{jwk, jws, Empty};
-use chrono::{DateTime, Utc};
 use crossbeam::atomic::AtomicCell;
 use im::HashMap;
 use lazy_static::lazy_static;
@@ -29,6 +28,7 @@ use std::{
     },
     thread::LocalKey,
 };
+use time::OffsetDateTime;
 use tokio::{
     fs::{self, File},
     io::AsyncReadExt,
@@ -52,7 +52,7 @@ lazy_static! {
 
 #[derive(Clone, Debug, Copy)]
 enum AuthStatus {
-    Authorized(DateTime<Utc>),
+    Authorized(OffsetDateTime),
     NotAuthorized,
 }
 
@@ -67,8 +67,8 @@ impl AuthorizedUsers {
 
     pub fn is_authorized(&self, user: &AuthorizedUser) -> bool {
         if let Some(AuthStatus::Authorized(last_time)) = self.0.load().get(user.email.as_str()) {
-            let current_time = Utc::now();
-            if (current_time - *last_time).num_minutes() < 15 {
+            let current_time = OffsetDateTime::now_utc();
+            if (current_time - *last_time).whole_minutes() < 15 {
                 return true;
             }
         }
@@ -76,7 +76,7 @@ impl AuthorizedUsers {
     }
 
     pub fn store_auth(&self, user: AuthorizedUser, is_auth: bool) {
-        let current_time = Utc::now();
+        let current_time = OffsetDateTime::now_utc();
         let status = if is_auth {
             AuthStatus::Authorized(current_time)
         } else {
@@ -98,7 +98,7 @@ impl AuthorizedUsers {
             auth_map.insert(user, AuthStatus::NotAuthorized);
         }
         for user in users {
-            auth_map.insert(user, AuthStatus::Authorized(Utc::now()));
+            auth_map.insert(user, AuthStatus::Authorized(OffsetDateTime::now_utc()));
         }
         self.0.store(Arc::new(auth_map));
     }
