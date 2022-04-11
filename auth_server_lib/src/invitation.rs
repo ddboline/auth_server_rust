@@ -5,13 +5,16 @@ use stack_string::StackString;
 use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
-use crate::pgpool::{PgPool, PgTransaction};
+use crate::{
+    date_time_wrapper::DateTimeWrapper,
+    pgpool::{PgPool, PgTransaction},
+};
 
 #[derive(FromSqlRow, Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
 pub struct Invitation {
     pub id: Uuid,
     pub email: StackString,
-    pub expires_at: OffsetDateTime,
+    pub expires_at: DateTimeWrapper,
 }
 
 impl Invitation {
@@ -19,7 +22,7 @@ impl Invitation {
         Self {
             id: Uuid::new_v4(),
             email: email.into(),
-            expires_at: OffsetDateTime::now_utc() + Duration::hours(24),
+            expires_at: (OffsetDateTime::now_utc() + Duration::hours(24)).into(),
         }
     }
 

@@ -9,6 +9,8 @@ use std::fmt;
 use sts_profile_auth::get_client_sts;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
+use auth_server_lib::date_time_wrapper::DateTimeWrapper;
+
 #[derive(Clone)]
 pub struct SesInstance {
     ses_client: SesClient,
@@ -91,7 +93,8 @@ impl SesInstance {
                     min_timestamp: point
                         .timestamp
                         .as_ref()
-                        .and_then(|t| OffsetDateTime::parse(t, &Rfc3339).ok()),
+                        .and_then(|t| OffsetDateTime::parse(t, &Rfc3339).ok())
+                        .map(Into::into),
                     ..EmailStats::default()
                 })
             })
@@ -132,8 +135,8 @@ pub struct EmailStats {
     pub complaints: i64,
     pub delivery_attempts: i64,
     pub rejects: i64,
-    pub min_timestamp: Option<OffsetDateTime>,
-    pub max_timestamp: Option<OffsetDateTime>,
+    pub min_timestamp: Option<DateTimeWrapper>,
+    pub max_timestamp: Option<DateTimeWrapper>,
 }
 
 impl fmt::Display for EmailStats {

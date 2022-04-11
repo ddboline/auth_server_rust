@@ -80,6 +80,63 @@ struct _SessionSummaryWrapper {
     number_of_data_objects: i64,
 }
 
+mod iso8601 {
+    use anyhow::Error;
+    use rweb_helper::DateTimeType;
+    use serde::{de, Deserialize, Deserializer, Serializer};
+    use stack_string::StackString;
+    use std::borrow::Cow;
+    use time::{
+        format_description::well_known::Rfc3339, macros::format_description, OffsetDateTime,
+        UtcOffset,
+    };
+
+    #[must_use]
+    fn convert_datetime_to_str(datetime: OffsetDateTime) -> StackString {
+        datetime
+            .to_offset(UtcOffset::UTC)
+            .format(format_description!(
+                "[year]-[month]-[day]T[hour]:[minute]:[second]Z"
+            ))
+            .unwrap_or_else(|_| "".into())
+            .into()
+    }
+
+    /// # Errors
+    /// Return error if `parse_from_rfc3339` fails
+    fn convert_str_to_datetime(s: &str) -> Result<OffsetDateTime, Error> {
+        let s: Cow<str> = if s.contains('Z') {
+            s.replace('Z', "+00:00").into()
+        } else {
+            s.into()
+        };
+        OffsetDateTime::parse(&s, &Rfc3339)
+            .map(|x| x.to_offset(UtcOffset::UTC))
+            .map_err(Into::into)
+    }
+
+    /// # Errors
+    /// Returns error if serialization fails
+    pub fn serialize<S>(date: &DateTimeType, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&convert_datetime_to_str((*date).into()))
+    }
+
+    /// # Errors
+    /// Returns error if deserialization fails
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<DateTimeType, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        convert_str_to_datetime(&s)
+            .map_err(de::Error::custom)
+            .map(Into::into)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use rweb_helper::derive_rweb_test;

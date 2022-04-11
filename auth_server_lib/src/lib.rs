@@ -6,6 +6,7 @@
 
 pub mod auth_user_config;
 pub mod config;
+pub mod date_time_wrapper;
 pub mod invitation;
 pub mod pgpool;
 pub mod session;

@@ -225,7 +225,7 @@ impl AuthServerOptions {
                     .await
                     .with_context(|| format_sstr!("Failed to get id {invitation_id}"))?
                 {
-                    if invitation.expires_at > OffsetDateTime::now_utc() {
+                    if invitation.expires_at > OffsetDateTime::now_utc().into() {
                         let user = User::from_details(invitation.email.clone(), password);
                         user.upsert(pool).await?;
                         invitation.delete(pool).await?;

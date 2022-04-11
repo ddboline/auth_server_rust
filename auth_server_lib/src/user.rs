@@ -7,12 +7,12 @@ use lazy_static::lazy_static;
 use postgres_query::{client::GenericClient, query, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
-use time::OffsetDateTime;
 use uuid::Uuid;
 
 use authorized_users::AuthorizedUser;
 
 use crate::{
+    date_time_wrapper::DateTimeWrapper,
     get_random_string,
     pgpool::{PgPool, PgTransaction},
 };
@@ -55,7 +55,7 @@ pub struct User {
     pub email: StackString,
     // password here is always the hashed password
     password: StackString,
-    pub created_at: OffsetDateTime,
+    pub created_at: DateTimeWrapper,
 }
 
 impl User {
@@ -66,7 +66,7 @@ impl User {
         Self {
             email: email.into(),
             password,
-            created_at: OffsetDateTime::now_utc(),
+            created_at: DateTimeWrapper::now(),
         }
     }
 
@@ -243,10 +243,10 @@ mod tests {
     use anyhow::Error;
     use log::debug;
     use stack_string::format_sstr;
-    use time::OffsetDateTime;
 
     use crate::{
         config::Config,
+        date_time_wrapper::DateTimeWrapper,
         get_random_string,
         pgpool::PgPool,
         user::{Argon, User},
@@ -292,7 +292,7 @@ mod tests {
             password: "$argon2id$v=19$m=15360,t=2,\
                        p=1$kCY9hyy6ZE3c71Np$kLz4pb6M5IbBz7jLgwG+xxFudnPPvSAWVC5muM/jh8E"
                 .into(),
-            created_at: OffsetDateTime::now_utc(),
+            created_at: DateTimeWrapper::now(),
         };
         assert!(user.verify_password("password").unwrap());
         Ok(())

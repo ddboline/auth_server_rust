@@ -3,10 +3,12 @@ use postgres_query::{client::GenericClient, query, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use stack_string::StackString;
-use time::OffsetDateTime;
 use uuid::Uuid;
 
-use crate::pgpool::{PgPool, PgTransaction};
+use crate::{
+    date_time_wrapper::DateTimeWrapper,
+    pgpool::{PgPool, PgTransaction},
+};
 
 #[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug)]
 pub struct SessionData {
@@ -14,8 +16,8 @@ pub struct SessionData {
     pub session_id: Uuid,
     pub session_key: StackString,
     pub session_value: Value,
-    pub created_at: OffsetDateTime,
-    pub modified_at: OffsetDateTime,
+    pub created_at: DateTimeWrapper,
+    pub modified_at: DateTimeWrapper,
 }
 
 impl SessionData {
@@ -25,8 +27,8 @@ impl SessionData {
             session_id,
             session_key: key.into(),
             session_value: value,
-            created_at: OffsetDateTime::now_utc(),
-            modified_at: OffsetDateTime::now_utc(),
+            created_at: DateTimeWrapper::now(),
+            modified_at: DateTimeWrapper::now(),
         }
     }
 

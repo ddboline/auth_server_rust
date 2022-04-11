@@ -7,6 +7,7 @@ use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::{
+    date_time_wrapper::DateTimeWrapper,
     get_random_string,
     pgpool::{PgPool, PgTransaction},
     session_data::SessionData,
@@ -16,8 +17,8 @@ use crate::{
 pub struct Session {
     pub id: Uuid,
     pub email: StackString,
-    pub created_at: OffsetDateTime,
-    pub last_accessed: OffsetDateTime,
+    pub created_at: DateTimeWrapper,
+    pub last_accessed: DateTimeWrapper,
     pub secret_key: StackString,
 }
 
@@ -31,8 +32,8 @@ impl Default for Session {
 pub struct SessionSummary {
     pub session_id: Uuid,
     pub email_address: StackString,
-    pub created_at: OffsetDateTime,
-    pub last_accessed: OffsetDateTime,
+    pub created_at: DateTimeWrapper,
+    pub last_accessed: DateTimeWrapper,
     pub number_of_data_objects: i64,
 }
 
@@ -41,8 +42,8 @@ impl Default for SessionSummary {
         Self {
             session_id: Uuid::new_v4(),
             email_address: "".into(),
-            created_at: OffsetDateTime::now_utc(),
-            last_accessed: OffsetDateTime::now_utc(),
+            created_at: DateTimeWrapper::now(),
+            last_accessed: DateTimeWrapper::now(),
             number_of_data_objects: 0,
         }
     }
@@ -53,8 +54,8 @@ impl Session {
         Self {
             id: Uuid::new_v4(),
             email: email.into(),
-            created_at: OffsetDateTime::now_utc(),
-            last_accessed: OffsetDateTime::now_utc(),
+            created_at: DateTimeWrapper::now(),
+            last_accessed: DateTimeWrapper::now(),
             secret_key: get_random_string(16),
         }
     }

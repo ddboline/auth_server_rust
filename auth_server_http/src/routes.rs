@@ -34,6 +34,7 @@ use crate::{
     app::AppState,
     auth::AuthRequest,
     errors::ServiceError as Error,
+    iso8601,
     logged_user::{LoggedUser, UserCookies},
     EmailStatsWrapper, SesQuotasWrapper, SessionSummaryWrapper,
 };
@@ -320,7 +321,7 @@ async fn delete_session_data_from_cache(
     Ok(())
 }
 
-#[derive(Schema, Serialize)]
+#[derive(Schema, Serialize, Deserialize)]
 struct SessionDataObj {
     #[schema(description = "Session ID")]
     session_id: Uuid,
@@ -329,6 +330,7 @@ struct SessionDataObj {
     #[schema(description = "Session Data")]
     session_value: Value,
     #[schema(description = "Created At")]
+    #[serde(with = "iso8601")]
     created_at: DateTimeType,
 }
 
@@ -354,7 +356,7 @@ async fn list_session_objs(data: &AppState, user: &LoggedUser) -> HttpResult<Vec
             session_id: user.session,
             session_key: s.session_key,
             session_value: s.session_value,
-            created_at: s.created_at.into(),
+            created_at: s.created_at.to_offsetdatetime().into(),
         })
         .collect();
     Ok(values)
@@ -524,15 +526,17 @@ pub struct InvitationOutput {
     #[schema(description = "Email Address")]
     pub email: StackString,
     #[schema(description = "Expiration Datetime")]
+    #[serde(with = "iso8601")]
     pub expires_at: DateTimeType,
 }
 
 impl From<Invitation> for InvitationOutput {
     fn from(i: Invitation) -> Self {
+        let expires_at: OffsetDateTime = i.expires_at.into();
         Self {
             id: i.id.to_string().into(),
             email: i.email,
-            expires_at: i.expires_at.into(),
+            expires_at: expires_at.into(),
         }
     }
 }
@@ -598,7 +602,8 @@ async fn register_user_object(
     pool: &PgPool,
 ) -> HttpResult<AuthorizedUser> {
     if let Some(invitation) = Invitation::get_by_uuid(invitation_id, pool).await? {
-        if invitation.expires_at > OffsetDateTime::now_utc() {
+        let expires_at: OffsetDateTime = invitation.expires_at.into();
+        if expires_at > OffsetDateTime::now_utc() {
             let user = User::from_details(invitation.email.clone(), &user_data.password);
             user.upsert(pool).await?;
             invitation.delete(pool).await?;
