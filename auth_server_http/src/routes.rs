@@ -2,7 +2,7 @@ use futures::try_join;
 use itertools::Itertools;
 use log::{debug, error};
 use rweb::{delete, get, post, Json, Query, Rejection, Schema};
-use rweb_helper::DateTimeType;
+use rweb_helper::{DateTimeType, UuidWrapper};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use stack_string::{format_sstr, StackString};
@@ -132,7 +132,7 @@ async fn login_user_jwt(
     let user = auth_data.authenticate(pool).await?;
     let user: AuthorizedUser = user.into();
     let mut user: LoggedUser = user.into();
-    user.session = session.id;
+    user.session = session.id.into();
     user.secret_key = session.secret_key.clone();
     let cookies = user
         .get_jwt_cookie(&config.domain, config.expiration_seconds, config.secure)
@@ -147,8 +147,8 @@ struct ApiAuthDeleteResponse(JsonBase<StackString, Error>);
 #[delete("/api/auth")]
 #[openapi(description = "Log out")]
 pub async fn logout(user: LoggedUser, #[data] data: AppState) -> WarpResult<ApiAuthDeleteResponse> {
-    delete_user_session(user.session, &data.pool).await?;
-    data.session_cache.remove_session(user.session);
+    delete_user_session(user.session.into(), &data.pool).await?;
+    data.session_cache.remove_session(user.session.into());
     let UserCookies { session_id, jwt } = user.clear_jwt_cookie(
         &data.config.domain,
         data.config.expiration_seconds,
@@ -324,7 +324,7 @@ async fn delete_session_data_from_cache(
 #[derive(Schema, Serialize, Deserialize)]
 struct SessionDataObj {
     #[schema(description = "Session ID")]
-    session_id: Uuid,
+    session_id: UuidWrapper,
     #[schema(description = "Session Key")]
     session_key: StackString,
     #[schema(description = "Session Data")]
@@ -349,16 +349,17 @@ pub async fn list_session_obj(
 }
 
 async fn list_session_objs(data: &AppState, user: &LoggedUser) -> HttpResult<Vec<SessionDataObj>> {
-    let values: Vec<SessionDataObj> = SessionData::get_by_session_id(&data.pool, user.session)
-        .await?
-        .into_iter()
-        .map(|s| SessionDataObj {
-            session_id: user.session,
-            session_key: s.session_key,
-            session_value: s.session_value,
-            created_at: s.created_at.to_offsetdatetime().into(),
-        })
-        .collect();
+    let values: Vec<SessionDataObj> =
+        SessionData::get_by_session_id(&data.pool, user.session.into())
+            .await?
+            .into_iter()
+            .map(|s| SessionDataObj {
+                session_id: user.session,
+                session_key: s.session_key,
+                session_value: s.session_value,
+                created_at: s.created_at.to_offsetdatetime().into(),
+            })
+            .collect();
     Ok(values)
 }
 
@@ -438,7 +439,7 @@ async fn list_session_data_lines(
     data: &AppState,
     user: &LoggedUser,
 ) -> HttpResult<Vec<StackString>> {
-    let lines = SessionData::get_by_session_id(&data.pool, user.session).await?
+    let lines = SessionData::get_by_session_id(&data.pool, user.session.into()).await?
         .into_iter().map(|s| {
             let js = serde_json::to_vec(&s.session_value).unwrap_or_else(|_| Vec::new());
             let js = js.get(..100).unwrap_or_else(|| &js[..]);
@@ -490,7 +491,7 @@ pub struct SessionQuery {
     #[schema(description = "Session Key")]
     pub session_key: Option<StackString>,
     #[schema(description = "Session")]
-    pub session: Option<Uuid>,
+    pub session: Option<UuidWrapper>,
 }
 
 #[delete("/api/sessions")]
@@ -502,13 +503,14 @@ pub async fn delete_sessions(
 ) -> WarpResult<DeleteSessionsResponse> {
     let session_query = session_query.into_inner();
     if let Some(session_key) = &session_query.session_key {
-        delete_session_data_from_cache(&data, user.session, &user.secret_key, session_key).await?;
+        delete_session_data_from_cache(&data, user.session.into(), &user.secret_key, session_key)
+            .await?;
         data.session_cache
-            .remove_data(user.session, &user.secret_key, session_key)?;
+            .remove_data(user.session.into(), &user.secret_key, session_key)?;
     }
     if let Some(session) = session_query.session {
-        delete_user_session(session, &data.pool).await?;
-        data.session_cache.remove_session(session);
+        delete_user_session(session.into(), &data.pool).await?;
+        data.session_cache.remove_session(session.into());
     }
     Ok(HtmlBase::new("finished").into())
 }
@@ -587,11 +589,12 @@ struct ApiRegisterResponse(JsonBase<LoggedUser, Error>);
 #[post("/api/register/{invitation_id}")]
 #[openapi(description = "Set password using link from email")]
 pub async fn register_user(
-    invitation_id: Uuid,
+    invitation_id: UuidWrapper,
     #[data] data: AppState,
     user_data: Json<UserData>,
 ) -> WarpResult<ApiRegisterResponse> {
-    let user = register_user_object(invitation_id, user_data.into_inner(), &data.pool).await?;
+    let user =
+        register_user_object(invitation_id.into(), user_data.into_inner(), &data.pool).await?;
     let resp = JsonBase::new(user.into());
     Ok(resp.into())
 }
@@ -777,7 +780,7 @@ async fn callback_body(
         let session = Session::new(user.email.as_str());
         session.insert(pool).await?;
 
-        user.session = session.id;
+        user.session = session.id.into();
         user.secret_key = session.secret_key;
 
         let cookies =
@@ -873,7 +876,7 @@ async fn test_login_user_jwt(
             };
             AUTHORIZED_USERS.merge_users([user.email.clone()]);
             let mut user: LoggedUser = user.into();
-            user.session = session.id;
+            user.session = session.id.into();
             let cookies = user.get_jwt_cookie(&config.domain, config.expiration_seconds, false)?;
             return Ok((user, cookies));
         }

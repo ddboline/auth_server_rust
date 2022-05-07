@@ -4,6 +4,7 @@ use rweb::{
     filters::{cookie::cookie, BoxedFilter},
     Filter, FromRequest, Rejection, Schema,
 };
+use rweb_helper::UuidWrapper;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::{
@@ -21,7 +22,7 @@ pub struct LoggedUser {
     #[schema(description = "Email Address")]
     pub email: StackString,
     #[schema(description = "Session ID")]
-    pub session: Uuid,
+    pub session: UuidWrapper,
     #[schema(description = "Secret Key")]
     pub secret_key: StackString,
 }
@@ -53,7 +54,7 @@ impl LoggedUser {
             self.email.clone(),
             domain,
             expiration_seconds,
-            session,
+            session.into(),
             self.secret_key.clone(),
         )?;
         let jwt = Cookie::build("jwt", token.to_string())
@@ -94,6 +95,7 @@ impl LoggedUser {
     /// # Errors
     /// Returns `Error::Unauthorized` if session id does not match
     pub fn verify_session_id(&self, session_id: Uuid) -> Result<(), Error> {
+        let session_id: UuidWrapper = session_id.into();
         if self.session == session_id {
             Ok(())
         } else {
@@ -125,7 +127,7 @@ impl From<AuthorizedUser> for LoggedUser {
     fn from(user: AuthorizedUser) -> Self {
         Self {
             email: user.email,
-            session: user.session,
+            session: user.session.into(),
             secret_key: user.secret_key,
         }
     }
@@ -135,7 +137,7 @@ impl From<LoggedUser> for AuthorizedUser {
     fn from(user: LoggedUser) -> Self {
         Self {
             email: user.email,
-            session: user.session,
+            session: user.session.into(),
             secret_key: user.secret_key,
         }
     }

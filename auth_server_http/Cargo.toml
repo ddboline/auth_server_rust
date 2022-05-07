@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_http"
-version = "0.8.1"
+version = "0.8.2"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -16,14 +16,14 @@ biscuit = "0.5"
 anyhow = "1.0"
 log = "0.4"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting", "parsing"]}
-uuid = { version = "0.8", features = ["serde", "v4"] }
+uuid = { version = "1.0", features = ["serde", "v4"] }
 tokio = {version="1.17", features=["full"]}
 thiserror = "1.0"
 dirs = "4.0"
 dotenv = "0.15"
 derive_more = "0.99"
-rusoto_core = {version = "0.47", default_features = false, features=["rustls"]}
-rusoto_ses = {version = "0.47", default_features = false, features=["rustls"]}
+rusoto_core = {version = "0.48", default_features = false, features=["rustls"]}
+rusoto_ses = {version = "0.48", default_features = false, features=["rustls"]}
 sts_profile_auth = "0.6"
 lazy_static = "1.4"
 serde = { version="1.0", features=["derive"] }
@@ -43,14 +43,14 @@ arc-swap = "1.5"
 im = "15.0"
 toml = "0.5"
 itertools = "0.10"
-rweb = {version="0.15", features=["openapi", "uuid"], default-features=false}
+rweb = {version="0.15", features=["openapi"], default-features=false}
 serde_yaml = "0.8"
 indexmap = "1.8"
 maplit = "1.0"
 cookie = {version="0.16", features=["percent-encode"]}
 stack-string = { version="0.7", features=["postgres_types", "rweb-openapi"] }
 stdout-channel = "0.5"
-rweb-helper = {git = "https://github.com/ddboline/rweb_helper.git", tag="0.4.9"}
+rweb-helper = {git = "https://github.com/ddboline/rweb_helper.git", tag="0.4.12"}
 
 [dev-dependencies]
 reqwest = {version = "0.11", default_features = false, features=["cookies", "rustls-tls", "gzip", "json"]}

@@ -14,10 +14,9 @@ pub mod session_data_cache;
 
 use derive_more::{From, Into};
 use rweb::Schema;
-use rweb_helper::{derive_rweb_schema, DateTimeType};
+use rweb_helper::{derive_rweb_schema, DateTimeType, UuidWrapper};
 use serde::Serialize;
 use stack_string::StackString;
-use uuid::Uuid;
 
 use auth_server_ext::ses_client::{EmailStats, SesQuotas};
 use auth_server_lib::session::SessionSummary;
@@ -69,7 +68,7 @@ derive_rweb_schema!(SessionSummaryWrapper, _SessionSummaryWrapper);
 #[derive(Schema)]
 struct _SessionSummaryWrapper {
     #[schema(description = "Session ID")]
-    session_id: Uuid,
+    session_id: UuidWrapper,
     #[schema(description = "Email Address")]
     email_address: StackString,
     #[schema(description = "Last Accessed")]
