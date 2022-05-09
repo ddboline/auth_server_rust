@@ -95,7 +95,6 @@ impl LoggedUser {
     /// # Errors
     /// Returns `Error::Unauthorized` if session id does not match
     pub fn verify_session_id(&self, session_id: Uuid) -> Result<(), Error> {
-        let session_id: UuidWrapper = session_id.into();
         if self.session == session_id {
             Ok(())
         } else {
