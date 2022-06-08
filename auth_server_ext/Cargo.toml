@@ -13,7 +13,7 @@ anyhow = "1.0"
 log = "0.4"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting", "parsing"]}
 uuid = { version = "1.0", features = ["serde", "v4"] }
-tokio = {version="1.18", features=["full"]}
+tokio = {version="1.19", features=["full"]}
 thiserror = "1.0"
 dirs = "4.0"
 dotenv = "0.15"
@@ -28,7 +28,7 @@ deadqueue = "0.2"
 bytes = "1.1"
 envy = "0.4"
 base64 = "0.13"
-openid = {version="0.9", default-features=false}
+openid = {version="0.10", default-features=false}
 rand = "0.8"
 url = "2.2"
 futures = "0.3"
