@@ -1,8 +1,10 @@
 use anyhow::Error;
-use serde::{Deserialize, Serialize};
-use stack_string::StackString;
+use reqwest::{header::HeaderValue, Client};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use stack_string::{format_sstr, StackString};
 use std::convert::TryFrom;
 use uuid::Uuid;
+use url::Url;
 
 use crate::token::Token;
 
@@ -18,6 +20,58 @@ impl TryFrom<Token> for AuthorizedUser {
     fn try_from(token: Token) -> Result<Self, Self::Error> {
         let claim = token.decode_token()?;
         Ok(claim.into())
+    }
+}
+
+impl AuthorizedUser {
+    /// # Errors
+    /// Returns error if api call fails
+    pub async fn get_session_data<T: DeserializeOwned>(
+        base_url: &Url,
+        session: Uuid,
+        secret_key: &str,
+        client: &Client,
+        key: &str,
+    ) -> Result<T, Error> {
+        let url = base_url.join(format_sstr!("/api/session/{key}").as_str())?;
+        let session_str = format_sstr!("{session}");
+        let value = HeaderValue::from_str(&session_str)?;
+        let secret_key = HeaderValue::from_str(secret_key)?;
+        client
+            .get(url.as_str())
+            .header("session", value)
+            .header("secret-key", secret_key)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await
+            .map_err(Into::into)
+    }
+
+    /// # Errors
+    /// Returns error if api call fails
+    pub async fn set_session_data<T: Serialize>(
+        base_url: &Url,
+        session: Uuid,
+        secret_key: &str,
+        client: &Client,
+        key: &str,
+        data: &T,
+    ) -> Result<(), Error> {
+        let url = base_url.join(format_sstr!("/api/session/{key}").as_str())?;
+        let session_str = format_sstr!("{session}");
+        let value = HeaderValue::from_str(&session_str)?;
+        let secret_key = HeaderValue::from_str(secret_key)?;
+        client
+            .post(url.as_str())
+            .header("session", value)
+            .header("secret-key", secret_key)
+            .json(data)
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(())
     }
 }
 
