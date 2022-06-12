@@ -61,6 +61,7 @@ impl GoogleClient {
     /// Return error if openid client intialization fails
     pub async fn new(config: &Config) -> Result<Self, Error> {
         let csrf_tokens = Arc::new(Mutex::new(HashMap::new()));
+        let mut delay = 1;
         loop {
             match get_google_client(config).await {
                 Ok(client) => {
@@ -76,7 +77,8 @@ impl GoogleClient {
                 }
                 Err(e) => {
                     error!("Encountered error {:?}, sleep and try again", e);
-                    sleep(Duration::from_secs(1)).await;
+                    sleep(Duration::from_secs(delay)).await;
+                    delay *= 2;
                 }
             }
         }
