@@ -241,12 +241,11 @@ mod tests {
     use maplit::hashmap;
     use rweb::openapi;
     use stack_string::{format_sstr, StackString};
-    use std::env;
+    use std::{collections::HashMap, env};
     use tokio::{
         task::spawn,
         time::{sleep, Duration},
     };
-    use std::collections::HashMap;
     use url::Url;
 
     use auth_server_ext::{google_openid::GoogleClient, ses_client::SesInstance};
@@ -254,7 +253,7 @@ mod tests {
         config::Config, get_random_string, invitation::Invitation, pgpool::PgPool,
         session::Session, user::User, AUTH_APP_MUTEX,
     };
-    use authorized_users::{get_random_key, JWT_SECRET, KEY_LENGTH, SECRET_KEY, AuthorizedUser};
+    use authorized_users::{get_random_key, AuthorizedUser, JWT_SECRET, KEY_LENGTH, SECRET_KEY};
 
     use crate::{
         app::{get_api_scope, run_app, run_test_app, AppState},
@@ -441,9 +440,24 @@ mod tests {
             "key" => "value",
         };
         debug!("POST session");
-        AuthorizedUser::set_session_data(&base_url, resp.session.into(), &resp.secret_key, &client, "test", &data).await?;
+        AuthorizedUser::set_session_data(
+            &base_url,
+            resp.session.into(),
+            &resp.secret_key,
+            &client,
+            "test",
+            &data,
+        )
+        .await?;
         debug!("GET session");
-        let resp: HashMap<String, String> = AuthorizedUser::get_session_data(&base_url, resp.session.into(), &resp.secret_key, &client, "test").await?;
+        let resp: HashMap<String, String> = AuthorizedUser::get_session_data(
+            &base_url,
+            resp.session.into(),
+            &resp.secret_key,
+            &client,
+            "test",
+        )
+        .await?;
         debug!("{resp:?}");
         assert_eq!(resp.len(), 1);
         let url = format_sstr!("http://localhost:{test_port}/api/auth");

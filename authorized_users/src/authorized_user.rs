@@ -3,8 +3,8 @@ use reqwest::{header::HeaderValue, Client};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use stack_string::{format_sstr, StackString};
 use std::convert::TryFrom;
-use uuid::Uuid;
 use url::Url;
+use uuid::Uuid;
 
 use crate::token::Token;
 
