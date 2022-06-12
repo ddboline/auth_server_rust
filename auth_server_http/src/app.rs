@@ -239,7 +239,6 @@ mod tests {
     use anyhow::Error;
     use log::debug;
     use maplit::hashmap;
-    use reqwest::header::HeaderValue;
     use rweb::openapi;
     use stack_string::{format_sstr, StackString};
     use std::env;
@@ -247,13 +246,15 @@ mod tests {
         task::spawn,
         time::{sleep, Duration},
     };
+    use std::collections::HashMap;
+    use url::Url;
 
     use auth_server_ext::{google_openid::GoogleClient, ses_client::SesInstance};
     use auth_server_lib::{
         config::Config, get_random_string, invitation::Invitation, pgpool::PgPool,
         session::Session, user::User, AUTH_APP_MUTEX,
     };
-    use authorized_users::{get_random_key, JWT_SECRET, KEY_LENGTH, SECRET_KEY};
+    use authorized_users::{get_random_key, JWT_SECRET, KEY_LENGTH, SECRET_KEY, AuthorizedUser};
 
     use crate::{
         app::{get_api_scope, run_app, run_test_app, AppState},
@@ -435,33 +436,15 @@ mod tests {
         debug!("password changed {:?}", output);
         assert_eq!(output.message.as_str(), "password updated");
 
-        let url = format_sstr!("http://localhost:{test_port}/api/session/test");
+        let base_url: Url = format_sstr!("http://localhost:{test_port}").parse()?;
         let data = hashmap! {
             "key" => "value",
         };
         debug!("POST session");
-        let value = HeaderValue::from_str(&resp.session.to_string())?;
-        let secret = HeaderValue::from_str(&resp.secret_key)?;
-        let resp = client
-            .post(url.as_str())
-            .json(&data)
-            .header("session", value.clone())
-            .header("secret-key", secret.clone())
-            .send()
-            .await?
-            .error_for_status()?;
-        debug!("{:?}", resp);
+        AuthorizedUser::set_session_data(&base_url, resp.session.into(), &resp.secret_key, &client, "test", &data).await?;
         debug!("GET session");
-        let resp: std::collections::HashMap<String, String> = client
-            .get(url.as_str())
-            .header("session", value)
-            .header("secret-key", secret)
-            .send()
-            .await?
-            .error_for_status()?
-            .json()
-            .await?;
-        debug!("{:?}", resp);
+        let resp: HashMap<String, String> = AuthorizedUser::get_session_data(&base_url, resp.session.into(), &resp.secret_key, &client, "test").await?;
+        debug!("{resp:?}");
         assert_eq!(resp.len(), 1);
         let url = format_sstr!("http://localhost:{test_port}/api/auth");
         let resp: StackString = client
