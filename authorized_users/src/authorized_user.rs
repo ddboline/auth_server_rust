@@ -73,6 +73,27 @@ impl AuthorizedUser {
             .error_for_status()?;
         Ok(())
     }
+
+    pub async fn rm_session_data(
+        base_url: &Url,
+        session: Uuid,
+        secret_key: &str,
+        client: &Client,
+        key: &str,
+    ) -> Result<(), Error> {
+        let url = base_url.join(format_sstr!("/api/session/{key}").as_str())?;
+        let session_str = format_sstr!("{session}");
+        let value = HeaderValue::from_str(&session_str)?;
+        let secret_key = HeaderValue::from_str(secret_key)?;
+        client
+            .delete(url.as_str())
+            .header("session", value)
+            .header("secret-key", secret_key)
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
