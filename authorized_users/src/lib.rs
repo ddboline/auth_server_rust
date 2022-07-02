@@ -56,6 +56,12 @@ enum AuthStatus {
     NotAuthorized,
 }
 
+impl Default for AuthStatus {
+    fn default() -> Self {
+        Self::NotAuthorized
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct AuthorizedUsers(ArcSwap<HashMap<StackString, AuthStatus>>);
 
@@ -87,6 +93,7 @@ impl AuthorizedUsers {
     }
 
     pub fn merge_users(&self, users: impl IntoIterator<Item = impl Into<StackString>>) {
+        let now = OffsetDateTime::now_utc();
         let users: HashSet<StackString> = users.into_iter().map(Into::into).collect();
         let mut auth_map = (*self.0.load().clone()).clone();
         let not_auth_users: Vec<_> = auth_map
@@ -95,10 +102,10 @@ impl AuthorizedUsers {
             .cloned()
             .collect();
         for user in not_auth_users {
-            auth_map.insert(user, AuthStatus::NotAuthorized);
+            *auth_map.entry(user).or_default() = AuthStatus::NotAuthorized;
         }
         for user in users {
-            auth_map.insert(user, AuthStatus::Authorized(OffsetDateTime::now_utc()));
+            *auth_map.entry(user).or_default() = AuthStatus::Authorized(now);
         }
         self.0.store(Arc::new(auth_map));
     }
