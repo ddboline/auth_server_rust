@@ -101,8 +101,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
     async fn _update_db(pool: PgPool, client: GoogleClient, expiration_seconds: i64) {
         let mut i = interval(Duration::from_secs(60));
         loop {
-            let p = pool.clone();
-            fill_auth_from_db(&p, expiration_seconds)
+            fill_auth_from_db(&pool, expiration_seconds)
                 .await
                 .unwrap_or(());
             client.cleanup_token_map().await;
