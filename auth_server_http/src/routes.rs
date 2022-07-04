@@ -866,6 +866,8 @@ async fn test_login_user_jwt(
     session: Session,
     config: &Config,
 ) -> HttpResult<(LoggedUser, UserCookies<'static>)> {
+    use maplit::hashset;
+
     if let Ok(s) = std::env::var("TESTENV") {
         if &s == "true" {
             let email = auth_data.email;
@@ -874,7 +876,7 @@ async fn test_login_user_jwt(
                 session: session.id,
                 secret_key: session.secret_key.clone(),
             };
-            AUTHORIZED_USERS.merge_users([user.email.clone()]);
+            AUTHORIZED_USERS.update_users(hashset! {user.email.clone()});
             let mut user: LoggedUser = user.into();
             user.session = session.id.into();
             let cookies = user.get_jwt_cookie(&config.domain, config.expiration_seconds, false)?;

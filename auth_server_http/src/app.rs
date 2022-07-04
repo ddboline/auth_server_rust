@@ -6,7 +6,7 @@ use rweb::{
     openapi::{self, Info},
     Filter, Reply,
 };
-use stack_string::{format_sstr, StackString};
+use stack_string::format_sstr;
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{task::spawn, time::interval};
 
@@ -219,7 +219,7 @@ pub async fn fill_auth_from_db(
     expiration_seconds: i64,
 ) -> Result<(), anyhow::Error> {
     debug!("{:?}", *TRIGGER_DB_UPDATE);
-    let users: Vec<StackString> = if TRIGGER_DB_UPDATE.check() {
+    let users = if TRIGGER_DB_UPDATE.check() {
         Session::cleanup(pool, expiration_seconds).await?;
         User::get_authorized_users(pool)
             .await?
@@ -229,7 +229,7 @@ pub async fn fill_auth_from_db(
     } else {
         AUTHORIZED_USERS.get_users()
     };
-    AUTHORIZED_USERS.merge_users(users);
+    AUTHORIZED_USERS.update_users(users);
     debug!("{:?}", *AUTHORIZED_USERS);
     Ok(())
 }

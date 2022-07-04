@@ -40,7 +40,6 @@ smallvec = "1.8"
 crossbeam = "0.8"
 structopt = "0.3"
 arc-swap = "1.5"
-im = "15.0"
 toml = "0.5"
 itertools = "0.10"
 rweb = {version="0.15", features=["openapi"], default-features=false}

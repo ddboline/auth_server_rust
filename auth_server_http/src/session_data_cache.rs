@@ -1,10 +1,9 @@
 use arc_swap::ArcSwap;
 use derive_more::{Deref, DerefMut};
-use im::HashMap;
 use log::debug;
 use serde_json::Value;
 use stack_string::StackString;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use uuid::Uuid;
 
 use auth_server_lib::session::Session;
@@ -46,13 +45,15 @@ impl SessionDataCache {
     }
 
     pub fn add_session(&self, session: Session) {
-        let mut session_data_cache = (*self.load().clone()).clone();
+        let mut session_data_cache =
+            Arc::try_unwrap(self.load().clone()).unwrap_or_else(|a| (*a).clone());
         session_data_cache.add_session(session);
         self.store(Arc::new(session_data_cache));
     }
 
     pub fn remove_session(&self, session_id: Uuid) {
-        let mut session_data_cache = (*self.load().clone()).clone();
+        let mut session_data_cache =
+            Arc::try_unwrap(self.load().clone()).unwrap_or_else(|a| (*a).clone());
         session_data_cache.remove(&session_id);
         self.store(Arc::new(session_data_cache));
     }
@@ -90,7 +91,8 @@ impl SessionDataCache {
     ) -> Result<(), Error> {
         let secret_key = secret_key.into();
         let session_key = session_key.into();
-        let mut session_data_cache = (*self.load().clone()).clone();
+        let mut session_data_cache =
+            Arc::try_unwrap(self.load().clone()).unwrap_or_else(|a| (*a).clone());
         if let Some((secret, session_map)) = session_data_cache.get_mut(&session_id) {
             if secret != &secret_key {
                 return Err(Error::BadRequest("Bad Secret".into()));
@@ -114,7 +116,8 @@ impl SessionDataCache {
         secret_key: impl AsRef<str>,
         session_key: impl AsRef<str>,
     ) -> Result<(), Error> {
-        let mut session_data_cache = (*self.load().clone()).clone();
+        let mut session_data_cache =
+            Arc::try_unwrap(self.load().clone()).unwrap_or_else(|a| (*a).clone());
         if let Some((secret, session_map)) = session_data_cache.get_mut(&session_id) {
             if secret != secret_key.as_ref() {
                 return Err(Error::BadRequest("Bad Secret".into()));

@@ -11,7 +11,6 @@ use arc_swap::ArcSwap;
 pub use authorized_user::AuthorizedUser;
 use biscuit::{jwk, jws, Empty};
 use crossbeam::atomic::AtomicCell;
-use im::HashMap;
 use lazy_static::lazy_static;
 use rand::{
     distributions::{Distribution, Standard},
@@ -20,7 +19,7 @@ use rand::{
 use stack_string::StackString;
 use std::{
     cell::Cell,
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     path::Path,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -88,29 +87,25 @@ impl AuthorizedUsers {
         } else {
             AuthStatus::NotAuthorized
         };
-        let auth_map = Arc::new(self.0.load().update(user.email, status));
+        let mut auth_map = Arc::try_unwrap(self.0.load().clone()).unwrap_or_else(|a| (*a).clone());
+        auth_map.insert(user.email, status);
+        let auth_map = Arc::new(auth_map);
         self.0.store(auth_map);
     }
 
-    pub fn merge_users(&self, users: impl IntoIterator<Item = impl Into<StackString>>) {
+    pub fn update_users(&self, users: HashSet<StackString>) {
         let now = OffsetDateTime::now_utc();
-        let users: HashSet<StackString> = users.into_iter().map(Into::into).collect();
-        let mut auth_map = (*self.0.load().clone()).clone();
-        let not_auth_users: Vec<_> = auth_map
+        let auth_map: HashMap<_, _> = self
+            .0
+            .load()
             .keys()
-            .filter(|user| !users.contains(*user))
-            .cloned()
+            .map(|k| (k.clone(), AuthStatus::NotAuthorized))
+            .chain(users.into_iter().map(|u| (u, AuthStatus::Authorized(now))))
             .collect();
-        for user in not_auth_users {
-            *auth_map.entry(user).or_default() = AuthStatus::NotAuthorized;
-        }
-        for user in users {
-            *auth_map.entry(user).or_default() = AuthStatus::Authorized(now);
-        }
         self.0.store(Arc::new(auth_map));
     }
 
-    pub fn get_users(&self) -> Vec<StackString> {
+    pub fn get_users(&self) -> HashSet<StackString> {
         self.0.load().keys().cloned().collect()
     }
 }
