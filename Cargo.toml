@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_rust"
-version = "0.9.0"
+version = "0.9.1"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -53,7 +53,6 @@ crossbeam = "0.8"
 structopt = "0.3"
 env_logger = "0.9"
 arc-swap = "1.5"
-im = "15.0"
 toml = "0.5"
 itertools = "0.10"
 stack-string = { version="0.7", features=["postgres_types"] }

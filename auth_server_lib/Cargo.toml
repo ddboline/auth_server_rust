@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_lib"
-version = "0.9.0"
+version = "0.9.1"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -37,6 +37,5 @@ parking_lot = "0.12"
 smallvec = "1.8"
 crossbeam = "0.8"
 arc-swap = "1.5"
-im = "15.0"
 toml = "0.5"
 stack-string = { version="0.7", features=["postgres_types"] }
