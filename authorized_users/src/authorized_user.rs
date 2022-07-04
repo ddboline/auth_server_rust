@@ -74,6 +74,8 @@ impl AuthorizedUser {
         Ok(())
     }
 
+    /// # Errors
+    /// Returns error if api call fails
     pub async fn rm_session_data(
         base_url: &Url,
         session: Uuid,
