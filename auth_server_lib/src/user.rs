@@ -50,7 +50,7 @@ impl Argon {
     }
 }
 
-#[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug)]
+#[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug, Eq)]
 pub struct User {
     pub email: StackString,
     // password here is always the hashed password

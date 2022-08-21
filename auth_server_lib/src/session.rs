@@ -13,7 +13,7 @@ use crate::{
     session_data::SessionData,
 };
 
-#[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug)]
+#[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug, Eq)]
 pub struct Session {
     pub id: Uuid,
     pub email: StackString,
@@ -28,7 +28,7 @@ impl Default for Session {
     }
 }
 
-#[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug)]
+#[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug, Eq)]
 pub struct SessionSummary {
     pub session_id: Uuid,
     pub email_address: StackString,

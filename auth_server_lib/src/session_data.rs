@@ -10,7 +10,7 @@ use crate::{
     pgpool::{PgPool, PgTransaction},
 };
 
-#[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug)]
+#[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug, Eq)]
 pub struct SessionData {
     pub id: Uuid,
     pub session_id: Uuid,
