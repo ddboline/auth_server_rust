@@ -43,7 +43,7 @@ jobs:
 
     - name: Build
       run: |
-        cargo build --verbose && \
+        cargo build && \
         ./target/debug/auth-server-admin run-migrations
       env:
         DATABASE_URL: postgresql://postgres:2UtcMAAvNuBHPqK9@localhost:5432/auth_server_rust
@@ -51,9 +51,9 @@ jobs:
     - name: Run tests / generate code coverage
       run: |
         mkdir -p ${HOME}/.config/auth_server_rust && \
-        cargo test --workspace --verbose && \
+        cargo test --workspace && \
         cargo install cargo-tarpaulin && \
-        cargo tarpaulin --verbose --all-features --workspace --out Xml
+        cargo tarpaulin --all-features --workspace --out Xml
       env:
         DATABASE_URL: postgresql://postgres:2UtcMAAvNuBHPqK9@localhost:5432/auth_server_rust
         AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
