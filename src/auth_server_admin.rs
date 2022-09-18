@@ -6,6 +6,5 @@ use auth_server_admin::run_cli;
 #[cfg(not(tarpaulin_include))]
 async fn main() -> Result<(), Error> {
     env_logger::init();
-    run_cli().await?;
-    Ok(())
+    tokio::spawn(async move { run_cli().await }).await.unwrap()
 }
