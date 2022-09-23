@@ -1,11 +1,11 @@
 use anyhow::{Context, Error};
+use clap::Parser;
 use futures::{future::try_join_all, try_join};
 use itertools::Itertools;
 use refinery::embed_migrations;
 use stack_string::{format_sstr, StackString};
 use std::collections::{BTreeSet, HashMap};
 use stdout_channel::StdoutChannel;
-use structopt::StructOpt;
 use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
 use uuid::Uuid;
@@ -22,82 +22,82 @@ use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 
 embed_migrations!("../migrations");
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 enum AuthServerOptions {
     /// List user email addresses
     List,
     /// List invitations
     ListInvites,
     SendInvite {
-        #[structopt(short = "u", long)]
+        #[clap(short = 'u', long)]
         email: StackString,
     },
     RmInvites {
-        #[structopt(short = "u", long)]
+        #[clap(short = 'u', long)]
         ids: Vec<Uuid>,
     },
     /// Add new user
     Add {
-        #[structopt(short = "u", long)]
+        #[clap(short = 'u', long)]
         email: StackString,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         password: StackString,
     },
     /// Remove user
     Rm {
-        #[structopt(short = "u", long)]
+        #[clap(short = 'u', long)]
         email: StackString,
     },
     /// Register
     Register {
-        #[structopt(short, long)]
+        #[clap(short, long)]
         invitation_id: Uuid,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         password: StackString,
     },
     /// Change password
     Change {
-        #[structopt(short = "u", long)]
+        #[clap(short = 'u', long)]
         email: StackString,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         password: StackString,
     },
     /// Verify password
     Verify {
-        #[structopt(short = "u", long)]
+        #[clap(short = 'u', long)]
         email: StackString,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         password: StackString,
     },
     /// Get Status of Server / Ses
     Status,
     /// Add User to App
     AddToApp {
-        #[structopt(short, long)]
+        #[clap(short, long)]
         email: StackString,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         app: StackString,
     },
     /// Remove User from App
     RemoveFromApp {
-        #[structopt(short, long)]
+        #[clap(short, long)]
         email: StackString,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         app: StackString,
     },
     RunMigrations,
     /// List Sessions
     ListSessions {
-        #[structopt(short, long)]
+        #[clap(short, long)]
         email: Option<StackString>,
     },
     ListSessionData {
-        #[structopt(short, long)]
+        #[clap(short, long)]
         id: Option<Uuid>,
     },
     /// Delete Sessions
     RmSessions {
-        #[structopt(short, long)]
+        #[clap(short, long)]
         ids: Vec<Uuid>,
     },
 }

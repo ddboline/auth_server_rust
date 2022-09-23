@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_rust"
-version = "0.9.4"
+version = "0.9.5"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -50,7 +50,7 @@ futures = "0.3"
 parking_lot = "0.12"
 smallvec = "1.8"
 crossbeam = "0.8"
-structopt = "0.3"
+clap = {version="3.0", features=["derive"]}
 env_logger = "0.9"
 arc-swap = "1.5"
 toml = "0.5"
