@@ -1,15 +1,14 @@
----
 openapi: 3.0.1
 info:
   title: Rust Auth Server
   description: Authorization Server written in rust using jwt/jws/jwe and featuring integration with Google OAuth
-  version: 0.7.24
+  version: 0.9.5
 paths:
   /api/auth:
     get:
       description: Get current username if logged in
       responses:
-        "200":
+        '200':
           description: Current users email
           content:
             application/json:
@@ -27,12 +26,12 @@ paths:
                     type: string
                 type: object
                 required:
-                  - email
-                  - session
-                  - secret_key
-        "400":
+                - email
+                - session
+                - secret_key
+        '400':
           description: Bad Request
-        "500":
+        '500':
           description: Internal Server Error
     post:
       description: Login with username and password
@@ -49,11 +48,11 @@ paths:
                   type: string
               type: object
               required:
-                - email
-                - password
+              - email
+              - password
         required: true
       responses:
-        "201":
+        '201':
           description: Current logged in username
           content:
             application/json:
@@ -71,25 +70,25 @@ paths:
                     type: string
                 type: object
                 required:
-                  - email
-                  - session
-                  - secret_key
-        "400":
+                - email
+                - session
+                - secret_key
+        '400':
           description: Bad Request
-        "500":
+        '500':
           description: Internal Server Error
     delete:
       description: Log out
       responses:
-        "201":
+        '201':
           description: Status Message
           content:
             application/json:
               schema:
                 type: string
-        "400":
+        '400':
           description: Bad Request
-        "500":
+        '500':
           description: Internal Server Error
   /api/invitation:
     post:
@@ -104,10 +103,10 @@ paths:
                   type: string
               type: object
               required:
-                - email
+              - email
         required: true
       responses:
-        "201":
+        '201':
           description: Invitation Object
           content:
             application/json:
@@ -125,23 +124,23 @@ paths:
                     type: string
                 type: object
                 required:
-                  - id
-                  - email
-                  - expires_at
-        "400":
+                - id
+                - email
+                - expires_at
+        '400':
           description: Bad Request
-        "500":
+        '500':
           description: Internal Server Error
-  "/api/register/{invitation_id}":
+  /api/register/{invitation_id}:
     post:
       description: Set password using link from email
       parameters:
-        - name: invitation_id
-          in: path
-          required: true
-          schema:
-            format: uuid
-            type: string
+      - name: invitation_id
+        in: path
+        required: true
+        schema:
+          format: uuid
+          type: string
       requestBody:
         content:
           application/json:
@@ -152,10 +151,10 @@ paths:
                   type: string
               type: object
               required:
-                - password
+              - password
         required: true
       responses:
-        "201":
+        '201':
           description: Registered Email
           content:
             application/json:
@@ -173,12 +172,12 @@ paths:
                     type: string
                 type: object
                 required:
-                  - email
-                  - session
-                  - secret_key
-        "400":
+                - email
+                - session
+                - secret_key
+        '400':
           description: Bad Request
-        "500":
+        '500':
           description: Internal Server Error
   /api/password_change:
     post:
@@ -193,10 +192,10 @@ paths:
                   type: string
               type: object
               required:
-                - password
+              - password
         required: true
       responses:
-        "201":
+        '201':
           description: Success Message
           content:
             application/json:
@@ -206,10 +205,10 @@ paths:
                     type: string
                 type: object
                 required:
-                  - message
-        "400":
+                - message
+        '400':
           description: Bad Request
-        "500":
+        '500':
           description: Internal Server Error
   /api/auth_url:
     post:
@@ -224,10 +223,10 @@ paths:
                   type: string
               type: object
               required:
-                - final_url
+              - final_url
         required: true
       responses:
-        "200":
+        '200':
           description: Authorization Url
           content:
             application/json:
@@ -241,24 +240,24 @@ paths:
                     type: string
                 type: object
                 required:
-                  - csrf_state
-                  - auth_url
-        "400":
+                - csrf_state
+                - auth_url
+        '400':
           description: Bad Request
-        "500":
+        '500':
           description: Internal Server Error
   /api/await:
     get:
       description: Await completion of auth
       parameters:
-        - name: state
-          in: query
-          required: true
-          schema:
-            description: CSRF State
-            type: string
+      - name: state
+        in: query
+        required: true
+        schema:
+          description: CSRF State
+          type: string
       responses:
-        "200":
+        '200':
           description: Finished
           content:
             text/html:
@@ -268,34 +267,34 @@ paths:
     get:
       description: Callback method for use in Oauth flow
       parameters:
-        - name: code
-          in: query
-          required: true
-          schema:
-            description: Authorization Code
-            type: string
-        - name: state
-          in: query
-          required: true
-          schema:
-            description: CSRF State
-            type: string
+      - name: code
+        in: query
+        required: true
+        schema:
+          description: Authorization Code
+          type: string
+      - name: state
+        in: query
+        required: true
+        schema:
+          description: CSRF State
+          type: string
       responses:
-        "200":
+        '200':
           description: Callback Response
           content:
             text/html:
               schema:
                 type: string
-        "400":
+        '400':
           description: Bad Request
-        "500":
+        '500':
           description: Internal Server Error
   /api/status:
     get:
       description: Status endpoint
       responses:
-        "200":
+        '200':
           description: Status output
           content:
             application/json:
@@ -326,9 +325,9 @@ paths:
                         type: number
                     type: object
                     required:
-                      - max_24_hour_send
-                      - max_send_rate
-                      - sent_last_24_hours
+                    - max_24_hour_send
+                    - max_send_rate
+                    - sent_last_24_hours
                   stats:
                     properties:
                       bounces:
@@ -355,51 +354,51 @@ paths:
                         type: string
                     type: object
                     required:
-                      - bounces
-                      - complaints
-                      - delivery_attempts
-                      - rejects
+                    - bounces
+                    - complaints
+                    - delivery_attempts
+                    - rejects
                 type: object
                 required:
-                  - number_of_users
-                  - number_of_invitations
-                  - number_of_sessions
-                  - number_of_entries
-                  - quota
-                  - stats
-        "400":
+                - number_of_users
+                - number_of_invitations
+                - number_of_sessions
+                - number_of_entries
+                - quota
+                - stats
+        '400':
           description: Bad Request
-        "500":
+        '500':
           description: Internal Server Error
-  "/api/session/{session_key}":
+  /api/session/{session_key}:
     get:
       description: Get Session
       parameters:
-        - name: session_key
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: session_key
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
-        "200":
+        '200':
           description: Session Object
           content:
             application/json:
               schema:
                 nullable: true
                 type: object
-        "400":
+        '400':
           description: Bad Request
-        "500":
+        '500':
           description: Internal Server Error
     post:
       description: Set session value
       parameters:
-        - name: session_key
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: session_key
+        in: path
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -408,41 +407,41 @@ paths:
               type: object
         required: true
       responses:
-        "201":
+        '201':
           description: Set Session Object
           content:
             application/json:
               schema:
                 nullable: true
                 type: object
-        "400":
+        '400':
           description: Bad Request
-        "500":
+        '500':
           description: Internal Server Error
     delete:
       description: Delete session value
       parameters:
-        - name: session_key
-          in: path
-          required: true
-          schema:
-            type: string
+      - name: session_key
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
-        "201":
+        '201':
           description: Delete Session Object
           content:
             text/plain:
               schema:
                 type: string
-        "400":
+        '400':
           description: Bad Request
-        "500":
+        '500':
           description: Internal Server Error
   /api/session-data:
     get:
       description: Session Data
       responses:
-        "200":
+        '200':
           description: Session Data
           content:
             application/json:
@@ -461,24 +460,24 @@ paths:
                       nullable: true
                       type: object
                     created_at:
-                      description: Create At
+                      description: Created At
                       format: date-time
                       type: string
                   type: object
                   required:
-                    - session_id
-                    - session_key
-                    - created_at
+                  - session_id
+                  - session_key
+                  - created_at
                 type: array
-        "400":
+        '400':
           description: Bad Request
-        "500":
+        '500':
           description: Internal Server Error
   /api/sessions:
     get:
       description: Open Sessions
       responses:
-        "200":
+        '200':
           description: Sessions
           content:
             application/json:
@@ -505,75 +504,75 @@ paths:
                       type: integer
                   type: object
                   required:
-                    - session_id
-                    - email_address
-                    - last_accessed
-                    - created_at
-                    - number_of_data_objects
+                  - session_id
+                  - email_address
+                  - last_accessed
+                  - created_at
+                  - number_of_data_objects
                 type: array
-        "400":
+        '400':
           description: Bad Request
-        "500":
+        '500':
           description: Internal Server Error
     delete:
       description: Delete Sessions
       parameters:
-        - name: session_key
-          in: query
-          required: false
-          schema:
-            description: Session Key
-            nullable: true
-            type: string
-        - name: session
-          in: query
-          required: false
-          schema:
-            description: Session
-            format: uuid
-            nullable: true
-            type: string
+      - name: session_key
+        in: query
+        required: false
+        schema:
+          description: Session Key
+          nullable: true
+          type: string
+      - name: session
+        in: query
+        required: false
+        schema:
+          description: Session
+          format: uuid
+          nullable: true
+          type: string
       responses:
-        "200":
+        '200':
           description: Delete Sessions
           content:
             text/plain:
               schema:
                 type: string
-        "400":
+        '400':
           description: Bad Request
-        "500":
+        '500':
           description: Internal Server Error
   /api/list-sessions:
     get:
       responses:
-        "200":
+        '200':
           description: List Sessions
           content:
             text/plain:
               schema:
                 type: string
-        "400":
+        '400':
           description: Bad Request
-        "500":
+        '500':
           description: Internal Server Error
   /api/list-session-data:
     get:
       responses:
-        "200":
+        '200':
           description: List Session Data
           content:
             text/plain:
               schema:
                 type: string
-        "400":
+        '400':
           description: Bad Request
-        "500":
+        '500':
           description: Internal Server Error
   /auth/index.html:
     get:
       responses:
-        "200":
+        '200':
           description: Main Page
           content:
             text/html:
@@ -582,7 +581,7 @@ paths:
   /auth/main.css:
     get:
       responses:
-        "200":
+        '200':
           description: CSS
           content:
             text/css:
@@ -591,7 +590,7 @@ paths:
   /auth/main.js:
     get:
       responses:
-        "200":
+        '200':
           description: Javascript
           content:
             text/javascript:
@@ -600,7 +599,7 @@ paths:
   /auth/register.html:
     get:
       responses:
-        "200":
+        '200':
           description: Registration
           content:
             text/html:
@@ -609,7 +608,7 @@ paths:
   /auth/login.html:
     get:
       responses:
-        "200":
+        '200':
           description: Login Page
           content:
             text/html:
@@ -618,7 +617,7 @@ paths:
   /auth/change_password.html:
     get:
       responses:
-        "200":
+        '200':
           description: Change Password
           content:
             text/html:
