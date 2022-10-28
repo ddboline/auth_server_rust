@@ -3,6 +3,7 @@ use auth_server_ext::google_openid::OpenidError;
 use http::{Error as HTTPError, StatusCode};
 use indexmap::IndexMap;
 use log::error;
+use postgres_query::Error as PqError;
 use rusoto_core::RusotoError;
 use rusoto_ses::{GetSendQuotaError, GetSendStatisticsError, SendEmailError};
 use rweb::{
@@ -65,6 +66,8 @@ pub enum ServiceError {
     TimeoutElapsed(#[from] Elapsed),
     #[error("FmtError {0}")]
     FmtError(#[from] FmtError),
+    #[error("PqError {0}")]
+    PqError(#[from] PqError),
 }
 
 // we can return early in our handlers if UUID provided by the user is not valid
@@ -173,6 +176,7 @@ impl ResponseEntity for ServiceError {
         let error_responses = [
             (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error"),
             (StatusCode::BAD_REQUEST, "Bad Request"),
+            (StatusCode::NOT_FOUND, "Not Found"),
         ];
 
         for (code, msg) in &error_responses {

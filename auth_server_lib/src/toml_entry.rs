@@ -1,5 +1,6 @@
 use anyhow::{format_err, Error};
-use postgres_query::{client::GenericClient, query_dyn};
+use futures::TryStreamExt;
+use postgres_query::{client::GenericClient, query_dyn, Error as PqError};
 use serde::{Deserialize, Serialize};
 use stack_string::{format_sstr, StackString};
 use std::convert::TryFrom;
@@ -54,9 +55,16 @@ impl Entry {
         );
         let query = query_dyn!(&query)?;
         let conn = pool.get().await?;
-        let emails: Vec<(StackString,)> = query.fetch(&conn).await?;
-        let emails = emails.into_iter().map(|(s,)| s).collect();
-        Ok(emails)
+        query
+            .query_streaming(&conn)
+            .await?
+            .and_then(|row| async move {
+                let email: StackString = row.try_get(0).map_err(PqError::BeginTransaction)?;
+                Ok(email)
+            })
+            .try_collect()
+            .await
+            .map_err(Into::into)
     }
 
     /// # Errors

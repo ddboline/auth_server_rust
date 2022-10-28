@@ -1,5 +1,6 @@
 use anyhow::Error;
-use postgres_query::{client::GenericClient, query, FromSqlRow};
+use futures::Stream;
+use postgres_query::{client::GenericClient, query, Error as PqError, FromSqlRow, Query};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use time::{Duration, OffsetDateTime};
@@ -29,9 +30,19 @@ impl Invitation {
     /// # Errors
     /// Returns error if db query fails
     pub async fn get_all(pool: &PgPool) -> Result<Vec<Self>, Error> {
-        let query = query!("SELECT * FROM invitations");
+        let query: Query = query!("SELECT * FROM invitations");
         let conn = pool.get().await?;
         query.fetch(&conn).await.map_err(Into::into)
+    }
+
+    /// # Errors
+    /// Returns error if db query fails
+    pub async fn get_all_streaming(
+        pool: &PgPool,
+    ) -> Result<impl Stream<Item = Result<Self, PqError>>, Error> {
+        let query: Query = query!("SELECT * FROM invitations");
+        let conn = pool.get().await?;
+        query.fetch_streaming(&conn).await.map_err(Into::into)
     }
 
     /// # Errors

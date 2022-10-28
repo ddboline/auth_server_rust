@@ -1,6 +1,6 @@
 use anyhow::{Context, Error};
 use clap::Parser;
-use futures::{future::try_join_all, try_join};
+use futures::{stream::FuturesUnordered, try_join, TryStreamExt};
 use itertools::Itertools;
 use refinery::embed_migrations;
 use stack_string::{format_sstr, StackString};
@@ -115,11 +115,12 @@ impl AuthServerOptions {
                 let auth_app_map = get_auth_user_app_map(&config)
                     .await
                     .context("Failed to get auth_user_app_map")?;
-
-                for user in User::get_authorized_users(pool)
-                    .await
-                    .context("Failed to get_authorized_users")?
-                {
+                let mut stream = Box::pin(
+                    User::get_authorized_users(pool)
+                        .await
+                        .context("Failed to get_authorized_users")?,
+                );
+                while let Some(user) = stream.try_next().await? {
                     stdout.send(format_sstr!(
                         "{} {}",
                         user.email,
@@ -130,10 +131,8 @@ impl AuthServerOptions {
                 }
             }
             AuthServerOptions::ListInvites => {
-                for invite in Invitation::get_all(pool)
-                    .await
-                    .context("Failed to get_all")?
-                {
+                let mut stream = Box::pin(Invitation::get_all_streaming(pool).await?);
+                while let Some(invite) = stream.try_next().await? {
                     stdout.send(
                         serde_json::to_string(&invite)
                             .with_context(|| format_sstr!("Failed to parse invite {invite:?}"))?,
@@ -307,7 +306,8 @@ impl AuthServerOptions {
                         }
                     }
                 } else {
-                    for session_data in SessionData::get_all_session_data(pool).await? {
+                    let mut stream = Box::pin(SessionData::get_all_session_data(pool).await?);
+                    while let Some(session_data) = stream.try_next().await? {
                         stdout.send(serde_json::to_string(&session_data)?);
                     }
                 }
@@ -331,20 +331,25 @@ async fn get_auth_user_app_map(
     config: &Config,
 ) -> Result<HashMap<StackString, BTreeSet<StackString>>, Error> {
     if let Ok(auth_user_config) = AuthUserConfig::new(&config.auth_user_config_path) {
-        let futures = auth_user_config.into_iter().map(|(key, val)| async move {
-            val.get_authorized_users().await.map(|users| (key, users))
-        });
-        let results: Result<Vec<_>, Error> = try_join_all(futures).await;
-
-        let auth_app_map: HashMap<_, BTreeSet<_>> =
-            results?
+        let futures: FuturesUnordered<_> =
+            auth_user_config
                 .into_iter()
-                .fold(HashMap::new(), |mut h, (key, users)| {
+                .map(|(key, val)| async move {
+                    val.get_authorized_users().await.map(|users| (key, users))
+                })
+                .collect();
+
+        let auth_app_map: HashMap<_, BTreeSet<_>> = futures
+            .try_fold(
+                HashMap::<_, BTreeSet<_>>::new(),
+                |mut h, (key, users)| async move {
                     for user in users {
                         h.entry(user).or_default().insert(key.clone());
                     }
-                    h
-                });
+                    Ok(h)
+                },
+            )
+            .await?;
         Ok(auth_app_map)
     } else {
         Ok(HashMap::default())
@@ -367,6 +372,7 @@ pub async fn run_cli() -> Result<(), Error> {
 #[cfg(test)]
 mod test {
     use anyhow::Error;
+    use futures::TryStreamExt;
     use log::debug;
     use rand::{
         distributions::{Alphanumeric, DistString},
@@ -416,7 +422,11 @@ mod test {
             .await?
             .unwrap();
 
-        let invitations: HashSet<_> = Invitation::get_all(&pool).await?.into_iter().collect();
+        let result: Result<HashSet<_>, _> = Invitation::get_all_streaming(&pool)
+            .await?
+            .try_collect()
+            .await;
+        let invitations = result?;
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
@@ -458,7 +468,9 @@ mod test {
         debug!("{} {}", email, mock_stdout.lock().await.join("\n"));
         assert!(mock_stdout.lock().await[0].contains(email.as_str()));
 
-        let users = User::get_authorized_users(&pool).await?;
+        let result: Result<Vec<_>, _> =
+            User::get_authorized_users(&pool).await?.try_collect().await;
+        let users = result?;
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();

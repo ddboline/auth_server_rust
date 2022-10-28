@@ -1,4 +1,4 @@
-use futures::try_join;
+use futures::{try_join, TryStreamExt};
 use itertools::Itertools;
 use log::{debug, error};
 use rweb::{delete, get, post, Json, Query, Rejection, Schema};
@@ -349,18 +349,17 @@ pub async fn list_session_obj(
 }
 
 async fn list_session_objs(data: &AppState, user: &LoggedUser) -> HttpResult<Vec<SessionDataObj>> {
-    let values: Vec<SessionDataObj> =
-        SessionData::get_by_session_id(&data.pool, user.session.into())
-            .await?
-            .into_iter()
-            .map(|s| SessionDataObj {
-                session_id: user.session,
-                session_key: s.session_key,
-                session_value: s.session_value,
-                created_at: s.created_at.to_offsetdatetime().into(),
-            })
-            .collect();
-    Ok(values)
+    SessionData::get_by_session_id_streaming(&data.pool, user.session.into())
+        .await?
+        .map_ok(|s| SessionDataObj {
+            session_id: user.session,
+            session_key: s.session_key,
+            session_value: s.session_value,
+            created_at: s.created_at.to_offsetdatetime().into(),
+        })
+        .try_collect()
+        .await
+        .map_err(Into::into)
 }
 
 #[derive(RwebResponse)]
@@ -439,8 +438,8 @@ async fn list_session_data_lines(
     data: &AppState,
     user: &LoggedUser,
 ) -> HttpResult<Vec<StackString>> {
-    let lines = SessionData::get_by_session_id(&data.pool, user.session.into()).await?
-        .into_iter().map(|s| {
+    SessionData::get_by_session_id_streaming(&data.pool, user.session.into()).await?
+        .map_ok(|s| {
             let js = serde_json::to_vec(&s.session_value).unwrap_or_else(|_| Vec::new());
             let js = js.get(..100).unwrap_or_else(|| &js[..]);
             let js = match str::from_utf8(js) {
@@ -463,8 +462,7 @@ async fn list_session_data_lines(
                 created_at=s.created_at.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z")).unwrap_or_else(|_| "".into()),
                 js=js,
             )
-        }).collect();
-    Ok(lines)
+        }).try_collect().await.map_err(Into::into)
 }
 
 #[derive(RwebResponse)]

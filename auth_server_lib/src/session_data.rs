@@ -1,5 +1,6 @@
 use anyhow::Error;
-use postgres_query::{client::GenericClient, query, FromSqlRow};
+use futures::Stream;
+use postgres_query::{client::GenericClient, query, Error as PqError, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use stack_string::StackString;
@@ -34,10 +35,12 @@ impl SessionData {
 
     /// # Errors
     /// Returns error if db query fails
-    pub async fn get_all_session_data(pool: &PgPool) -> Result<Vec<Self>, Error> {
+    pub async fn get_all_session_data(
+        pool: &PgPool,
+    ) -> Result<impl Stream<Item = Result<Self, PqError>>, Error> {
         let query = query!("SELECT * FROM session_values");
         let conn = pool.get().await?;
-        query.fetch(&conn).await.map_err(Into::into)
+        query.fetch_streaming(&conn).await.map_err(Into::into)
     }
 
     /// # Errors
@@ -59,6 +62,20 @@ impl SessionData {
             id = id,
         );
         query.fetch_opt(conn).await.map_err(Into::into)
+    }
+
+    /// # Errors
+    /// Returns error if db query fails
+    pub async fn get_by_session_id_streaming(
+        pool: &PgPool,
+        session_id: Uuid,
+    ) -> Result<impl Stream<Item = Result<Self, PqError>>, Error> {
+        let query = query!(
+            "SELECT * FROM session_values WHERE session_id = $session_id ORDER BY created_at",
+            session_id = session_id
+        );
+        let conn = pool.get().await?;
+        query.fetch_streaming(&conn).await.map_err(Into::into)
     }
 
     /// # Errors

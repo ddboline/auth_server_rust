@@ -47,6 +47,7 @@ maplit = "1.0"
 cookie = {version="0.16", features=["percent-encode"]}
 stack-string = { version="0.7", features=["postgres_types", "rweb-openapi"] }
 rweb-helper = {git = "https://github.com/ddboline/rweb_helper.git", tag="0.4.14"}
+postgres_query = {git = "https://github.com/ddboline/rust-postgres-query", tag = "0.3.4", features=["deadpool"]}
 
 [dev-dependencies]
 reqwest = {version = "0.11", default_features = false, features=["cookies", "rustls-tls", "gzip", "json"]}

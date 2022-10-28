@@ -1,4 +1,5 @@
 use anyhow::Error;
+use futures::TryStreamExt;
 use log::debug;
 use rweb::{
     filters::BoxedFilter,
@@ -7,7 +8,7 @@ use rweb::{
     Filter, Reply,
 };
 use stack_string::format_sstr;
-use std::{net::SocketAddr, sync::Arc, time::Duration};
+use std::{collections::HashSet, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{task::spawn, time::interval};
 
 use auth_server_ext::{google_openid::GoogleClient, ses_client::SesInstance};
@@ -220,11 +221,12 @@ pub async fn fill_auth_from_db(
     debug!("{:?}", *TRIGGER_DB_UPDATE);
     let users = if TRIGGER_DB_UPDATE.check() {
         Session::cleanup(pool, expiration_seconds).await?;
-        User::get_authorized_users(pool)
+        let result: Result<HashSet<_>, _> = User::get_authorized_users(pool)
             .await?
-            .into_iter()
-            .map(|user| user.email)
-            .collect()
+            .map_ok(|user| user.email)
+            .try_collect()
+            .await;
+        result?
     } else {
         AUTHORIZED_USERS.get_users()
     };

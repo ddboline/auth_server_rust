@@ -3,8 +3,9 @@ use argon2::{
     password_hash::Error as ArgonError, Algorithm, Argon2, Params, PasswordHash, PasswordHasher,
     PasswordVerifier, Version,
 };
+use futures::Stream;
 use lazy_static::lazy_static;
-use postgres_query::{client::GenericClient, query, FromSqlRow};
+use postgres_query::{client::GenericClient, query, Error as PqError, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use uuid::Uuid;
@@ -79,34 +80,40 @@ impl User {
     /// # Errors
     /// Returns error if parsing password hash fails
     pub fn verify_password(&self, password: impl AsRef<[u8]>) -> Result<bool, Error> {
-        match ARGON.verify_password(&self.password, password) {
-            Ok(()) => Ok(true),
-            Err(ArgonError::Password) => Ok(false),
-            Err(e) => Err(format_err!("{:?}", e)),
-        }
+        ARGON
+            .verify_password(&self.password, password)
+            .map(|_| true)
+            .or_else(|e| match e {
+                ArgonError::Password => Ok(false),
+                e => Err(format_err!("{e:?}")),
+            })
     }
 
     /// # Errors
     /// Returns error if parsing hash fails
-    pub fn fake_verify(password: impl AsRef<str>) -> Result<(), Error> {
+    pub fn fake_verify(password: impl AsRef<str>) -> Result<bool, Error> {
         let password = if password.as_ref() == FAKE_PASSWORD.as_str() {
             ALTERNATE_FAKE.as_str()
         } else {
             password.as_ref()
         };
-        match ARGON.verify_password(&FAKE_PASSWORD, password) {
-            Err(ArgonError::Password) => Ok(()),
-            Err(e) => Err(format_err!("{:?}", e)),
-            Ok(()) => unreachable!(),
-        }
+        ARGON
+            .verify_password(&FAKE_PASSWORD, password)
+            .map(|_| unreachable!())
+            .or_else(|e| match e {
+                ArgonError::Password => Ok(false),
+                e => Err(format_err!("{e:?}")),
+            })
     }
 
     /// # Errors
     /// Returns error if db query fails
-    pub async fn get_authorized_users(pool: &PgPool) -> Result<Vec<Self>, Error> {
+    pub async fn get_authorized_users(
+        pool: &PgPool,
+    ) -> Result<impl Stream<Item = Result<Self, PqError>>, Error> {
         let query = query!("SELECT * FROM users");
         let conn = pool.get().await?;
-        query.fetch(&conn).await.map_err(Into::into)
+        query.fetch_streaming(&conn).await.map_err(Into::into)
     }
 
     /// # Errors
@@ -241,6 +248,7 @@ impl From<User> for AuthorizedUser {
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
+    use futures::TryStreamExt;
     use log::debug;
     use stack_string::format_sstr;
 
@@ -304,7 +312,10 @@ mod tests {
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
         let count = User::get_number_users(&pool).await? as usize;
-        let users = User::get_authorized_users(&pool).await?;
+        let users: Vec<_> = User::get_authorized_users(&pool)
+            .await?
+            .try_collect()
+            .await?;
         debug!("{:?}", users);
         assert_eq!(count, users.len());
         Ok(())
