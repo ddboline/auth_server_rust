@@ -394,18 +394,10 @@ fn session_element(cx: Scope<SessionProps>) -> Element {
             style: "text-align: center",
             thead {
                 tr {
-                    th {
-                        "Session ID"
-                    },
-                    th {
-                        "Email Address",
-                    },
-                    th {
-                        "Created At",
-                    },
-                    th {
-                        "Number of Data Objects",
-                    },
+                    th {"Session ID"},
+                    th {"Email Address"},
+                    th {"Created At"},
+                    th {"Number of Data Objects"},
                 },
             },
             tbody {
