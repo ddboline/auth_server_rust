@@ -82,7 +82,7 @@ impl LoggedUser {
             .max_age(Duration::seconds(expiration_seconds))
             .secure(secure)
             .finish();
-        let jwt = Cookie::build("jwt", "".to_string())
+        let jwt = Cookie::build("jwt", String::new())
             .path("/")
             .http_only(true)
             .domain(domain.to_string())
