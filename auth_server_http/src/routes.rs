@@ -1,5 +1,7 @@
+use dioxus::prelude::{
+    dioxus_elements, format_args_f, rsx, Element, LazyNodes, NodeFactory, Scope, VNode, VirtualDom,
+};
 use futures::{try_join, TryStreamExt};
-use itertools::Itertools;
 use log::{debug, error};
 use rweb::{delete, get, post, Json, Query, Rejection, Schema};
 use rweb_helper::{DateTimeType, UuidWrapper};
@@ -371,36 +373,69 @@ pub async fn list_sessions(
     _: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<ListSessionsResponse> {
-    let lines = list_sessions_lines(&data).await?.into_iter()
-    .map(|s| {
-        format_sstr!(
-            r#"<tr style="text-align: center">
-               <td>{id}</td>
-               <td>{email}</td>
-               <td>{created_at}</td>
-               <td>{n_obj}</td>
-               <td><input type="button" name="delete" value="Delete" onclick="delete_session('{id}');"/></td>
-               </tr>
-            "#,
-            id=s.session_id,
-            email=s.email_address,
-            created_at=s.created_at.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z")).unwrap_or_else(|_| "".into()),
-            n_obj=s.number_of_data_objects,
-        )
-    }).join("\n");
-    let body = format_sstr!(
-        r#"<table border="1" class="dataframe" style="text-align: center">
-            <thead><tr>
-            <th>Session ID</th>
-            <th>Email Address</th>
-            <th>Created At</th>
-            <th>Number of Data Objects</th>
-            <th></th>
-            </tr></thead>
-            <tbody>{lines}</tbody>
-            </table>"#,
-    );
-    Ok(HtmlBase::new(body).into())
+    let summaries = list_sessions_lines(&data).await?;
+    let body = {
+        let mut app = VirtualDom::new_with_props(session_element, SessionProps { summaries });
+        app.rebuild();
+        dioxus::ssr::render_vdom(&app)
+    };
+    Ok(HtmlBase::new(body.into()).into())
+}
+
+struct SessionProps {
+    summaries: Vec<SessionSummary>,
+}
+
+fn session_element(cx: Scope<SessionProps>) -> Element {
+    cx.render(rsx! {
+         table {
+            "border": "1",
+            class: "dataframe",
+            style: "text-align: center",
+            thead {
+                tr {
+                    th {
+                        "Session ID"
+                    },
+                    th {
+                        "Email Address",
+                    },
+                    th {
+                        "Created At",
+                    },
+                    th {
+                        "Number of Data Objects",
+                    },
+                },
+            },
+            tbody {
+                cx.props.summaries.iter().enumerate().map(|(idx, s)| {
+                    let id = s.session_id;
+                    let email = &s.email_address;
+                    let created_at = s.created_at.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z")).unwrap_or_else(|_| String::new());
+                    let n_obj = s.number_of_data_objects;
+                    rsx! {
+                        tr {
+                            key: "list-session-row-{idx}",
+                            style: "text-align: center",
+                            td {"{id}"},
+                            td {"{email}"},
+                            td {"{created_at}"},
+                            td {"{n_obj}"},
+                            td {
+                                input {
+                                    "type": "button",
+                                    name: "delete",
+                                    value: "Delete",
+                                    "onclick": "delete_session('{id}')",
+                                }
+                            }
+                        }
+                    }
+                }),
+            }
+         },
+    })
 }
 
 async fn list_sessions_lines(data: &AppState) -> HttpResult<Vec<SessionSummary>> {
@@ -418,51 +453,79 @@ pub async fn list_session_data(
     user: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<ListSessionDataResponse> {
-    let lines = list_session_data_lines(&data, &user).await?.join("\n");
-    let body = format_sstr!(
-        r#"<table border="1" class="dataframe">
-           <thead><tr>
-           <th>Session ID</th>
-           <th>Session Key</th>
-           <th>Created At</th>
-           <th>Session Value</th>
-           <th></th>
-           </tr></thead>
-           <tbody>{lines}</tbody>
-           </table>"#
-    );
-    Ok(HtmlBase::new(body).into())
+    let data = list_session_data_lines(&data, &user).await?;
+    let body = {
+        let mut app = VirtualDom::new_with_props(session_data_element, SessionDataProps { data });
+        app.rebuild();
+        dioxus::ssr::render_vdom(&app)
+    };
+    Ok(HtmlBase::new(body.into()).into())
+}
+
+struct SessionDataProps {
+    data: Vec<(SessionData, StackString)>,
+}
+
+fn session_data_element(cx: Scope<SessionDataProps>) -> Element {
+    cx.render(rsx! {
+        table {
+            "border": "1",
+            class: "dataframe",
+            thead {
+                tr {
+                    th {"Session ID"},
+                    th {"Session Key"},
+                    th {"Created At"},
+                    th {"Session Value"},
+                }
+            },
+            tbody {
+                cx.props.data.iter().enumerate().map(|(idx, (s, js))| {
+                    let id = s.session_id;
+                    let key = &s.session_key;
+                    let created_at = s.created_at.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z")).unwrap_or_else(|_| String::new());
+                    rsx! {
+                        tr {
+                            key: "list-session-data-row-{idx}",
+                            style: "text-align",
+                            td {"{id}"},
+                            td {"{key}"},
+                            td {"{created_at}"},
+                            td {"{js}"},
+                            td {
+                                input {
+                                    "type": "button",
+                                    name: "delete",
+                                    value: "Delete",
+                                    "onclick": "delete_session_data('{key}')",
+                                }
+                            }
+                        }
+                    }
+                }),
+            }
+        }
+    })
 }
 
 async fn list_session_data_lines(
     data: &AppState,
     user: &LoggedUser,
-) -> HttpResult<Vec<StackString>> {
-    SessionData::get_by_session_id_streaming(&data.pool, user.session.into()).await?
+) -> HttpResult<Vec<(SessionData, StackString)>> {
+    SessionData::get_by_session_id_streaming(&data.pool, user.session.into())
+        .await?
         .map_ok(|s| {
             let js = serde_json::to_vec(&s.session_value).unwrap_or_else(|_| Vec::new());
             let js = js.get(..100).unwrap_or_else(|| &js[..]);
             let js = match str::from_utf8(js) {
                 Ok(s) => s,
-                Err(error) => {
-                    str::from_utf8(&js[..error.valid_up_to()]).unwrap()
-                }
+                Err(error) => str::from_utf8(&js[..error.valid_up_to()]).unwrap(),
             };
-            format_sstr!(
-                r#"<tr style="text-align">
-                   <td>{id}</td>
-                   <td>{key}</td>
-                   <td>{created_at}</td>
-                   <td>{js}</td>
-                   <td><input type="button" name="delete" value="Delete" onclick="delete_session_data('{key}');"/></td>
-                   </tr>
-                "#,
-                id=s.session_id,
-                key=s.session_key,
-                created_at=s.created_at.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z")).unwrap_or_else(|_| "".into()),
-                js=js,
-            )
-        }).try_collect().await.map_err(Into::into)
+            (s, js.into())
+        })
+        .try_collect()
+        .await
+        .map_err(Into::into)
 }
 
 #[derive(RwebResponse)]
