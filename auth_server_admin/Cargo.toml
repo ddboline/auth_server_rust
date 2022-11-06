@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_admin"
-version = "0.9.6"
+version = "0.9.7"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -35,7 +35,7 @@ futures = "0.3"
 parking_lot = "0.12"
 smallvec = "1.8"
 crossbeam = "0.8"
-clap = {version="3.0", features=["derive"]}
+clap = {version="4.0", features=["derive"]}
 arc-swap = "1.5"
 toml = "0.5"
 itertools = "0.10"
