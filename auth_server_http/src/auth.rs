@@ -46,7 +46,7 @@ mod test {
 
     use auth_server_lib::{config::Config, get_random_string, pgpool::PgPool};
 
-    use crate::auth::AuthRequest;
+    use crate::{auth::AuthRequest, errors::ServiceError};
 
     #[tokio::test]
     async fn test_authenticate() -> Result<(), Error> {
@@ -58,11 +58,11 @@ mod test {
 
         let req = AuthRequest { email, password };
         let resp = req.authenticate(&pool).await;
-        assert_eq!(
-            resp.unwrap_err().to_string(),
-            "Invalid username or password".to_string()
-        );
-
+        assert!(resp.is_err());
+        match resp {
+            Err(ServiceError::BadRequest(e)) => assert_eq!(e, "Invalid username or password"),
+            _ => assert!(false, "Unexpected result of authentication"),
+        };
         Ok(())
     }
 }
