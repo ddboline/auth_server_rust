@@ -68,7 +68,7 @@ impl SessionDataCache {
     ) -> Result<Option<Value>, Error> {
         if let Some((secret, session_map)) = self.load().get(&session_id) {
             if secret != secret_key.as_ref() {
-                return Err(Error::BadRequest("Bad Secret".into()));
+                return Err(Error::BadRequest("Bad Secret"));
             }
             debug!("got cache");
             if let Some(value) = session_map.lock().get(session_key.as_ref()) {
@@ -94,7 +94,7 @@ impl SessionDataCache {
             Arc::try_unwrap(self.load().clone()).unwrap_or_else(|a| (*a).clone());
         if let Some((secret, session_map)) = session_data_cache.get_mut(&session_id) {
             if secret != &secret_key {
-                return Err(Error::BadRequest("Bad Secret".into()));
+                return Err(Error::BadRequest("Bad Secret"));
             }
             *session_map.lock().entry(session_key).or_default() = session_value.clone();
         } else {
@@ -119,7 +119,7 @@ impl SessionDataCache {
             Arc::try_unwrap(self.load().clone()).unwrap_or_else(|a| (*a).clone());
         if let Some((secret, session_map)) = session_data_cache.get_mut(&session_id) {
             if secret != secret_key.as_ref() {
-                return Err(Error::BadRequest("Bad Secret".into()));
+                return Err(Error::BadRequest("Bad Secret"));
             }
             session_map.lock().remove(session_key.as_ref());
         }
