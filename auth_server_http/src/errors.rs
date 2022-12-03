@@ -16,7 +16,6 @@ use rweb::{
 };
 use serde::Serialize;
 use serde_json::Error as SerdeJsonError;
-use stack_string::{format_sstr, StackString};
 use std::{
     borrow::Cow,
     convert::{From, Infallible},
@@ -30,12 +29,21 @@ use uuid::Error as ParseError;
 use auth_server_lib::{PostgresError, QueryError};
 use authorized_users::TRIGGER_DB_UPDATE;
 
+static LOGIN_HTML: &str = r#"
+    <script>
+    !function() {
+        let final_url = location.href;
+        location.replace('/auth/login.html?final_url=' + final_url);
+    }()
+    </script>
+"#;
+
 #[derive(Debug, Error)]
 pub enum ServiceError {
     #[error("Internal Server Error")]
     InternalServerError,
     #[error("BadRequest: {0}")]
-    BadRequest(StackString),
+    BadRequest(&'static str),
     #[error("Unauthorized")]
     Unauthorized,
     #[error("blocking error {0}")]
@@ -74,13 +82,15 @@ pub enum ServiceError {
 // and provide a custom message
 impl From<ParseError> for ServiceError {
     fn from(e: ParseError) -> Self {
-        Self::BadRequest(format_sstr!("Invalid UUID {e:?}"))
+        error!("Invalid UUID {e:?}");
+        Self::BadRequest("Parse Error")
     }
 }
 
 impl From<OpenidError> for ServiceError {
     fn from(e: OpenidError) -> Self {
-        Self::BadRequest(format_sstr!("Openid Error {e:?}"))
+        error!("Openid Error {e:?}");
+        Self::BadRequest("Openid Error")
     }
 }
 
@@ -93,16 +103,7 @@ struct ErrorMessage<'a> {
 }
 
 fn login_html() -> impl Reply {
-    rweb::reply::html(
-        "
-            <script>
-                !function() {
-                    let final_url = location.href;
-                    location.replace('/auth/login.html?final_url=' + final_url);
-                }()
-            </script>
-        ",
-    )
+    rweb::reply::html(LOGIN_HTML)
 }
 
 /// # Errors
@@ -130,7 +131,7 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
         match service_err {
             ServiceError::BadRequest(msg) => {
                 code = StatusCode::BAD_REQUEST;
-                message = msg.as_str();
+                message = msg;
             }
             ServiceError::Unauthorized => {
                 TRIGGER_DB_UPDATE.set();
@@ -202,7 +203,7 @@ mod test {
 
     #[tokio::test]
     async fn test_service_error() -> Result<(), Error> {
-        let err = ServiceError::BadRequest("TEST ERROR".into()).into();
+        let err = ServiceError::BadRequest("TEST ERROR").into();
         let resp = error_response(err).await?.into_response();
         assert_eq!(resp.status().as_u16(), 400);
 
