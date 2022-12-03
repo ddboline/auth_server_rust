@@ -145,11 +145,16 @@ impl From<LoggedUser> for AuthorizedUser {
 impl TryFrom<Token> for LoggedUser {
     type Error = Error;
     fn try_from(token: Token) -> Result<Self, Self::Error> {
-        if let Ok(user) = token.try_into() {
-            if AUTHORIZED_USERS.is_authorized(&user) {
-                return Ok(user.into());
+        match token.try_into() {
+            Ok(user) => {
+                if AUTHORIZED_USERS.is_authorized(&user) {
+                    return Ok(user.into());
+                }
+                debug!("NOT AUTHORIZED {:?}", user);
             }
-            debug!("NOT AUTHORIZED {:?}", user);
+            Err(e) => {
+                debug!("token decode error {e}");
+            }
         }
         Err(Error::Unauthorized)
     }
