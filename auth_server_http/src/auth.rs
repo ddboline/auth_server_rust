@@ -1,10 +1,11 @@
-use anyhow::{format_err, Error};
 use rweb::Schema;
 use serde::Deserialize;
 use stack_string::StackString;
 use tokio::task::spawn_blocking;
 
 use auth_server_lib::{pgpool::PgPool, user::User};
+
+use crate::errors::ServiceError as Error;
 
 #[derive(Debug, Deserialize, Schema)]
 pub struct AuthRequest {
@@ -34,7 +35,7 @@ impl AuthRequest {
         } else {
             spawn_blocking(move || User::fake_verify(&password)).await??;
         }
-        Err(format_err!("Invalid username or password"))
+        Err(Error::BadRequest("Invalid username or password"))
     }
 }
 
