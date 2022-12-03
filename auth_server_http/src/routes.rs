@@ -129,7 +129,10 @@ async fn login_user_jwt(
     config: &Config,
 ) -> HttpResult<(LoggedUser, Session, UserCookies<'static>)> {
     let session = Session::new(auth_data.email.as_str());
-    session.insert(pool).await?;
+    session.insert(pool).await.map_err(|e| {
+        error!("error on session insert {e}");
+        e
+    })?;
 
     let user = auth_data.authenticate(pool).await?;
     let user: AuthorizedUser = user.into();
@@ -138,7 +141,10 @@ async fn login_user_jwt(
     user.secret_key = session.secret_key.clone();
     let cookies = user
         .get_jwt_cookie(&config.domain, config.expiration_seconds, config.secure)
-        .map_err(|e| Error::BadRequest(format_sstr!("Failed to create_token {e}")))?;
+        .map_err(|e| {
+            error!("Failed to create_token {e}");
+            Error::BadRequest("Failed to create_token")
+        })?;
     Ok((user, session, cookies))
 }
 
@@ -217,7 +223,7 @@ async fn get_session_from_cache(
 ) -> HttpResult<Option<SessionData>> {
     if let Some(session_obj) = Session::get_session(&data.pool, session).await? {
         if session_obj.secret_key != secret_key {
-            return Err(Error::BadRequest("Bad Secret".into()));
+            return Err(Error::BadRequest("Bad Secret"));
         }
         if let Some(session_data) = session_obj
             .get_session_data(&data.pool, &session_key)
@@ -268,7 +274,7 @@ async fn set_session_from_cache(
 
     if let Some(session_obj) = Session::get_session_conn(conn, session).await? {
         if session_obj.secret_key != secret_key {
-            return Err(Error::BadRequest("Bad Secret".into()));
+            return Err(Error::BadRequest("Bad Secret"));
         }
         let session_data = session_obj
             .set_session_data_conn(conn, &session_key, payload.clone())
@@ -311,7 +317,7 @@ async fn delete_session_data_from_cache(
 ) -> HttpResult<()> {
     if let Some(session_obj) = Session::get_session(&data.pool, session).await? {
         if session_obj.secret_key != secret_key.as_ref() {
-            return Err(Error::BadRequest("Bad Secret".into()));
+            return Err(Error::BadRequest("Bad Secret"));
         }
         if let Some(session_data) = session_obj
             .get_session_data(&data.pool, session_key)
@@ -669,7 +675,7 @@ async fn register_user_object(
         }
         invitation.delete(pool).await?;
     }
-    Err(Error::BadRequest("Invalid invitation".into()))
+    Err(Error::BadRequest("Invalid invitation"))
 }
 
 #[derive(Serialize, Deserialize, Debug, Schema)]
@@ -705,7 +711,7 @@ async fn change_password_user_body(
         user.update(pool).await?;
         Ok("password updated")
     } else {
-        Err(Error::BadRequest("Invalid User".into()))
+        Err(Error::BadRequest("Invalid User"))
     }
 }
 
@@ -840,7 +846,7 @@ async fn callback_body(
             user.get_jwt_cookie(&config.domain, config.expiration_seconds, config.secure)?;
         Ok(cookies)
     } else {
-        Err(Error::BadRequest("Callback Failed".into()))
+        Err(Error::BadRequest("Callback Failed"))
     }
 }
 
@@ -936,7 +942,5 @@ async fn test_login_user_jwt(
             return Ok((user, cookies));
         }
     }
-    Err(Error::BadRequest(
-        "Username and Password don't match".into(),
-    ))
+    Err(Error::BadRequest("Username and Password don't match"))
 }
