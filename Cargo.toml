@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_rust"
-version = "0.9.8"
+version = "0.10.0"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -51,12 +51,12 @@ parking_lot = "0.12"
 smallvec = "1.8"
 crossbeam = "0.8"
 clap = {version="4.0", features=["derive"]}
-env_logger = "0.9"
+env_logger = "0.10"
 arc-swap = "1.5"
 toml = "0.5"
 itertools = "0.10"
-stack-string = { version="0.7", features=["postgres_types"] }
-stdout-channel = "0.5"
+stack-string = { version="0.8", features=["postgres_types"] }
+stdout-channel = "0.6"
 
 [dev-dependencies]
 reqwest = {version = "0.11", default_features = false, features=["cookies", "rustls-tls", "gzip", "json"]}
