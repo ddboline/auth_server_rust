@@ -1,5 +1,9 @@
 use anyhow::{format_err, Error};
-use base64::{encode_config_slice, URL_SAFE_NO_PAD};
+use base64::{
+    alphabet::URL_SAFE,
+    encode_engine_slice,
+    engine::fast_portable::{FastPortable, NO_PAD},
+};
 use crossbeam::atomic::AtomicCell;
 use log::{debug, error};
 pub use openid::error::{ClientError, Error as OpenidError};
@@ -200,7 +204,11 @@ fn get_token_string() -> StackString {
     let mut rng = thread_rng();
     let random_bytes: [u8; 16] = Standard.sample(&mut rng);
     let mut buf = [0u8; 22];
-    let encoded_size = encode_config_slice(random_bytes, URL_SAFE_NO_PAD, &mut buf);
+    let encoded_size = encode_engine_slice(
+        random_bytes,
+        &mut buf,
+        &FastPortable::from(&URL_SAFE, NO_PAD),
+    );
     assert!(encoded_size == 22);
     let buf = str::from_utf8(&buf).expect("Invalid buffer");
     let mut output = StackString::new();

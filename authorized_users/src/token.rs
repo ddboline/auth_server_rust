@@ -91,7 +91,11 @@ impl Token {
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
-    use base64::{encode_config, URL_SAFE_NO_PAD};
+    use base64::{
+        alphabet::URL_SAFE,
+        encode_engine,
+        engine::fast_portable::{FastPortable, NO_PAD},
+    };
     use log::debug;
     use uuid::Uuid;
 
@@ -106,7 +110,7 @@ mod tests {
         JWT_SECRET.set(secret_key);
 
         let session = Uuid::new_v4();
-        let secret = encode_config(&secret_key, URL_SAFE_NO_PAD);
+        let secret = encode_engine(&secret_key, &FastPortable::from(&URL_SAFE, NO_PAD));
 
         let user = AuthorizedUser {
             email: "test@local".into(),

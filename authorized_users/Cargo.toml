@@ -1,6 +1,6 @@
 [package]
 name = "authorized_users"
-version = "0.10.0"
+version = "0.10.1"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -16,7 +16,7 @@ derive_more = "0.99"
 lazy_static = "1.4"
 serde = { version="1.0", features=["derive"] }
 bytes = "1.1"
-base64 = "0.13"
+base64 = "0.20"
 rand = "0.8"
 smallvec = "1.8"
 crossbeam = "0.8"

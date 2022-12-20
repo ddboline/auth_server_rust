@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_lib"
-version = "0.10.0"
+version = "0.10.1"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -29,7 +29,7 @@ postgres_query = {git = "https://github.com/ddboline/rust-postgres-query", tag =
 argon2 = {version="0.4", features=["std"]}
 bytes = "1.1"
 envy = "0.4"
-base64 = "0.13"
+base64 = "0.20"
 rand = "0.8"
 url = "2.3"
 futures = "0.3"
