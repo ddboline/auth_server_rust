@@ -1,5 +1,5 @@
 use dioxus::prelude::{
-    dioxus_elements, format_args_f, rsx, Element, LazyNodes, NodeFactory, Scope, VNode, VirtualDom,
+    dioxus_elements, rsx, Element, Scope, VirtualDom, GlobalAttributes,
 };
 use futures::{try_join, TryStreamExt};
 use log::{debug, error};
@@ -381,9 +381,8 @@ pub async fn list_sessions(
 ) -> WarpResult<ListSessionsResponse> {
     let summaries = list_sessions_lines(&data).await?;
     let body = {
-        let mut app = VirtualDom::new_with_props(session_element, SessionProps { summaries });
-        app.rebuild();
-        dioxus::ssr::render_vdom(&app)
+        let app = VirtualDom::new_with_props(session_element, SessionProps { summaries });
+        dioxus_ssr::render(&app)
     };
     Ok(HtmlBase::new(body.into()).into())
 }
@@ -453,9 +452,8 @@ pub async fn list_session_data(
 ) -> WarpResult<ListSessionDataResponse> {
     let data = list_session_data_lines(&data, &user).await?;
     let body = {
-        let mut app = VirtualDom::new_with_props(session_data_element, SessionDataProps { data });
-        app.rebuild();
-        dioxus::ssr::render_vdom(&app)
+        let app = VirtualDom::new_with_props(session_data_element, SessionDataProps { data });
+        dioxus_ssr::render(&app)
     };
     Ok(HtmlBase::new(body.into()).into())
 }

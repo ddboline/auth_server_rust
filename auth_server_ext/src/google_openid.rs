@@ -1,8 +1,7 @@
 use anyhow::{format_err, Error};
 use base64::{
-    alphabet::URL_SAFE,
-    encode_engine_slice,
-    engine::fast_portable::{FastPortable, NO_PAD},
+    Engine,
+    engine::general_purpose::URL_SAFE_NO_PAD,
 };
 use crossbeam::atomic::AtomicCell;
 use log::{debug, error};
@@ -204,11 +203,7 @@ fn get_token_string() -> StackString {
     let mut rng = thread_rng();
     let random_bytes: [u8; 16] = Standard.sample(&mut rng);
     let mut buf = [0u8; 22];
-    let encoded_size = encode_engine_slice(
-        random_bytes,
-        &mut buf,
-        &FastPortable::from(&URL_SAFE, NO_PAD),
-    );
+    let encoded_size = URL_SAFE_NO_PAD.encode_slice(random_bytes, &mut buf).expect("Buffer too small");
     assert!(encoded_size == 22);
     let buf = str::from_utf8(&buf).expect("Invalid buffer");
     let mut output = StackString::new();

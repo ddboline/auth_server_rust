@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_http"
-version = "0.10.1"
+version = "0.10.2"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -30,7 +30,6 @@ serde = { version="1.0", features=["derive"] }
 serde_json="1.0"
 bytes = "1.1"
 envy = "0.4"
-base64 = "0.20"
 rand = "0.8"
 url = "2.3"
 futures = "0.3"
@@ -47,7 +46,8 @@ cookie = {version="0.16", features=["percent-encode"]}
 stack-string = { version="0.8", features=["postgres_types", "rweb-openapi"] }
 rweb-helper = {git = "https://github.com/ddboline/rweb_helper.git", tag="0.4.14"}
 postgres_query = {git = "https://github.com/ddboline/rust-postgres-query", tag = "0.3.4", features=["deadpool"]}
-dioxus = { version = "0.2", features = ["ssr"] }
+dioxus-ssr = "0.3"
+dioxus = "0.3"
 
 [dev-dependencies]
 reqwest = {version = "0.11", default_features = false, features=["cookies", "rustls-tls", "gzip", "json"]}
