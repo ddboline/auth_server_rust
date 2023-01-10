@@ -91,10 +91,7 @@ impl Token {
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
-    use base64::{
-        Engine,
-        engine::general_purpose::URL_SAFE_NO_PAD,
-    };
+    use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
     use log::debug;
     use uuid::Uuid;
 

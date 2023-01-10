@@ -1,6 +1,4 @@
-use dioxus::prelude::{
-    dioxus_elements, rsx, Element, Scope, VirtualDom, GlobalAttributes,
-};
+use dioxus::prelude::{dioxus_elements, rsx, Element, GlobalAttributes, Scope, VirtualDom};
 use futures::{try_join, TryStreamExt};
 use log::{debug, error};
 use rweb::{delete, get, post, Json, Query, Rejection, Schema};
@@ -381,7 +379,8 @@ pub async fn list_sessions(
 ) -> WarpResult<ListSessionsResponse> {
     let summaries = list_sessions_lines(&data).await?;
     let body = {
-        let app = VirtualDom::new_with_props(session_element, SessionProps { summaries });
+        let mut app = VirtualDom::new_with_props(session_element, SessionProps { summaries });
+        drop(app.rebuild());
         dioxus_ssr::render(&app)
     };
     Ok(HtmlBase::new(body.into()).into())
@@ -452,7 +451,8 @@ pub async fn list_session_data(
 ) -> WarpResult<ListSessionDataResponse> {
     let data = list_session_data_lines(&data, &user).await?;
     let body = {
-        let app = VirtualDom::new_with_props(session_data_element, SessionDataProps { data });
+        let mut app = VirtualDom::new_with_props(session_data_element, SessionDataProps { data });
+        drop(app.rebuild());
         dioxus_ssr::render(&app)
     };
     Ok(HtmlBase::new(body.into()).into())

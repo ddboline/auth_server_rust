@@ -30,7 +30,6 @@
     xmlhttp.onload = function f() {
       if (xmlhttp.getAllResponseHeaders().includes('application/json')) {
         let js = JSON.parse(xmlhttp.response);
-        console.log(js.email);
         if (js.email) {
           document.getElementsByClassName("login")['0'].innerHTML = "<H1>Logged in as: " + js.email + "</H1><br>" +
             '<input type="button" name="logout" value="Logout" onclick="logout();"/>';
@@ -39,7 +38,6 @@
       list_sessions();
       list_session_data();
     }
-    console.log(url);
     xmlhttp.open("GET", url, true);
     xmlhttp.send(null);
   }();
