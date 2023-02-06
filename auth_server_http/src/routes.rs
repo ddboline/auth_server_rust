@@ -162,8 +162,8 @@ pub async fn logout(user: LoggedUser, #[data] data: AppState) -> WarpResult<ApiA
     );
     let body = format_sstr!("{} has been logged out", user.email);
     let resp = JsonBase::new(body)
-        .with_cookie(&session_id.encoded().to_string())
-        .with_cookie(&jwt.encoded().to_string());
+        .with_cookie(session_id.encoded().to_string())
+        .with_cookie(jwt.encoded().to_string());
     Ok(resp.into())
 }
 
@@ -913,8 +913,8 @@ pub async fn test_login(
     let (user, UserCookies { session_id, jwt }) =
         test_login_user_jwt(auth_data, session, &data.config).await?;
     let resp = JsonBase::new(user)
-        .with_cookie(&session_id.encoded().to_string())
-        .with_cookie(&jwt.encoded().to_string());
+        .with_cookie(session_id.encoded().to_string())
+        .with_cookie(jwt.encoded().to_string());
     Ok(resp.into())
 }
 
