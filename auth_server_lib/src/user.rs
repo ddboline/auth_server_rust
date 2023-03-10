@@ -1,6 +1,6 @@
 use anyhow::{format_err, Error};
 use argon2::{
-    password_hash::Error as ArgonError, Algorithm, Argon2, Params, PasswordHash, PasswordHasher,
+    password_hash::{Error as ArgonError, SaltString}, Algorithm, Argon2, Params, PasswordHash, PasswordHasher,
     PasswordVerifier, Version,
 };
 use futures::Stream;
@@ -9,6 +9,7 @@ use postgres_query::{client::GenericClient, query, Error as PqError, FromSqlRow}
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use uuid::Uuid;
+use rand::thread_rng;
 
 use authorized_users::AuthorizedUser;
 
@@ -40,7 +41,7 @@ impl Argon {
     }
 
     fn hash_password(&self, plain: impl AsRef<[u8]>) -> Result<StackString, Error> {
-        let salt = get_random_string(16);
+        let salt = SaltString::generate(thread_rng());
         let hash = self.0.hash_password(plain.as_ref(), &salt)?;
         Ok(StackString::from_display(hash))
     }
