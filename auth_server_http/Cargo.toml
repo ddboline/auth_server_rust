@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_http"
-version = "0.10.5"
+version = "0.10.6"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -12,14 +12,14 @@ auth_server_lib = {path="../auth_server_lib"}
 authorized_users = {path = "../authorized_users"}
 warp = "0.3"
 http = "0.2"
-biscuit = "0.5"
+biscuit = "0.6"
 anyhow = "1.0"
 log = "0.4"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting", "parsing"]}
 uuid = { version = "1.0", features = ["serde", "v4"] }
 tokio = {version="1.26", features=["full"]}
 thiserror = "1.0"
-dirs = "4.0"
+dirs = "5.0"
 dotenv = "0.15"
 derive_more = "0.99"
 rusoto_core = {version = "0.48", default_features = false, features=["rustls"]}

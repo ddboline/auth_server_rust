@@ -212,7 +212,7 @@ fn get_token_string() -> StackString {
 
 async fn get_google_client(config: &Config) -> Result<DiscoveredClient, OpenidError> {
     let google_client_id = config.google_client_id.clone().into();
-    let google_client_secret = config.google_client_secret.clone().into();
+    let google_client_secret: String = config.google_client_secret.clone().into();
     let issuer_url = Url::parse("https://accounts.google.com").expect("Invalid issuer URL");
     let redirect_url = format!("https://{}/api/callback", config.domain);
 
