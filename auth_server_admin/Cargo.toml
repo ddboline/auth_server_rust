@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_admin"
-version = "0.10.6"
+version = "0.10.7"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -39,7 +39,7 @@ arc-swap = "1.5"
 toml = "0.7"
 itertools = "0.10"
 refinery = {version="0.8", features=["tokio-postgres"]}
-stack-string = { version="0.8", features=["postgres_types"] }
+stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types"] }
 stdout-channel = "0.6"
 
 [dev-dependencies]
