@@ -84,7 +84,7 @@ paths:
     delete:
       description: Log out
       responses:
-        '201':
+        '204':
           description: Status Message
           content:
             application/json:
@@ -238,7 +238,7 @@ paths:
               - final_url
         required: true
       responses:
-        '200':
+        '201':
           description: Authorization Url
           content:
             application/json:
@@ -449,7 +449,7 @@ paths:
         schema:
           type: string
       responses:
-        '201':
+        '204':
           description: Delete Session Object
           content:
             text/plain:
@@ -561,7 +561,7 @@ paths:
           nullable: true
           type: string
       responses:
-        '200':
+        '204':
           description: Delete Sessions
           content:
             text/plain:

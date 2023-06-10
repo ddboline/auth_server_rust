@@ -147,7 +147,7 @@ async fn login_user_jwt(
 }
 
 #[derive(RwebResponse)]
-#[response(description = "Status Message", status = "CREATED")]
+#[response(description = "Status Message", status = "NO_CONTENT")]
 struct ApiAuthDeleteResponse(JsonBase<StackString, Error>);
 
 #[delete("/api/auth")]
@@ -290,7 +290,7 @@ async fn set_session_from_cache(
 }
 
 #[derive(RwebResponse)]
-#[response(description = "Delete Session Object", status = "CREATED")]
+#[response(description = "Delete Session Object", status = "NO_CONTENT")]
 struct DeleteSessionResponse(HtmlBase<&'static str, Error>);
 
 #[delete("/api/session/{session_key}")]
@@ -540,7 +540,7 @@ pub async fn get_sessions(_: LoggedUser, #[data] data: AppState) -> WarpResult<S
 }
 
 #[derive(RwebResponse)]
-#[response(description = "Delete Sessions")]
+#[response(description = "Delete Sessions", status = "NO_CONTENT")]
 struct DeleteSessionsResponse(HtmlBase<&'static str, Error>);
 
 #[derive(Deserialize, Schema, Debug)]
@@ -728,7 +728,7 @@ pub struct AuthUrlOutput {
 }
 
 #[derive(RwebResponse)]
-#[response(description = "Authorization Url")]
+#[response(description = "Authorization Url", status = "CREATED")]
 struct ApiAuthUrlResponse(JsonBase<AuthUrlOutput, Error>);
 
 #[post("/api/auth_url")]
@@ -900,7 +900,7 @@ async fn status_body(pool: &PgPool) -> HttpResult<StatusOutput> {
 }
 
 #[derive(RwebResponse)]
-#[response(status = "CREATED")]
+#[response(description = "Login POST", status = "CREATED")]
 struct TestLoginResponse(JsonBase<LoggedUser, Error>);
 
 #[post("/api/auth")]
