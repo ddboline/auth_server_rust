@@ -2,7 +2,7 @@ openapi: 3.0.1
 info:
   title: Rust Auth Server
   description: Authorization Server written in rust using jwt/jws/jwe and featuring integration with Google OAuth
-  version: 0.9.5
+  version: 0.10.7
 paths:
   /api/auth:
     get:
@@ -31,6 +31,8 @@ paths:
                 - secret_key
         '400':
           description: Bad Request
+        '404':
+          description: Not Found
         '500':
           description: Internal Server Error
     post:
@@ -75,6 +77,8 @@ paths:
                 - secret_key
         '400':
           description: Bad Request
+        '404':
+          description: Not Found
         '500':
           description: Internal Server Error
     delete:
@@ -88,6 +92,8 @@ paths:
                 type: string
         '400':
           description: Bad Request
+        '404':
+          description: Not Found
         '500':
           description: Internal Server Error
   /api/invitation:
@@ -129,6 +135,8 @@ paths:
                 - expires_at
         '400':
           description: Bad Request
+        '404':
+          description: Not Found
         '500':
           description: Internal Server Error
   /api/register/{invitation_id}:
@@ -177,6 +185,8 @@ paths:
                 - secret_key
         '400':
           description: Bad Request
+        '404':
+          description: Not Found
         '500':
           description: Internal Server Error
   /api/password_change:
@@ -208,6 +218,8 @@ paths:
                 - message
         '400':
           description: Bad Request
+        '404':
+          description: Not Found
         '500':
           description: Internal Server Error
   /api/auth_url:
@@ -244,6 +256,8 @@ paths:
                 - auth_url
         '400':
           description: Bad Request
+        '404':
+          description: Not Found
         '500':
           description: Internal Server Error
   /api/await:
@@ -288,6 +302,8 @@ paths:
                 type: string
         '400':
           description: Bad Request
+        '404':
+          description: Not Found
         '500':
           description: Internal Server Error
   /api/status:
@@ -368,6 +384,8 @@ paths:
                 - stats
         '400':
           description: Bad Request
+        '404':
+          description: Not Found
         '500':
           description: Internal Server Error
   /api/session/{session_key}:
@@ -389,6 +407,8 @@ paths:
                 type: object
         '400':
           description: Bad Request
+        '404':
+          description: Not Found
         '500':
           description: Internal Server Error
     post:
@@ -416,6 +436,8 @@ paths:
                 type: object
         '400':
           description: Bad Request
+        '404':
+          description: Not Found
         '500':
           description: Internal Server Error
     delete:
@@ -435,6 +457,8 @@ paths:
                 type: string
         '400':
           description: Bad Request
+        '404':
+          description: Not Found
         '500':
           description: Internal Server Error
   /api/session-data:
@@ -471,6 +495,8 @@ paths:
                 type: array
         '400':
           description: Bad Request
+        '404':
+          description: Not Found
         '500':
           description: Internal Server Error
   /api/sessions:
@@ -512,6 +538,8 @@ paths:
                 type: array
         '400':
           description: Bad Request
+        '404':
+          description: Not Found
         '500':
           description: Internal Server Error
     delete:
@@ -541,6 +569,8 @@ paths:
                 type: string
         '400':
           description: Bad Request
+        '404':
+          description: Not Found
         '500':
           description: Internal Server Error
   /api/list-sessions:
@@ -554,6 +584,8 @@ paths:
                 type: string
         '400':
           description: Bad Request
+        '404':
+          description: Not Found
         '500':
           description: Internal Server Error
   /api/list-session-data:
@@ -567,6 +599,8 @@ paths:
                 type: string
         '400':
           description: Bad Request
+        '404':
+          description: Not Found
         '500':
           description: Internal Server Error
   /auth/index.html:
