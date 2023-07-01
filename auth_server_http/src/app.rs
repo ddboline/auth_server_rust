@@ -241,13 +241,14 @@ mod tests {
     use log::debug;
     use maplit::hashmap;
     use rweb::openapi;
-    use stack_string::{format_sstr, StackString};
+    use stack_string::{format_sstr};
     use std::{collections::HashMap, env};
     use tokio::{
         task::spawn,
         time::{sleep, Duration},
     };
     use url::Url;
+    use http::StatusCode;
 
     use auth_server_ext::{google_openid::GoogleClient, ses_client::SesInstance};
     use auth_server_lib::{
@@ -462,15 +463,12 @@ mod tests {
         debug!("{resp:?}");
         assert_eq!(resp.len(), 1);
         let url = format_sstr!("http://localhost:{test_port}/api/auth");
-        let resp: StackString = client
+        let status: StatusCode = client
             .delete(url.as_str())
             .send()
             .await?
-            .error_for_status()?
-            .text()
-            .await?
-            .into();
-        assert_eq!(resp, format_sstr!(r#""{email} has been logged out""#));
+            .error_for_status()?.status();
+        assert_eq!(status, StatusCode::NO_CONTENT);
 
         let sessions = Session::get_by_email(&pool, &email).await?;
         for session in sessions {

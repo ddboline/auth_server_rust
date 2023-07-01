@@ -38,13 +38,13 @@ smallvec = "1.8"
 crossbeam = "0.8"
 arc-swap = "1.5"
 toml = "0.7"
-rweb = {git = "https://github.com/ddboline/rweb.git", features=["openapi"], default-features=false}
+rweb = {git = "https://github.com/ddboline/rweb.git", features=["openapi"], default-features=false, tag="0.15.1-1"}
 serde_yaml = "0.9"
-indexmap = "1.8"
+indexmap = "1.9"
 maplit = "1.0"
 cookie = {version="0.17", features=["percent-encode"]}
-stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types", "rweb-openapi"] }
-rweb-helper = {git = "https://github.com/ddboline/rweb_helper.git"}
+stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types", "rweb-openapi"], tag="0.9.1" }
+rweb-helper = {git = "https://github.com/ddboline/rweb_helper.git", tag="0.5.0-1"}
 postgres_query = {git = "https://github.com/ddboline/rust-postgres-query", tag = "0.3.4", features=["deadpool"]}
 dioxus-ssr = "0.3"
 dioxus = "0.3"
