@@ -27,7 +27,7 @@ use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
 
 use auth_server_lib::{PostgresError, QueryError};
-use authorized_users::TRIGGER_DB_UPDATE;
+use authorized_users::{errors::AuthUsersError, TRIGGER_DB_UPDATE};
 
 static LOGIN_HTML: &str = r#"
     <script>
@@ -76,6 +76,8 @@ pub enum ServiceError {
     FmtError(#[from] FmtError),
     #[error("PqError {0}")]
     PqError(#[from] PqError),
+    #[error("AuthUsersError {0}")]
+    AuthUsersError(#[from] AuthUsersError),
 }
 
 // we can return early in our handlers if UUID provided by the user is not valid
@@ -134,6 +136,11 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
                 message = msg;
             }
             ServiceError::Unauthorized => {
+                TRIGGER_DB_UPDATE.set();
+                return Ok(Box::new(login_html()));
+            }
+            ServiceError::AuthUsersError(error) => {
+                error!("Auth error {error}");
                 TRIGGER_DB_UPDATE.set();
                 return Ok(Box::new(login_html()));
             }

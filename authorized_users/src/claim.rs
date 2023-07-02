@@ -1,12 +1,11 @@
-use anyhow::{format_err, Error};
 use biscuit::{ClaimsSet, RegisteredClaims};
 use serde::{Deserialize, Serialize};
-use stack_string::StackString;
+use stack_string::{format_sstr, StackString};
 use std::convert::TryFrom;
 use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
-use crate::AuthorizedUser;
+use crate::{errors::AuthUsersError as Error, AuthorizedUser};
 
 // JWT claim
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -87,20 +86,20 @@ impl TryFrom<ClaimsSet<PrivateClaim>> for Claim {
         let session: Uuid = reg
             .id
             .as_ref()
-            .ok_or_else(|| format_err!("No session"))?
+            .ok_or_else(|| Error::TokenError(format_sstr!("No session")))?
             .parse()?;
         let domain = reg
             .issuer
             .as_ref()
-            .ok_or_else(|| format_err!("No domain"))?
+            .ok_or_else(|| Error::TokenError(format_sstr!("No domain")))?
             .into();
         let expiry = reg
             .expiry
-            .ok_or_else(|| format_err!("No expiry"))?
+            .ok_or_else(|| Error::TokenError(format_sstr!("No expiry")))?
             .timestamp();
         let issued_at = reg
             .issued_at
-            .ok_or_else(|| format_err!("No iss"))?
+            .ok_or_else(|| Error::TokenError(format_sstr!("No iss")))?
             .timestamp();
         let email = pri.email;
         let secret_key = pri.secret_key;

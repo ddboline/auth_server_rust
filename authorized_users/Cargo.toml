@@ -1,6 +1,6 @@
 [package]
 name = "authorized_users"
-version = "0.10.8"
+version = "0.10.9"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0"
+thiserror = "1.0"
 log = "0.4"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}
 uuid = { version = "1.0", features = ["serde", "v4"] }

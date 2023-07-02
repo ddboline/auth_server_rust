@@ -1,4 +1,3 @@
-use anyhow::{format_err, Error};
 use biscuit::{
     jwa::{
         ContentEncryptionAlgorithm, EncryptionOptions, KeyManagementAlgorithm, SignatureAlgorithm,
@@ -9,12 +8,13 @@ use biscuit::{
 };
 use derive_more::{Display, From, Into};
 use log::debug;
-use stack_string::StackString;
+use stack_string::{format_sstr, StackString};
 use std::convert::TryInto;
 use uuid::Uuid;
 
 use crate::{
     claim::{Claim, PrivateClaim},
+    errors::AuthUsersError as Error,
     get_random_nonce, JWT_SECRET, SECRET_KEY,
 };
 
@@ -83,7 +83,7 @@ impl Token {
         if let Compact::Decoded { payload, .. } = token {
             payload.try_into()
         } else {
-            Err(format_err!("Failed to decode"))
+            Err(Error::TokenError(format_sstr!("Failed to decode")))
         }
     }
 }

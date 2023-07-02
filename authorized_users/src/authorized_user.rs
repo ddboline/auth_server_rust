@@ -1,4 +1,3 @@
-use anyhow::Error;
 use reqwest::{header::HeaderValue, Client};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use stack_string::{format_sstr, StackString};
@@ -6,7 +5,7 @@ use std::convert::TryFrom;
 use url::Url;
 use uuid::Uuid;
 
-use crate::token::Token;
+use crate::{errors::AuthUsersError as Error, token::Token};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Default)]
 pub struct AuthorizedUser {

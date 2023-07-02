@@ -1,15 +1,15 @@
 use anyhow::{format_err, Error};
 use argon2::{
-    password_hash::{Error as ArgonError, SaltString}, Algorithm, Argon2, Params, PasswordHash, PasswordHasher,
-    PasswordVerifier, Version,
+    password_hash::{Error as ArgonError, SaltString},
+    Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version,
 };
 use futures::Stream;
 use lazy_static::lazy_static;
 use postgres_query::{client::GenericClient, query, Error as PqError, FromSqlRow};
+use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use uuid::Uuid;
-use rand::thread_rng;
 
 use authorized_users::AuthorizedUser;
 

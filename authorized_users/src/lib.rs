@@ -5,6 +5,7 @@
 
 pub mod authorized_user;
 pub mod claim;
+pub mod errors;
 pub mod token;
 
 use arc_swap::ArcSwap;
