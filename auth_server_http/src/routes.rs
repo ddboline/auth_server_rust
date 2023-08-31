@@ -199,18 +199,19 @@ pub async fn get_session(
     session_key: StackString,
     #[data] data: AppState,
 ) -> WarpResult<GetSessionResponse> {
-    if let Some(value) = data
-        .session_cache
-        .get_data(session, &secret_key, &session_key)?
+    let value = if let Some(value) =
+        data.session_cache
+            .get_data(session, &secret_key, &session_key)?
     {
-        return Ok(JsonBase::new(value).into());
-    }
-    if let Some(session_data) =
+        value
+    } else if let Some(session_data) =
         get_session_from_cache(&data, session, secret_key, session_key).await?
     {
-        return Ok(JsonBase::new(session_data.session_value).into());
-    }
-    Ok(JsonBase::new(Value::Null).into())
+        session_data.session_value
+    } else {
+        Value::Null
+    };
+    Ok(JsonBase::new(value).into())
 }
 
 async fn get_session_from_cache(
@@ -221,9 +222,8 @@ async fn get_session_from_cache(
 ) -> HttpResult<Option<SessionData>> {
     if let Some(session_obj) = Session::get_session(&data.pool, session).await? {
         if session_obj.secret_key != secret_key {
-            return Err(Error::BadRequest("Bad Secret"));
-        }
-        if let Some(session_data) = session_obj
+            Err(Error::BadRequest("Bad Secret"))
+        } else if let Some(session_data) = session_obj
             .get_session_data(&data.pool, &session_key)
             .await?
         {
@@ -233,10 +233,13 @@ async fn get_session_from_cache(
                 session_key,
                 &session_data.session_value,
             )?;
-            return Ok(Some(session_data));
+            Ok(Some(session_data))
+        } else {
+            Ok(None)
         }
+    } else {
+        Ok(None)
     }
-    Ok(None)
 }
 
 #[derive(RwebResponse)]
@@ -291,7 +294,7 @@ async fn set_session_from_cache(
 
 #[derive(RwebResponse)]
 #[response(description = "Delete Session Object", status = "NO_CONTENT")]
-struct DeleteSessionResponse(HtmlBase<&'static str, Error>);
+struct DeleteSessionResponse(JsonBase<Option<Value>, Error>);
 
 #[delete("/api/session/{session_key}")]
 #[openapi(description = "Delete session value")]
@@ -302,9 +305,10 @@ pub async fn delete_session(
     session_key: StackString,
 ) -> WarpResult<DeleteSessionResponse> {
     delete_session_data_from_cache(&data, session, &secret_key, &session_key).await?;
-    data.session_cache
+    let result = data
+        .session_cache
         .remove_data(session, secret_key, session_key)?;
-    Ok(HtmlBase::new("done").into())
+    Ok(JsonBase::new(result).into())
 }
 
 async fn delete_session_data_from_cache(
