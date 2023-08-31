@@ -114,16 +114,17 @@ impl SessionDataCache {
         session_id: Uuid,
         secret_key: impl AsRef<str>,
         session_key: impl AsRef<str>,
-    ) -> Result<(), Error> {
+    ) -> Result<Option<Value>, Error> {
+        let mut result = None;
         let mut session_data_cache =
             Arc::try_unwrap(self.load().clone()).unwrap_or_else(|a| (*a).clone());
         if let Some((secret, session_map)) = session_data_cache.get_mut(&session_id) {
             if secret != secret_key.as_ref() {
                 return Err(Error::BadRequest("Bad Secret"));
             }
-            session_map.lock().remove(session_key.as_ref());
+            result = session_map.lock().remove(session_key.as_ref());
         }
         self.store(Arc::new(session_data_cache));
-        Ok(())
+        Ok(result)
     }
 }
