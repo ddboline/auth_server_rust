@@ -1,4 +1,3 @@
-use anyhow::{format_err, Error};
 use argon2::{
     password_hash::{Error as ArgonError, SaltString},
     Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version,
@@ -15,6 +14,7 @@ use authorized_users::AuthorizedUser;
 
 use crate::{
     date_time_wrapper::DateTimeWrapper,
+    errors::AuthServerError as Error,
     get_random_string,
     pgpool::{PgPool, PgTransaction},
 };
@@ -86,7 +86,7 @@ impl User {
             .map(|_| true)
             .or_else(|e| match e {
                 ArgonError::Password => Ok(false),
-                e => Err(format_err!("{e:?}")),
+                e => Err(e.into()),
             })
     }
 
@@ -103,7 +103,7 @@ impl User {
             .map(|_| unreachable!())
             .or_else(|e| match e {
                 ArgonError::Password => Ok(false),
-                e => Err(format_err!("{e:?}")),
+                e => Err(e.into()),
             })
     }
 
@@ -248,7 +248,6 @@ impl From<User> for AuthorizedUser {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Error;
     use futures::TryStreamExt;
     use log::debug;
     use stack_string::format_sstr;
@@ -256,6 +255,7 @@ mod tests {
     use crate::{
         config::Config,
         date_time_wrapper::DateTimeWrapper,
+        errors::AuthServerError as Error,
         get_random_string,
         pgpool::PgPool,
         user::{Argon, User},

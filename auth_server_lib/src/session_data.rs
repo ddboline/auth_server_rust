@@ -1,4 +1,3 @@
-use anyhow::Error;
 use futures::Stream;
 use postgres_query::{client::GenericClient, query, Error as PqError, FromSqlRow};
 use serde::{Deserialize, Serialize};
@@ -8,6 +7,7 @@ use uuid::Uuid;
 
 use crate::{
     date_time_wrapper::DateTimeWrapper,
+    errors::AuthServerError as Error,
     pgpool::{PgPool, PgTransaction},
 };
 

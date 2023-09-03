@@ -41,12 +41,11 @@ impl AuthRequest {
 
 #[cfg(test)]
 mod test {
-    use anyhow::Error;
     use stack_string::format_sstr;
 
     use auth_server_lib::{config::Config, get_random_string, pgpool::PgPool};
 
-    use crate::{auth::AuthRequest, errors::ServiceError};
+    use crate::{auth::AuthRequest, errors::ServiceError as Error};
 
     #[tokio::test]
     async fn test_authenticate() -> Result<(), Error> {
@@ -60,7 +59,7 @@ mod test {
         let resp = req.authenticate(&pool).await;
         assert!(resp.is_err());
         match resp {
-            Err(ServiceError::BadRequest(e)) => assert_eq!(e, "Invalid username or password"),
+            Err(Error::BadRequest(e)) => assert_eq!(e, "Invalid username or password"),
             _ => assert!(false, "Unexpected result of authentication"),
         };
         Ok(())

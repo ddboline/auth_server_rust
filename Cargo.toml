@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_rust"
-version = "0.10.11"
+version = "0.10.12"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -28,7 +28,6 @@ auth_server_http = {path = "auth_server_http"}
 auth_server_lib = {path = "auth_server_lib"}
 auth_server_ext = {path = "auth_server_ext"}
 authorized_users = {path = "authorized_users"}
-anyhow = "1.0"
 log = "0.4"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}
 uuid = { version = "1.0", features = ["serde", "v4"] }

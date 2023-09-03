@@ -19,6 +19,7 @@ use auth_server_ext::{
 };
 use auth_server_lib::{
     config::Config,
+    errors::AuthServerError,
     invitation::Invitation,
     pgpool::{PgPool, PgTransaction},
     session::{Session, SessionSummary},
@@ -270,7 +271,10 @@ async fn set_session_from_cache(
     payload: Value,
 ) -> HttpResult<()> {
     let mut conn = data.pool.get().await?;
-    let tran = conn.transaction().await?;
+    let tran = conn
+        .transaction()
+        .await
+        .map_err(Into::<AuthServerError>::into)?;
     let conn: &PgTransaction = &tran;
 
     if let Some(session_obj) = Session::get_session_conn(conn, session).await? {
@@ -281,7 +285,7 @@ async fn set_session_from_cache(
             .set_session_data_conn(conn, &session_key, payload.clone())
             .await?;
         debug!("session_data {:?}", session_data);
-        tran.commit().await?;
+        tran.commit().await.map_err(Into::<AuthServerError>::into)?;
         data.session_cache.set_data(
             session,
             secret_key,

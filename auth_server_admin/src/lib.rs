@@ -1,4 +1,3 @@
-use anyhow::{Context, Error};
 use clap::Parser;
 use futures::{stream::FuturesUnordered, try_join, TryStreamExt};
 use itertools::Itertools;
@@ -15,8 +14,9 @@ use auth_server_ext::{
     ses_client::{SesInstance, Statistics},
 };
 use auth_server_lib::{
-    auth_user_config::AuthUserConfig, config::Config, invitation::Invitation, pgpool::PgPool,
-    session::Session, session_data::SessionData, user::User,
+    auth_user_config::AuthUserConfig, config::Config, errors::AuthServerError as Error,
+    invitation::Invitation, pgpool::PgPool, session::Session, session_data::SessionData,
+    user::User,
 };
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 
@@ -112,14 +112,8 @@ impl AuthServerOptions {
         let config = Config::init_config()?;
         match self {
             AuthServerOptions::List => {
-                let auth_app_map = get_auth_user_app_map(&config)
-                    .await
-                    .context("Failed to get auth_user_app_map")?;
-                let mut stream = Box::pin(
-                    User::get_authorized_users(pool)
-                        .await
-                        .context("Failed to get_authorized_users")?,
-                );
+                let auth_app_map = get_auth_user_app_map(&config).await?;
+                let mut stream = Box::pin(User::get_authorized_users(pool).await?);
                 while let Some(user) = stream.try_next().await? {
                     stdout.send(format_sstr!(
                         "{} {}",
@@ -133,33 +127,20 @@ impl AuthServerOptions {
             AuthServerOptions::ListInvites => {
                 let mut stream = Box::pin(Invitation::get_all_streaming(pool).await?);
                 while let Some(invite) = stream.try_next().await? {
-                    stdout.send(
-                        serde_json::to_string(&invite)
-                            .with_context(|| format_sstr!("Failed to parse invite {invite:?}"))?,
-                    );
+                    stdout.send(serde_json::to_string(&invite)?);
                 }
             }
             AuthServerOptions::SendInvite { email } => {
                 let ses = SesInstance::new(None);
                 let invitation = Invitation::from_email(email.clone());
-                invitation
-                    .insert(pool)
-                    .await
-                    .context("Failed to insert invitation")?;
+                invitation.insert(pool).await?;
                 send_invitation(
                     &ses,
                     &invitation,
                     &config.sending_email_address,
                     &config.callback_url,
                 )
-                .await
-                .with_context(|| {
-                    format_sstr!(
-                        "Failed to send invitation {} {}",
-                        config.sending_email_address,
-                        config.callback_url.as_str()
-                    )
-                })?;
+                .await?;
                 stdout.send(format_sstr!(
                     "Invitation {} sent to {}",
                     invitation.id,
@@ -168,49 +149,29 @@ impl AuthServerOptions {
             }
             AuthServerOptions::RmInvites { ids } => {
                 for id in ids {
-                    if let Some(invitation) = Invitation::get_by_uuid(id, pool)
-                        .await
-                        .with_context(|| format_sstr!("Failed to get id {id}"))?
-                    {
-                        invitation
-                            .delete(pool)
-                            .await
-                            .with_context(|| format_sstr!("Failed to delete {}", invitation.id))?;
+                    if let Some(invitation) = Invitation::get_by_uuid(id, pool).await? {
+                        invitation.delete(pool).await?;
                     }
                 }
             }
             AuthServerOptions::Add { email, password } => {
-                if User::get_by_email(email.clone(), pool)
-                    .await
-                    .with_context(|| format_sstr!("failed to get_by_email {email}"))?
-                    .is_none()
-                {
+                if User::get_by_email(email.clone(), pool).await?.is_none() {
                     let user = User::from_details(email, password);
-                    user.insert(pool)
-                        .await
-                        .with_context(|| format_sstr!("Failed to insert {user:?}"))?;
+                    user.insert(pool).await?;
                     stdout.send(format_sstr!("Add user {}", user.email));
                 } else {
                     stdout.send(format_sstr!("User {email} exists"));
                 }
             }
             AuthServerOptions::Rm { email } => {
-                for session in Session::get_by_email(pool, email.clone())
-                    .await
-                    .with_context(|| format_sstr!("failed to get sessions by email {email}"))?
-                {
+                for session in Session::get_by_email(pool, email.clone()).await? {
                     for session_data in session.get_all_session_data(pool).await? {
                         session_data.delete(pool).await?;
                     }
                     session.delete(pool).await?;
                 }
-                if let Some(user) = User::get_by_email(email.clone(), pool)
-                    .await
-                    .with_context(|| format_sstr!("failed to get_by_email {email}"))?
-                {
-                    user.delete(pool)
-                        .await
-                        .with_context(|| format_sstr!("Failed to delete {user:?}"))?;
+                if let Some(user) = User::get_by_email(email.clone(), pool).await? {
+                    user.delete(pool).await?;
                     stdout.send(format_sstr!("Deleted user {}", user.email));
                 } else {
                     stdout.send(format_sstr!("User {email} does not exist"));
@@ -220,10 +181,7 @@ impl AuthServerOptions {
                 invitation_id,
                 password,
             } => {
-                if let Some(invitation) = Invitation::get_by_uuid(invitation_id, pool)
-                    .await
-                    .with_context(|| format_sstr!("Failed to get id {invitation_id}"))?
-                {
+                if let Some(invitation) = Invitation::get_by_uuid(invitation_id, pool).await? {
                     if invitation.expires_at > OffsetDateTime::now_utc().into() {
                         let user = User::from_details(invitation.email.clone(), password);
                         user.upsert(pool).await?;
@@ -286,7 +244,10 @@ impl AuthServerOptions {
             }
             AuthServerOptions::RunMigrations => {
                 let mut client = pool.get().await?;
-                migrations::runner().run_async(&mut **client).await?;
+                migrations::runner()
+                    .run_async(&mut **client)
+                    .await
+                    .map_err(|e| Error::AuthServerError(format_sstr!("Refinery Error {e}")))?;
             }
             AuthServerOptions::ListSessions { email } => {
                 let sessions = if let Some(email) = email {
@@ -371,7 +332,6 @@ pub async fn run_cli() -> Result<(), Error> {
 
 #[cfg(test)]
 mod test {
-    use anyhow::Error;
     use futures::TryStreamExt;
     use log::debug;
     use rand::{
@@ -384,8 +344,8 @@ mod test {
     use uuid::Uuid;
 
     use auth_server_lib::{
-        config::Config, invitation::Invitation, pgpool::PgPool, session::Session, user::User,
-        AUTH_APP_MUTEX,
+        config::Config, errors::AuthServerError as Error, invitation::Invitation, pgpool::PgPool,
+        session::Session, user::User, AUTH_APP_MUTEX,
     };
 
     use crate::AuthServerOptions;
@@ -417,7 +377,8 @@ mod test {
             .split_whitespace()
             .nth(1)
             .unwrap()
-            .parse()?;
+            .parse()
+            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?;
         let invitation = Invitation::get_by_uuid(invitation_uuid, &pool)
             .await?
             .unwrap();
@@ -616,7 +577,8 @@ mod test {
             .split_whitespace()
             .nth(1)
             .unwrap()
-            .parse()?;
+            .parse()
+            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?;
 
         AuthServerOptions::RmInvites {
             ids: vec![invitation_uuid.clone()],

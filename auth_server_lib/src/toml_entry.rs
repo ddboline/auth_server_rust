@@ -1,4 +1,3 @@
-use anyhow::{format_err, Error};
 use futures::TryStreamExt;
 use postgres_query::{client::GenericClient, query_dyn, Error as PqError};
 use serde::{Deserialize, Serialize};
@@ -6,7 +5,10 @@ use stack_string::{format_sstr, StackString};
 use std::convert::TryFrom;
 use url::Url;
 
-use crate::pgpool::{PgPool, PgTransaction};
+use crate::{
+    errors::AuthServerError as Error,
+    pgpool::{PgPool, PgTransaction},
+};
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct TomlEntry {
@@ -25,10 +27,8 @@ pub struct Entry {
 impl TryFrom<TomlEntry> for Entry {
     type Error = Error;
     fn try_from(value: TomlEntry) -> Result<Self, Self::Error> {
-        let database_url = value
-            .database_url
-            .ok_or_else(|| format_err!("Missing database url"))?;
-        let table = value.table.ok_or_else(|| format_err!("Missing table"))?;
+        let database_url = value.database_url.ok_or_else(|| Error::MissingDbUrl)?;
+        let table = value.table.ok_or_else(|| Error::MissingTable)?;
         let email_field = value.email_field.unwrap_or_else(|| "email".into());
         Ok(Self {
             database_url,

@@ -1,6 +1,5 @@
-use anyhow::{Context, Error};
 use derive_more::{Deref, IntoIterator};
-use stack_string::{format_sstr, StackString};
+use stack_string::StackString;
 use std::{
     collections::HashMap,
     convert::{TryFrom, TryInto},
@@ -10,7 +9,10 @@ use std::{
     str::FromStr,
 };
 
-use crate::toml_entry::{Entry, TomlEntry};
+use crate::{
+    errors::AuthServerError as Error,
+    toml_entry::{Entry, TomlEntry},
+};
 
 type ConfigToml = HashMap<String, TomlEntry>;
 
@@ -27,9 +29,8 @@ impl AuthUserConfig {
 
     fn from_path(p: impl AsRef<Path>) -> Result<Self, Error> {
         let p = p.as_ref();
-        let data = fs::read_to_string(p).with_context(|| format_sstr!("Failed to open {p:?}"))?;
-        let config: ConfigToml =
-            toml::from_str(&data).with_context(|| format_sstr!("Failed to parse toml in {p:?}"))?;
+        let data = fs::read_to_string(p)?;
+        let config: ConfigToml = toml::from_str(&data)?;
         config.try_into()
     }
 }
@@ -37,8 +38,7 @@ impl AuthUserConfig {
 impl FromStr for AuthUserConfig {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let config: ConfigToml =
-            toml::from_str(s).with_context(|| format_sstr!("Failed to parse toml {s}"))?;
+        let config: ConfigToml = toml::from_str(s)?;
         config.try_into()
     }
 }
@@ -59,13 +59,12 @@ impl TryFrom<ConfigToml> for AuthUserConfig {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Error;
     use log::debug;
 
-    use crate::auth_user_config::AuthUserConfig;
+    use crate::{auth_user_config::AuthUserConfig, errors::AuthServerError};
 
     #[test]
-    fn test_auth_user_config() -> Result<(), Error> {
+    fn test_auth_user_config() -> Result<(), AuthServerError> {
         let data = include_str!("../../tests/data/test_config.toml");
         let config: AuthUserConfig = data.parse()?;
         debug!("{:?}", config);

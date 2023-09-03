@@ -1,4 +1,3 @@
-use anyhow::Error as AnyhowError;
 use auth_server_ext::google_openid::OpenidError;
 use http::{Error as HTTPError, StatusCode};
 use indexmap::IndexMap;
@@ -16,6 +15,7 @@ use rweb::{
 };
 use serde::Serialize;
 use serde_json::Error as SerdeJsonError;
+use stack_string::StackString;
 use std::{
     borrow::Cow,
     convert::{From, Infallible},
@@ -26,7 +26,7 @@ use tokio::{task::JoinError, time::error::Elapsed};
 use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
 
-use auth_server_lib::{PostgresError, QueryError};
+use auth_server_lib::errors::AuthServerError;
 use authorized_users::{errors::AuthUsersError, TRIGGER_DB_UPDATE};
 
 static LOGIN_HTML: &str = r#"
@@ -47,15 +47,11 @@ pub enum ServiceError {
     #[error("Unauthorized")]
     Unauthorized,
     #[error("blocking error {0}")]
-    BlockingError(String),
+    BlockingError(StackString),
     #[error("JoinError {0}")]
     JoinError(#[from] JoinError),
-    #[error("AnyhowError {0}")]
-    AnyhowError(#[from] AnyhowError),
-    #[error("PostgresError {0}")]
-    PostgresError(#[from] PostgresError),
-    #[error("QueryError {0}")]
-    QueryError(#[from] QueryError),
+    #[error("AuthServerError {0}")]
+    AuthServerError(#[from] AuthServerError),
     #[error("UrlParseError {0}")]
     UrlParseError(#[from] UrlParseError),
     #[error("GetSendQuotaError {0}")]
@@ -203,19 +199,18 @@ impl ResponseEntity for ServiceError {
 
 #[cfg(test)]
 mod test {
-    use anyhow::Error;
     use rweb::Reply;
 
-    use crate::errors::{error_response, ServiceError};
+    use crate::errors::{error_response, ServiceError as Error};
 
     #[tokio::test]
     async fn test_service_error() -> Result<(), Error> {
-        let err = ServiceError::BadRequest("TEST ERROR").into();
-        let resp = error_response(err).await?.into_response();
+        let err = Error::BadRequest("TEST ERROR").into();
+        let resp = error_response(err).await.unwrap().into_response();
         assert_eq!(resp.status().as_u16(), 400);
 
-        let err = ServiceError::InternalServerError.into();
-        let resp = error_response(err).await?.into_response();
+        let err = Error::InternalServerError.into();
+        let resp = error_response(err).await.unwrap().into_response();
         assert_eq!(resp.status().as_u16(), 500);
         Ok(())
     }

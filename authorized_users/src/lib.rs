@@ -8,6 +8,7 @@ pub mod claim;
 pub mod errors;
 pub mod token;
 
+use crate::errors::{AuthUsersError, TokenError};
 use arc_swap::ArcSwap;
 pub use authorized_user::AuthorizedUser;
 use biscuit::{jwk, jws, Empty};
@@ -171,7 +172,7 @@ impl AuthSecret {
 
     /// # Errors
     /// Returns error if reading file fails
-    pub async fn read_from_file(&self, p: impl AsRef<Path>) -> Result<(), anyhow::Error> {
+    pub async fn read_from_file(&self, p: impl AsRef<Path>) -> Result<(), AuthUsersError> {
         let p = p.as_ref();
         if p.exists() {
             let mut secret = [0_u8; KEY_LENGTH];
@@ -180,17 +181,14 @@ impl AuthSecret {
             self.0.store(Some(secret));
             Ok(())
         } else {
-            Err(anyhow::format_err!(
-                "Secret file {} doesn't exist",
-                p.to_string_lossy()
-            ))
+            Err(TokenError::NoSecretFile.into())
         }
     }
 }
 
 /// # Errors
 /// Return error if `create_secret` fails
-pub async fn update_secret(p: impl AsRef<Path>) -> Result<(), anyhow::Error> {
+pub async fn update_secret(p: impl AsRef<Path>) -> Result<(), AuthUsersError> {
     let p = p.as_ref();
     if p.exists() {
         Ok(())
@@ -201,7 +199,7 @@ pub async fn update_secret(p: impl AsRef<Path>) -> Result<(), anyhow::Error> {
 
 /// # Errors
 /// Return error if writing fails
-pub async fn create_secret(p: impl AsRef<Path>) -> Result<(), anyhow::Error> {
+pub async fn create_secret(p: impl AsRef<Path>) -> Result<(), AuthUsersError> {
     fs::write(p, &get_random_key()).await?;
     Ok(())
 }
@@ -223,7 +221,7 @@ pub fn get_random_nonce() -> [u8; 12] {
 pub async fn get_secrets(
     secret_path: impl AsRef<Path>,
     jwt_secret_path: impl AsRef<Path>,
-) -> Result<(), anyhow::Error> {
+) -> Result<(), AuthUsersError> {
     SECRET_KEY.read_from_file(secret_path.as_ref()).await?;
     JWT_SECRET.read_from_file(jwt_secret_path.as_ref()).await
 }

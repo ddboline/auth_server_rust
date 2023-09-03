@@ -1,11 +1,14 @@
 use biscuit::{ClaimsSet, RegisteredClaims};
 use serde::{Deserialize, Serialize};
-use stack_string::{format_sstr, StackString};
+use stack_string::StackString;
 use std::convert::TryFrom;
 use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
-use crate::{errors::AuthUsersError as Error, AuthorizedUser};
+use crate::{
+    errors::{AuthUsersError as Error, TokenError},
+    AuthorizedUser,
+};
 
 // JWT claim
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -83,24 +86,10 @@ impl TryFrom<ClaimsSet<PrivateClaim>> for Claim {
     fn try_from(claim_set: ClaimsSet<PrivateClaim>) -> Result<Self, Self::Error> {
         let reg = &claim_set.registered;
         let pri = claim_set.private;
-        let session: Uuid = reg
-            .id
-            .as_ref()
-            .ok_or_else(|| Error::TokenError(format_sstr!("No session")))?
-            .parse()?;
-        let domain = reg
-            .issuer
-            .as_ref()
-            .ok_or_else(|| Error::TokenError(format_sstr!("No domain")))?
-            .into();
-        let expiry = reg
-            .expiry
-            .ok_or_else(|| Error::TokenError(format_sstr!("No expiry")))?
-            .timestamp();
-        let issued_at = reg
-            .issued_at
-            .ok_or_else(|| Error::TokenError(format_sstr!("No iss")))?
-            .timestamp();
+        let session: Uuid = reg.id.as_ref().ok_or(TokenError::NoSession)?.parse()?;
+        let domain = reg.issuer.as_ref().ok_or(TokenError::NoDomain)?.into();
+        let expiry = reg.expiry.ok_or(TokenError::NoExpiry)?.timestamp();
+        let issued_at = reg.issued_at.ok_or(TokenError::NoIssuedAt)?.timestamp();
         let email = pri.email;
         let secret_key = pri.secret_key;
         Ok(Self {

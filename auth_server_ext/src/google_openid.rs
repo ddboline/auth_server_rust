@@ -1,4 +1,3 @@
-use anyhow::{format_err, Error};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use crossbeam::atomic::AtomicCell;
 use log::{debug, error};
@@ -8,7 +7,7 @@ use rand::{
     distributions::{Distribution, Standard},
     thread_rng,
 };
-use stack_string::StackString;
+use stack_string::{format_sstr, StackString};
 use std::{collections::HashMap, str, sync::Arc, time::Duration};
 use time::OffsetDateTime;
 use tokio::{
@@ -19,7 +18,9 @@ use url::Url;
 
 use authorized_users::AuthorizedUser;
 
-use auth_server_lib::{config::Config, pgpool::PgPool, user::User};
+use auth_server_lib::{
+    config::Config, errors::AuthServerError as Error, pgpool::PgPool, user::User,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum TokenState {
@@ -137,21 +138,23 @@ impl GoogleClient {
             .lock()
             .await
             .remove(state.as_ref())
-            .ok_or_else(|| format_err!("CSRF Token Invalid"))?;
+            .ok_or_else(|| Error::AuthServerError(format_sstr!("CSRF Token Invalid")))?;
         if (OffsetDateTime::now_utc() - timestamp).whole_seconds() > 3600 {
             is_ready.store(TokenState::Expired);
             notify.notify_waiters();
-            return Err(format_err!("Token expired"));
+            return Err(Error::AuthServerError(format_sstr!("Token expired")));
         }
         debug!("Nonce {:?}", nonce);
         let user = match &self.mock_email {
             Some(mock_email) => Self::mock_user(mock_email.as_str()),
             None => {
                 let userinfo = self.request_userinfo(code, &nonce).await?;
-                let user_email = &userinfo.email.ok_or_else(|| format_err!("No userinfo"))?;
+                let user_email = &userinfo
+                    .email
+                    .ok_or_else(|| Error::AuthServerError(format_sstr!("No userinfo")))?;
                 User::get_by_email(user_email, pool)
                     .await?
-                    .ok_or_else(|| format_err!("No User"))?
+                    .ok_or_else(|| Error::AuthServerError(format_sstr!("No User")))?
                     .into()
             }
         };
@@ -169,11 +172,11 @@ impl GoogleClient {
             .client
             .authenticate(code.as_ref(), Some(nonce.as_ref()), None)
             .await
-            .map_err(|e| format_err!("Openid Error {:?}", e))?;
+            .map_err(|e| Error::AuthServerError(format_sstr!("Openid Error {e:?}")))?;
         self.client
             .request_userinfo(&token)
             .await
-            .map_err(|e| format_err!("Openid Error {:?}", e))
+            .map_err(|e| Error::AuthServerError(format_sstr!("Openid Error {e:?}")))
     }
 
     fn mock_user(mock_email: &str) -> AuthorizedUser {
@@ -227,7 +230,6 @@ async fn get_google_client(config: &Config) -> Result<DiscoveredClient, OpenidEr
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Error;
     use stack_string::format_sstr;
     use std::time::SystemTime;
     use tokio::{
@@ -235,7 +237,9 @@ mod tests {
         time::{sleep, Duration},
     };
 
-    use auth_server_lib::{config::Config, pgpool::PgPool, AUTH_APP_MUTEX};
+    use auth_server_lib::{
+        config::Config, errors::AuthServerError as Error, pgpool::PgPool, AUTH_APP_MUTEX,
+    };
 
     use crate::google_openid::{get_token_string, GoogleClient};
 
@@ -264,7 +268,9 @@ mod tests {
             let time = SystemTime::now();
             async move {
                 client.wait_csrf(&state).await;
-                let elapsed = time.elapsed()?;
+                let elapsed = time
+                    .elapsed()
+                    .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?;
                 Ok(elapsed.as_secs_f64())
             }
         });

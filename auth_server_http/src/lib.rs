@@ -80,7 +80,6 @@ struct _SessionSummaryWrapper {
 }
 
 mod iso8601 {
-    use anyhow::Error;
     use rweb_helper::DateTimeType;
     use serde::{de, Deserialize, Deserializer, Serializer};
     use stack_string::StackString;
@@ -89,6 +88,8 @@ mod iso8601 {
         format_description::well_known::Rfc3339, macros::format_description, OffsetDateTime,
         UtcOffset,
     };
+
+    use auth_server_lib::errors::AuthServerError as Error;
 
     #[must_use]
     fn convert_datetime_to_str(datetime: OffsetDateTime) -> StackString {

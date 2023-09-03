@@ -1,6 +1,5 @@
-use anyhow::Error;
-
 use auth_server_http::app::start_app;
+use auth_server_lib::errors::AuthServerError as Error;
 
 #[tokio::main]
 #[cfg(not(tarpaulin_include))]

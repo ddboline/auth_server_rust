@@ -1,10 +1,11 @@
-use anyhow::{format_err, Error};
 use deadpool_postgres::{Client, Config, Pool};
 use stack_string::StackString;
 use std::fmt;
 use tokio_postgres::{Config as PgConfig, NoTls};
 
 pub use tokio_postgres::Transaction as PgTransaction;
+
+use crate::errors::AuthServerError as Error;
 
 /// Wrapper around `deadpool_postgres::Pool`, two pools are considered equal if
 /// they have the same connection string The only way to use `PgPool` is through
@@ -68,7 +69,7 @@ impl PgPool {
     pub async fn get(&self) -> Result<Client, Error> {
         self.pool
             .as_ref()
-            .ok_or_else(|| format_err!("No Pool Exists"))?
+            .ok_or_else(|| Error::MissingPool)?
             .get()
             .await
             .map_err(Into::into)

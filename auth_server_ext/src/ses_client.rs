@@ -1,6 +1,5 @@
 #![allow(clippy::default_trait_access)]
 
-use anyhow::Error;
 use rusoto_core::Region;
 use rusoto_ses::{Body, Content, Destination, Message, SendEmailRequest, Ses, SesClient};
 use serde::Serialize;
@@ -9,7 +8,7 @@ use std::fmt;
 use sts_profile_auth::get_client_sts;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
-use auth_server_lib::date_time_wrapper::DateTimeWrapper;
+use auth_server_lib::{date_time_wrapper::DateTimeWrapper, errors::AuthServerError as Error};
 
 #[derive(Clone)]
 pub struct SesInstance {

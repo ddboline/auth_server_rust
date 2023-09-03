@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_http"
-version = "0.10.11"
+version = "0.10.12"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -13,7 +13,6 @@ authorized_users = {path = "../authorized_users"}
 warp = "0.3"
 http = "0.2"
 biscuit = "0.6"
-anyhow = "1.0"
 log = "0.4"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting", "parsing"]}
 uuid = { version = "1.0", features = ["serde", "v4"] }

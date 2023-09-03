@@ -7,13 +7,12 @@
 pub mod google_openid;
 pub mod ses_client;
 
-use anyhow::Error;
 use log::debug;
 use stack_string::format_sstr;
 use time::macros::format_description;
 use url::Url;
 
-use auth_server_lib::invitation::Invitation;
+use auth_server_lib::{errors::AuthServerError as Error, invitation::Invitation};
 
 use crate::ses_client::SesInstance;
 
@@ -52,10 +51,11 @@ pub async fn send_invitation(
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Error;
     use stack_string::format_sstr;
 
-    use auth_server_lib::{config::Config, get_random_string, invitation::Invitation};
+    use auth_server_lib::{
+        config::Config, errors::AuthServerError as Error, get_random_string, invitation::Invitation,
+    };
 
     use crate::{send_invitation, ses_client::SesInstance};
 

@@ -1,4 +1,3 @@
-use anyhow::Error;
 use postgres_query::{client::GenericClient, query, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -8,6 +7,7 @@ use uuid::Uuid;
 
 use crate::{
     date_time_wrapper::DateTimeWrapper,
+    errors::AuthServerError as Error,
     get_random_string,
     pgpool::{PgPool, PgTransaction},
     session_data::SessionData,
@@ -314,10 +314,12 @@ impl Session {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Error;
     use std::collections::{HashMap, HashSet};
 
-    use crate::{config::Config, pgpool::PgPool, session::Session, user::User, AUTH_APP_MUTEX};
+    use crate::{
+        config::Config, errors::AuthServerError as Error, pgpool::PgPool, session::Session,
+        user::User, AUTH_APP_MUTEX,
+    };
 
     #[tokio::test]
     async fn test_session() -> Result<(), Error> {

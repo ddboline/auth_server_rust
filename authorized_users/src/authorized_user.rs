@@ -99,14 +99,16 @@ impl AuthorizedUser {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Error;
     use std::convert::TryInto;
     use uuid::Uuid;
 
-    use crate::{get_random_key, token::Token, AuthorizedUser, JWT_SECRET, KEY_LENGTH, SECRET_KEY};
+    use crate::{
+        errors::AuthUsersError, get_random_key, token::Token, AuthorizedUser, JWT_SECRET,
+        KEY_LENGTH, SECRET_KEY,
+    };
 
     #[test]
-    fn test_auth_user() -> Result<(), Error> {
+    fn test_auth_user() -> Result<(), AuthUsersError> {
         let mut secret_key = [0u8; KEY_LENGTH];
         secret_key.copy_from_slice(&get_random_key());
 

@@ -8,13 +8,13 @@ use biscuit::{
 };
 use derive_more::{Display, From, Into};
 use log::debug;
-use stack_string::{format_sstr, StackString};
+use stack_string::StackString;
 use std::convert::TryInto;
 use uuid::Uuid;
 
 use crate::{
     claim::{Claim, PrivateClaim},
-    errors::AuthUsersError as Error,
+    errors::{AuthUsersError as Error, TokenError},
     get_random_nonce, JWT_SECRET, SECRET_KEY,
 };
 
@@ -83,19 +83,21 @@ impl Token {
         if let Compact::Decoded { payload, .. } = token {
             payload.try_into()
         } else {
-            Err(Error::TokenError(format_sstr!("Failed to decode")))
+            Err(TokenError::DecodeFailure.into())
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Error;
     use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
     use log::debug;
     use uuid::Uuid;
 
-    use crate::{get_random_key, token::Token, AuthorizedUser, JWT_SECRET, KEY_LENGTH, SECRET_KEY};
+    use crate::{
+        errors::AuthUsersError as Error, get_random_key, token::Token, AuthorizedUser, JWT_SECRET,
+        KEY_LENGTH, SECRET_KEY,
+    };
 
     #[test]
     fn test_token() -> Result<(), Error> {

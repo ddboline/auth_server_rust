@@ -1,4 +1,3 @@
-use anyhow::{Context, Error};
 use derive_more::Deref;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -8,6 +7,8 @@ use std::{
 use url::Url;
 
 use stack_string::StackString;
+
+use crate::errors::AuthServerError as Error;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConfigInner {
@@ -108,7 +109,7 @@ impl Config {
             dotenv::from_path(env_file).ok();
         }
 
-        let conf: ConfigInner = envy::from_env().context("Envy parsing failed")?;
+        let conf: ConfigInner = envy::from_env()?;
 
         Ok(Self::from_inner(conf))
     }

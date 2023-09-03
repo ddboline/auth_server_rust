@@ -1,4 +1,3 @@
-use anyhow::Error;
 use futures::Stream;
 use postgres_query::{client::GenericClient, query, Error as PqError, FromSqlRow, Query};
 use serde::{Deserialize, Serialize};
@@ -8,6 +7,7 @@ use uuid::Uuid;
 
 use crate::{
     date_time_wrapper::DateTimeWrapper,
+    errors::AuthServerError as Error,
     pgpool::{PgPool, PgTransaction},
 };
 
@@ -112,14 +112,14 @@ impl Invitation {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Error;
     use futures::try_join;
     use log::debug;
     use stack_string::format_sstr;
 
-    use crate::{config::Config, get_random_string, pgpool::PgPool, AUTH_APP_MUTEX};
-
-    use crate::invitation::Invitation;
+    use crate::{
+        config::Config, errors::AuthServerError as Error, get_random_string,
+        invitation::Invitation, pgpool::PgPool, AUTH_APP_MUTEX,
+    };
 
     #[tokio::test]
     async fn test_create_delete_invitation() -> Result<(), Error> {

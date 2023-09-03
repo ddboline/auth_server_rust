@@ -43,12 +43,11 @@ impl DateTimeWrapper {
 }
 
 mod iso8601 {
-    use anyhow::Error;
     use serde::{de, Deserialize, Deserializer, Serializer};
     use stack_string::StackString;
     use std::borrow::Cow;
     use time::{
-        format_description::well_known::Rfc3339, macros::format_description, OffsetDateTime,
+        format_description::well_known::Rfc3339, macros::format_description, Error, OffsetDateTime,
         UtcOffset,
     };
 
