@@ -27,6 +27,7 @@ use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
 
 use auth_server_lib::errors::AuthServerError;
+use auth_server_ext::errors::AuthServerExtError;
 use authorized_users::{errors::AuthUsersError, TRIGGER_DB_UPDATE};
 
 static LOGIN_HTML: &str = r#"
@@ -52,6 +53,8 @@ pub enum ServiceError {
     JoinError(#[from] JoinError),
     #[error("AuthServerError {0}")]
     AuthServerError(#[from] AuthServerError),
+    #[error("AuthServerExtError {0}")]
+    AuthServerExtError(#[from] AuthServerExtError),
     #[error("UrlParseError {0}")]
     UrlParseError(#[from] UrlParseError),
     #[error("GetSendQuotaError {0}")]

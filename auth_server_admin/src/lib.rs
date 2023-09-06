@@ -12,9 +12,10 @@ use uuid::Uuid;
 use auth_server_ext::{
     send_invitation,
     ses_client::{SesInstance, Statistics},
+    errors::AuthServerExtError as Error,
 };
 use auth_server_lib::{
-    auth_user_config::AuthUserConfig, config::Config, errors::AuthServerError as Error,
+    auth_user_config::AuthUserConfig, config::Config, errors::AuthServerError,
     invitation::Invitation, pgpool::PgPool, session::Session, session_data::SessionData,
     user::User,
 };
@@ -114,7 +115,7 @@ impl AuthServerOptions {
             AuthServerOptions::List => {
                 let auth_app_map = get_auth_user_app_map(&config).await?;
                 let mut stream = Box::pin(User::get_authorized_users(pool).await?);
-                while let Some(user) = stream.try_next().await? {
+                while let Some(user) = stream.try_next().await.map_err(Into::<AuthServerError>::into)? {
                     stdout.send(format_sstr!(
                         "{} {}",
                         user.email,
@@ -126,8 +127,8 @@ impl AuthServerOptions {
             }
             AuthServerOptions::ListInvites => {
                 let mut stream = Box::pin(Invitation::get_all_streaming(pool).await?);
-                while let Some(invite) = stream.try_next().await? {
-                    stdout.send(serde_json::to_string(&invite)?);
+                while let Some(invite) = stream.try_next().await.map_err(Into::<AuthServerError>::into)? {
+                    stdout.send(serde_json::to_string(&invite).map_err(Into::<AuthServerError>::into)?);
                 }
             }
             AuthServerOptions::SendInvite { email } => {
@@ -188,7 +189,7 @@ impl AuthServerOptions {
                         invitation.delete(pool).await?;
                         let user: AuthorizedUser = user.into();
                         AUTHORIZED_USERS.store_auth(user.clone(), true);
-                        stdout.send(serde_json::to_string(&user)?);
+                        stdout.send(serde_json::to_string(&user).map_err(Into::<AuthServerError>::into)?);
                     } else {
                         invitation.delete(pool).await?;
                     }
@@ -218,8 +219,8 @@ impl AuthServerOptions {
             AuthServerOptions::Status => {
                 let ses = SesInstance::new(None);
                 let (number_users, number_invitations, Statistics { quotas, stats }) = try_join!(
-                    User::get_number_users(pool),
-                    Invitation::get_number_invitations(pool),
+                    async move {User::get_number_users(pool).await.map_err(Into::<Error>::into)},
+                    async move {Invitation::get_number_invitations(pool).await.map_err(Into::<Error>::into)},
                     ses.get_statistics(),
                 )?;
                 stdout.send(format_sstr!(
@@ -246,8 +247,7 @@ impl AuthServerOptions {
                 let mut client = pool.get().await?;
                 migrations::runner()
                     .run_async(&mut **client)
-                    .await
-                    .map_err(|e| Error::AuthServerError(format_sstr!("Refinery Error {e}")))?;
+                    .await?;
             }
             AuthServerOptions::ListSessions { email } => {
                 let sessions = if let Some(email) = email {
@@ -256,20 +256,20 @@ impl AuthServerOptions {
                     Session::get_all_sessions(pool).await?
                 };
                 for session in sessions {
-                    stdout.send(serde_json::to_string(&session)?);
+                    stdout.send(serde_json::to_string(&session).map_err(Into::<AuthServerError>::into)?);
                 }
             }
             AuthServerOptions::ListSessionData { id } => {
                 if let Some(id) = id {
                     if let Some(session_obj) = Session::get_session(pool, id).await? {
                         for session_data in session_obj.get_all_session_data(pool).await? {
-                            stdout.send(serde_json::to_string(&session_data)?);
+                            stdout.send(serde_json::to_string(&session_data).map_err(Into::<AuthServerError>::into)?);
                         }
                     }
                 } else {
                     let mut stream = Box::pin(SessionData::get_all_session_data(pool).await?);
-                    while let Some(session_data) = stream.try_next().await? {
-                        stdout.send(serde_json::to_string(&session_data)?);
+                    while let Some(session_data) = stream.try_next().await.map_err(Into::<AuthServerError>::into)? {
+                        stdout.send(serde_json::to_string(&session_data).map_err(Into::<AuthServerError>::into)?);
                     }
                 }
             }
@@ -326,7 +326,7 @@ pub async fn run_cli() -> Result<(), Error> {
     let stdout = StdoutChannel::new();
 
     opts.process_args(&pool, &stdout).await?;
-    stdout.close().await?;
+    stdout.close().await.map_err(Into::<AuthServerError>::into)?;
     Ok(())
 }
 
@@ -344,9 +344,10 @@ mod test {
     use uuid::Uuid;
 
     use auth_server_lib::{
-        config::Config, errors::AuthServerError as Error, invitation::Invitation, pgpool::PgPool,
+        config::Config, errors::AuthServerError, invitation::Invitation, pgpool::PgPool,
         session::Session, user::User, AUTH_APP_MUTEX,
     };
+    use auth_server_ext::errors::AuthServerExtError as Error;
 
     use crate::AuthServerOptions;
 
@@ -372,13 +373,12 @@ mod test {
         }
         .process_args(&pool, &stdout)
         .await?;
-        stdout.close().await?;
+        stdout.close().await.map_err(Into::<AuthServerError>::into)?;
         let invitation_uuid: Uuid = mock_stdout.lock().await[0]
             .split_whitespace()
             .nth(1)
             .unwrap()
-            .parse()
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?;
+            .parse().map_err(Into::<AuthServerError>::into)?;
         let invitation = Invitation::get_by_uuid(invitation_uuid, &pool)
             .await?
             .unwrap();
@@ -387,7 +387,7 @@ mod test {
             .await?
             .try_collect()
             .await;
-        let invitations = result?;
+        let invitations = result.map_err(Into::<AuthServerError>::into)?;
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
@@ -397,13 +397,13 @@ mod test {
             .process_args(&pool, &stdout)
             .await?;
 
-        stdout.close().await?;
+        stdout.close().await.map_err(Into::<AuthServerError>::into)?;
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
         assert_eq!(mock_stdout.lock().await.len(), invitations.len());
         let mut stdout_invitations = HashSet::new();
         for line in mock_stdout.lock().await.iter() {
-            let inv: Invitation = serde_json::from_str(line.as_str())?;
+            let inv: Invitation = serde_json::from_str(line.as_str()).map_err(Into::<AuthServerError>::into)?;
             stdout_invitations.insert(inv.id);
         }
         debug!("invitation {:?}", stdout_invitations);
@@ -422,7 +422,7 @@ mod test {
         .process_args(&pool, &stdout)
         .await?;
 
-        stdout.close().await?;
+        stdout.close().await.map_err(Into::<AuthServerError>::into)?;
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
         assert_eq!(mock_stdout.lock().await.len(), 1);
@@ -431,7 +431,7 @@ mod test {
 
         let result: Result<Vec<_>, _> =
             User::get_authorized_users(&pool).await?.try_collect().await;
-        let users = result?;
+        let users = result.map_err(Into::<AuthServerError>::into)?;
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
@@ -440,7 +440,7 @@ mod test {
         debug!("start list");
         AuthServerOptions::List.process_args(&pool, &stdout).await?;
 
-        stdout.close().await?;
+        stdout.close().await.map_err(Into::<AuthServerError>::into)?;
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
         assert_eq!(mock_stdout.lock().await.len(), users.len());
@@ -458,7 +458,7 @@ mod test {
         .process_args(&pool, &stdout)
         .await?;
 
-        stdout.close().await?;
+        stdout.close().await.map_err(Into::<AuthServerError>::into)?;
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
         assert!(mock_stdout
@@ -479,7 +479,7 @@ mod test {
         .process_args(&pool, &stdout)
         .await?;
 
-        stdout.close().await?;
+        stdout.close().await.map_err(Into::<AuthServerError>::into)?;
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
         let result = mock_stdout.lock().await.join("\n");
@@ -496,7 +496,7 @@ mod test {
         .process_args(&pool, &stdout)
         .await?;
 
-        stdout.close().await?;
+        stdout.close().await.map_err(Into::<AuthServerError>::into)?;
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
         assert!(mock_stdout.lock().await[0].contains("Deleted user"));
@@ -508,7 +508,7 @@ mod test {
             .process_args(&pool, &stdout)
             .await?;
 
-        stdout.close().await?;
+        stdout.close().await.map_err(Into::<AuthServerError>::into)?;
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
         assert!(mock_stdout.lock().await.join("").contains("EmailStats"));
@@ -526,7 +526,7 @@ mod test {
         }
         .process_args(&pool, &stdout)
         .await?;
-        stdout.close().await?;
+        stdout.close().await.map_err(Into::<AuthServerError>::into)?;
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
@@ -538,7 +538,7 @@ mod test {
         }
         .process_args(&pool, &stdout)
         .await?;
-        stdout.close().await?;
+        stdout.close().await.map_err(Into::<AuthServerError>::into)?;
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
@@ -550,7 +550,7 @@ mod test {
         }
         .process_args(&pool, &stdout)
         .await?;
-        stdout.close().await?;
+        stdout.close().await.map_err(Into::<AuthServerError>::into)?;
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
@@ -561,7 +561,7 @@ mod test {
         }
         .process_args(&pool, &stdout)
         .await?;
-        stdout.close().await?;
+        stdout.close().await.map_err(Into::<AuthServerError>::into)?;
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
@@ -572,20 +572,19 @@ mod test {
         }
         .process_args(&pool, &stdout)
         .await?;
-        stdout.close().await?;
+        stdout.close().await.map_err(Into::<AuthServerError>::into)?;
         let invitation_uuid: Uuid = mock_stdout.lock().await[0]
             .split_whitespace()
             .nth(1)
             .unwrap()
-            .parse()
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?;
+            .parse().map_err(Into::<AuthServerError>::into)?;
 
         AuthServerOptions::RmInvites {
             ids: vec![invitation_uuid.clone()],
         }
         .process_args(&pool, &stdout)
         .await?;
-        stdout.close().await?;
+        stdout.close().await.map_err(Into::<AuthServerError>::into)?;
         assert!(Invitation::get_by_uuid(invitation_uuid, &pool)
             .await?
             .is_none());
@@ -607,7 +606,7 @@ mod test {
         }
         .process_args(&pool, &stdout)
         .await?;
-        stdout.close().await?;
+        stdout.close().await.map_err(Into::<AuthServerError>::into)?;
         for line in mock_stdout.lock().await.iter() {
             assert!(line.contains("test@example.com"));
         }
@@ -621,7 +620,7 @@ mod test {
         }
         .process_args(&pool, &stdout)
         .await?;
-        stdout.close().await?;
+        stdout.close().await.map_err(Into::<AuthServerError>::into)?;
         for line in mock_stdout.lock().await.iter() {
             assert!(line.contains("TEST DATA"));
         }
@@ -631,7 +630,7 @@ mod test {
         }
         .process_args(&pool, &stdout)
         .await?;
-        stdout.close().await?;
+        stdout.close().await.map_err(Into::<AuthServerError>::into)?;
 
         user.delete(&pool).await?;
 

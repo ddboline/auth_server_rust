@@ -8,7 +8,9 @@ use std::fmt;
 use sts_profile_auth::get_client_sts;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
-use auth_server_lib::{date_time_wrapper::DateTimeWrapper, errors::AuthServerError as Error};
+use auth_server_lib::date_time_wrapper::DateTimeWrapper;
+
+use crate::errors::AuthServerExtError as Error;
 
 #[derive(Clone)]
 pub struct SesInstance {

@@ -6,15 +6,17 @@
 
 pub mod google_openid;
 pub mod ses_client;
+pub mod errors;
 
 use log::debug;
 use stack_string::format_sstr;
 use time::macros::format_description;
 use url::Url;
 
-use auth_server_lib::{errors::AuthServerError as Error, invitation::Invitation};
+use auth_server_lib::invitation::Invitation;
 
 use crate::ses_client::SesInstance;
+use crate::errors::AuthServerExtError as Error;
 
 /// # Errors
 /// Returns error if send email fails
@@ -54,10 +56,11 @@ mod tests {
     use stack_string::format_sstr;
 
     use auth_server_lib::{
-        config::Config, errors::AuthServerError as Error, get_random_string, invitation::Invitation,
+        config::Config, get_random_string, invitation::Invitation,
     };
 
     use crate::{send_invitation, ses_client::SesInstance};
+    use crate::errors::AuthServerExtError as Error;
 
     #[tokio::test]
     async fn test_send_invitation() -> Result<(), Error> {

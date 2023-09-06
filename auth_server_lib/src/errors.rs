@@ -2,8 +2,6 @@ use argon2::password_hash::Error as ArgonError;
 use deadpool::managed::PoolError as DeadPoolError;
 use envy::Error as EnvyError;
 use postgres_query::{extract::Error as QueryExtractError, Error as QueryError};
-use rusoto_core::RusotoError;
-use rusoto_ses::{GetSendQuotaError, GetSendStatisticsError, SendEmailError};
 use serde_json::Error as SerdeJsonError;
 use serde_yaml::Error as YamlError;
 use stack_string::StackString;
@@ -15,6 +13,7 @@ use tokio::task::JoinError;
 use tokio_postgres::Error as PostgresError;
 use toml::de::Error as TomlError;
 use url::ParseError as UrlParseError;
+use uuid::Error as UuidError;
 
 use authorized_users::errors::AuthUsersError;
 
@@ -46,12 +45,6 @@ pub enum AuthServerError {
     JoinError(#[from] JoinError),
     #[error("StdoutChannelError {0}")]
     StdoutChannelError(#[from] StdoutChannelError),
-    #[error("GetSendStatisticsError {0}")]
-    GetSendStatisticsError(#[from] RusotoError<GetSendStatisticsError>),
-    #[error("SendEmailError {0}")]
-    SendEmailError(#[from] RusotoError<SendEmailError>),
-    #[error("GetSendQuotaError {0}")]
-    GetSendQuotaError(#[from] RusotoError<GetSendQuotaError>),
     #[error("Missing database url")]
     MissingDbUrl,
     #[error("Missing table")]
@@ -68,4 +61,6 @@ pub enum AuthServerError {
     YamlError(#[from] YamlError),
     #[error("AddrParseError {0}")]
     AddrParseError(#[from] AddrParseError),
+    #[error("UuidError {0}")]
+    UuidError(#[from] UuidError),
 }

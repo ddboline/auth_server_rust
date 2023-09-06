@@ -890,10 +890,10 @@ async fn status_body(pool: &PgPool) -> HttpResult<StatusOutput> {
         number_entries,
         Statistics { quotas, stats },
     ) = try_join!(
-        User::get_number_users(pool),
-        Session::get_number_sessions(pool),
-        SessionData::get_number_entries(pool),
-        Invitation::get_number_invitations(pool),
+        async move {User::get_number_users(pool).await.map_err(Into::into)},
+        async move {Session::get_number_sessions(pool).await.map_err(Into::into)},
+        async move {SessionData::get_number_entries(pool).await.map_err(Into::into)},
+        async move {Invitation::get_number_invitations(pool).await.map_err(Into::into)},
         ses.get_statistics(),
     )?;
     let result = StatusOutput {
