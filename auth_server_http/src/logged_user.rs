@@ -94,9 +94,9 @@ impl LoggedUser {
 
     /// # Errors
     /// Returns `Error::Unauthorized` if session id does not match
-    pub fn verify_session_id(&self, session_id: Uuid) -> Result<(), Error> {
+    pub fn verify_session_id(self, session_id: Uuid) -> Result<Self, Error> {
         if self.session == session_id {
-            Ok(())
+            Ok(self)
         } else {
             Err(Error::Unauthorized)
         }
@@ -108,7 +108,6 @@ impl LoggedUser {
             .and(cookie("jwt"))
             .and_then(|id: Uuid, user: Self| async move {
                 user.verify_session_id(id)
-                    .map(|_| user)
                     .map_err(rweb::reject::custom)
             })
     }
