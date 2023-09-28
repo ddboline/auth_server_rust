@@ -21,8 +21,7 @@ use tokio::{task::JoinError, time::error::Elapsed};
 use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
 
-use auth_server_ext::google_openid::OpenidError;
-use auth_server_ext::errors::AuthServerExtError;
+use auth_server_ext::{errors::AuthServerExtError, google_openid::OpenidError};
 use auth_server_lib::errors::AuthServerError;
 use authorized_users::{errors::AuthUsersError, TRIGGER_DB_UPDATE};
 

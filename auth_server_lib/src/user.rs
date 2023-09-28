@@ -79,8 +79,7 @@ impl User {
     /// # Errors
     /// Returns error if hashing fails
     pub fn set_password(&mut self, password: impl AsRef<str>) -> Result<(), Error> {
-        self.password = ARGON
-            .hash_password(password.as_ref())?;
+        self.password = ARGON.hash_password(password.as_ref())?;
         Ok(())
     }
 

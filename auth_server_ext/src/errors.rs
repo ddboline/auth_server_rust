@@ -1,3 +1,10 @@
+use aws_sdk_ses::{
+    error::SdkError,
+    operation::{
+        get_send_quota::GetSendQuotaError, get_send_statistics::GetSendStatisticsError,
+        send_email::SendEmailError,
+    },
+};
 use openid::error::Error as OpenidError;
 use refinery::Error as RefineryError;
 use std::time::SystemTimeError;
@@ -5,10 +12,6 @@ use thiserror::Error;
 use time::error::Format as TimeFormatError;
 use tokio::task::JoinError;
 use url::ParseError as UrlParseError;
-use aws_sdk_ses::operation::send_email::SendEmailError;
-use aws_sdk_ses::operation::get_send_quota::GetSendQuotaError;
-use aws_sdk_ses::operation::get_send_statistics::GetSendStatisticsError;
-use aws_sdk_ses::error::SdkError;
 
 use auth_server_lib::errors::AuthServerError;
 

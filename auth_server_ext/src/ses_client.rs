@@ -1,9 +1,9 @@
 #![allow(clippy::default_trait_access)]
 
 use aws_config::SdkConfig;
-use aws_sdk_ses::{Client as SesClient, types::{
-        Destination, Message, Content, Body,
-    },
+use aws_sdk_ses::{
+    types::{Body, Content, Destination, Message},
+    Client as SesClient,
 };
 use serde::Serialize;
 use stack_string::format_sstr;
@@ -54,16 +54,26 @@ impl SesInstance {
         sub: impl Into<String>,
         msg: impl Into<String>,
     ) -> Result<(), Error> {
-        let destination = Destination::builder().set_to_addresses(Some(vec![dest.into()])).build();
-        let subject = Content::builder().set_charset(Some("UTF-8".into())).set_data(Some(sub.into())).build();
-        let text = Content::builder().set_charset(Some("UTF-8".into())).set_data(Some(msg.into())).build();
+        let destination = Destination::builder()
+            .set_to_addresses(Some(vec![dest.into()]))
+            .build();
+        let subject = Content::builder()
+            .set_charset(Some("UTF-8".into()))
+            .set_data(Some(sub.into()))
+            .build();
+        let text = Content::builder()
+            .set_charset(Some("UTF-8".into()))
+            .set_data(Some(msg.into()))
+            .build();
         let body = Body::builder().text(text).build();
         let message = Message::builder().subject(subject).body(body).build();
-        self.ses_client.send_email()
+        self.ses_client
+            .send_email()
             .destination(destination)
             .source(src)
             .message(message)
-            .send().await?;
+            .send()
+            .await?;
         Ok(())
     }
 
@@ -73,17 +83,24 @@ impl SesInstance {
     ///     * `get_send_statistics` api call fails
     pub async fn get_statistics(&self) -> Result<Statistics, Error> {
         let quota = self.ses_client.get_send_quota().send().await?;
-        let stats = self.ses_client.get_send_statistics().send().await?
-            .send_data_points.unwrap_or_default().into_iter()
-            .map(|point| {
-                EmailStats {
-                    bounces: point.bounces,
-                    complaints: point.complaints,
-                    delivery_attempts: point.delivery_attempts,
-                    rejects: point.rejects,
-                    min_timestamp: point.timestamp.and_then(|t| OffsetDateTime::from_unix_timestamp(t.as_secs_f64() as i64).ok()).map(Into::into),
-                    ..EmailStats::default()
-                }
+        let stats = self
+            .ses_client
+            .get_send_statistics()
+            .send()
+            .await?
+            .send_data_points
+            .unwrap_or_default()
+            .into_iter()
+            .map(|point| EmailStats {
+                bounces: point.bounces,
+                complaints: point.complaints,
+                delivery_attempts: point.delivery_attempts,
+                rejects: point.rejects,
+                min_timestamp: point
+                    .timestamp
+                    .and_then(|t| OffsetDateTime::from_unix_timestamp(t.as_secs_f64() as i64).ok())
+                    .map(Into::into),
+                ..EmailStats::default()
             })
             .fold(EmailStats::default(), |mut stats, point| {
                 stats.bounces += point.bounces;
