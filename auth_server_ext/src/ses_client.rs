@@ -61,11 +61,11 @@ impl SesInstance {
             .set_charset(Some("UTF-8".into()))
             .set_data(Some(sub.into()))
             .build();
-        let text = Content::builder()
+        let html = Content::builder()
             .set_charset(Some("UTF-8".into()))
             .set_data(Some(msg.into()))
             .build();
-        let body = Body::builder().text(text).build();
+        let body = Body::builder().text(html.clone()).html(html).build();
         let message = Message::builder().subject(subject).body(body).build();
         self.ses_client
             .send_email()
