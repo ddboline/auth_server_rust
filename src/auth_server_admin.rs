@@ -1,6 +1,6 @@
 use auth_server_admin::run_cli;
 
-use auth_server_lib::errors::AuthServerError as Error;
+use auth_server_ext::errors::AuthServerExtError as Error;
 
 #[tokio::main]
 #[cfg(not(tarpaulin_include))]

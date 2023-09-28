@@ -10,9 +10,11 @@ use stack_string::format_sstr;
 use std::{collections::HashSet, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{task::spawn, time::interval};
 
-use auth_server_ext::{google_openid::GoogleClient, ses_client::SesInstance};
+use auth_server_ext::{
+    errors::AuthServerExtError as Error, google_openid::GoogleClient, ses_client::SesInstance,
+};
 use auth_server_lib::{
-    config::Config, errors::AuthServerError as Error, pgpool::PgPool, session::Session, user::User,
+    config::Config, errors::AuthServerError, pgpool::PgPool, session::Session, user::User,
 };
 use authorized_users::{
     errors::AuthUsersError, get_secrets, update_secret, AUTHORIZED_USERS, TRIGGER_DB_UPDATE,
@@ -47,8 +49,12 @@ pub struct AppState {
 /// Returns error if config init fails or if `get_secrets` call fails
 pub async fn start_app() -> Result<(), Error> {
     let config = Config::init_config()?;
-    update_secrets(&config).await?;
-    get_secrets(&config.secret_path, &config.jwt_secret_path).await?;
+    update_secrets(&config)
+        .await
+        .map_err(Into::<AuthServerError>::into)?;
+    get_secrets(&config.secret_path, &config.jwt_secret_path)
+        .await
+        .map_err(Into::<AuthServerError>::into)?;
     run_app(config).await
 }
 
@@ -114,7 +120,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
     }
 
     let google_client = GoogleClient::new(&config).await?;
-    let ses = SesInstance::new(None);
+    let ses = SesInstance::new().await;
     let pool = PgPool::new(&config.database_url);
 
     let update_handle = spawn(_update_db(
@@ -149,7 +155,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
             move || warp::reply::json(spec.as_ref())
         });
 
-    let spec_yaml = serde_yaml::to_string(spec.as_ref())?;
+    let spec_yaml = serde_yaml::to_string(spec.as_ref()).map_err(Into::<AuthServerError>::into)?;
     let spec_yaml_path = rweb::path!("api" / "openapi" / "yaml")
         .and(rweb::path::end())
         .map(move || {
@@ -169,8 +175,9 @@ async fn run_app(config: Config) -> Result<(), Error> {
         .or(spec_yaml_path)
         .recover(error_response)
         .with(cors);
-    let addr: SocketAddr =
-        format_sstr!("{host}:{port}", host = config.host, port = config.port).parse()?;
+    let addr: SocketAddr = format_sstr!("{host}:{port}", host = config.host, port = config.port)
+        .parse()
+        .map_err(Into::<AuthServerError>::into)?;
     debug!("{:?}", addr);
     rweb::serve(routes).bind(addr).await;
     update_handle.await.map_err(Into::into)
@@ -184,7 +191,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
 #[allow(clippy::similar_names)]
 pub async fn run_test_app(config: Config) -> Result<(), Error> {
     let google_client = GoogleClient::new(&config).await?;
-    let ses = SesInstance::new(None);
+    let ses = SesInstance::new().await;
     let pool = PgPool::new(&config.database_url);
 
     let app = AppState {
@@ -207,7 +214,9 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
         .build();
 
     let routes = auth_path.recover(error_response).with(cors);
-    let addr: SocketAddr = format_sstr!("{host}:{port}", host = config.host).parse()?;
+    let addr: SocketAddr = format_sstr!("{host}:{port}", host = config.host)
+        .parse()
+        .map_err(Into::<AuthServerError>::into)?;
     rweb::serve(routes).bind(addr).await;
     Ok(())
 }
@@ -226,7 +235,7 @@ pub async fn fill_auth_from_db(pool: &PgPool, expiration_seconds: i64) -> Result
             .map_ok(|user| user.email)
             .try_collect()
             .await;
-        result?
+        result.map_err(Into::<AuthServerError>::into)?
     } else {
         AUTHORIZED_USERS.get_users()
     };
@@ -249,10 +258,12 @@ mod tests {
     };
     use url::Url;
 
-    use auth_server_ext::{google_openid::GoogleClient, ses_client::SesInstance};
+    use auth_server_ext::{
+        errors::AuthServerExtError as Error, google_openid::GoogleClient, ses_client::SesInstance,
+    };
     use auth_server_lib::{
-        config::Config, errors::AuthServerError as Error, get_random_string,
-        invitation::Invitation, pgpool::PgPool, session::Session, user::User, AUTH_APP_MUTEX,
+        config::Config, errors::AuthServerError, get_random_string, invitation::Invitation,
+        pgpool::PgPool, session::Session, user::User, AUTH_APP_MUTEX,
     };
     use authorized_users::{get_random_key, AuthorizedUser, JWT_SECRET, KEY_LENGTH, SECRET_KEY};
 
@@ -303,7 +314,7 @@ mod tests {
         let client = reqwest::Client::builder()
             .cookie_store(true)
             .build()
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?;
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?;
         let url = format_sstr!("http://localhost:{test_port}/api/auth");
         let data = hashmap! {
             "email" => &email,
@@ -315,12 +326,12 @@ mod tests {
             .json(&data)
             .send()
             .await
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
             .error_for_status()
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
             .json()
             .await
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?;
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?;
         debug!("logged in {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
@@ -329,12 +340,12 @@ mod tests {
             .get(url.as_str())
             .send()
             .await
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
             .error_for_status()
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
             .json()
             .await
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?;
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?;
         debug!("I am: {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
@@ -384,19 +395,19 @@ mod tests {
         let client = reqwest::Client::builder()
             .cookie_store(true)
             .build()
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?;
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?;
         debug!("register");
         let resp: LoggedUser = client
             .post(url.as_str())
             .json(&data)
             .send()
             .await
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
             .error_for_status()
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
             .json()
             .await
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?;
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?;
         debug!("registered {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
@@ -415,12 +426,12 @@ mod tests {
             .json(&data)
             .send()
             .await
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
             .error_for_status()
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
             .json()
             .await
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?;
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?;
         debug!("logged in {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
@@ -430,12 +441,12 @@ mod tests {
             .get(url.as_str())
             .send()
             .await
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
             .error_for_status()
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
             .json()
             .await
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?;
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?;
         debug!("I am: {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
@@ -451,12 +462,12 @@ mod tests {
             .json(&data)
             .send()
             .await
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
             .error_for_status()
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
             .json()
             .await
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?;
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?;
         debug!("password changed {:?}", output);
         assert_eq!(output.message.as_str(), "password updated");
 
@@ -473,7 +484,8 @@ mod tests {
             "test",
             &data,
         )
-        .await?;
+        .await
+        .map_err(Into::<AuthServerError>::into)?;
         debug!("GET session");
         let resp: HashMap<String, String> = AuthorizedUser::get_session_data(
             &base_url,
@@ -482,7 +494,8 @@ mod tests {
             &client,
             "test",
         )
-        .await?;
+        .await
+        .map_err(Into::<AuthServerError>::into)?;
         debug!("{resp:?}");
         assert_eq!(resp.len(), 1);
         let url = format_sstr!("http://localhost:{test_port}/api/auth");
@@ -490,9 +503,9 @@ mod tests {
             .delete(url.as_str())
             .send()
             .await
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
             .error_for_status()
-            .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?
+            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
             .status();
         assert_eq!(status, StatusCode::NO_CONTENT);
 
@@ -514,7 +527,7 @@ mod tests {
     async fn test_api_spec() -> Result<(), Error> {
         let config = Config::init_config()?;
         let google_client = GoogleClient::new(&config).await?;
-        let ses = SesInstance::new(None);
+        let ses = SesInstance::new().await;
         let pool = PgPool::new(&config.database_url);
 
         let app = AppState {
@@ -526,7 +539,7 @@ mod tests {
         };
 
         let (spec, _) = openapi::spec().build(|| get_api_scope(&app));
-        let spec_yaml = serde_yaml::to_string(&spec)?;
+        let spec_yaml = serde_yaml::to_string(&spec).map_err(Into::<AuthServerError>::into)?;
 
         debug!("{}", spec_yaml);
         Ok(())

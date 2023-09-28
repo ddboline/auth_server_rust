@@ -1,10 +1,5 @@
-use auth_server_ext::google_openid::OpenidError;
 use http::{Error as HTTPError, StatusCode};
-use indexmap::IndexMap;
 use log::error;
-use postgres_query::Error as PqError;
-use rusoto_core::RusotoError;
-use rusoto_ses::{GetSendQuotaError, GetSendStatisticsError, SendEmailError};
 use rweb::{
     http::uri::InvalidUri,
     openapi::{
@@ -26,6 +21,7 @@ use tokio::{task::JoinError, time::error::Elapsed};
 use url::ParseError as UrlParseError;
 use uuid::Error as ParseError;
 
+use auth_server_ext::{errors::AuthServerExtError, google_openid::OpenidError};
 use auth_server_lib::errors::AuthServerError;
 use authorized_users::{errors::AuthUsersError, TRIGGER_DB_UPDATE};
 
@@ -52,14 +48,10 @@ pub enum ServiceError {
     JoinError(#[from] JoinError),
     #[error("AuthServerError {0}")]
     AuthServerError(#[from] AuthServerError),
+    #[error("AuthServerExtError {0}")]
+    AuthServerExtError(#[from] AuthServerExtError),
     #[error("UrlParseError {0}")]
     UrlParseError(#[from] UrlParseError),
-    #[error("GetSendQuotaError {0}")]
-    GetSendQuotaError(#[from] RusotoError<GetSendQuotaError>),
-    #[error("GetSendStatisticsError {0}")]
-    GetSendStatisticsError(#[from] RusotoError<GetSendStatisticsError>),
-    #[error("SendEmailError {0}")]
-    SendEmailError(#[from] RusotoError<SendEmailError>),
     #[error("HTTP error {0}")]
     HTTPError(#[from] HTTPError),
     #[error("SerdeJsonError {0}")]
@@ -70,8 +62,6 @@ pub enum ServiceError {
     TimeoutElapsed(#[from] Elapsed),
     #[error("FmtError {0}")]
     FmtError(#[from] FmtError),
-    #[error("PqError {0}")]
-    PqError(#[from] PqError),
     #[error("AuthUsersError {0}")]
     AuthUsersError(#[from] AuthUsersError),
 }
@@ -175,7 +165,7 @@ impl Entity for ServiceError {
 
 impl ResponseEntity for ServiceError {
     fn describe_responses(_: &mut ComponentDescriptor) -> Responses {
-        let mut map = IndexMap::new();
+        let mut map = Responses::new();
 
         let error_responses = [
             (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error"),

@@ -4,6 +4,7 @@
 #![allow(clippy::cast_sign_loss)]
 #![allow(clippy::cast_possible_truncation)]
 
+pub mod errors;
 pub mod google_openid;
 pub mod ses_client;
 
@@ -12,9 +13,9 @@ use stack_string::format_sstr;
 use time::macros::format_description;
 use url::Url;
 
-use auth_server_lib::{errors::AuthServerError as Error, invitation::Invitation};
+use auth_server_lib::invitation::Invitation;
 
-use crate::ses_client::SesInstance;
+use crate::{errors::AuthServerExtError as Error, ses_client::SesInstance};
 
 /// # Errors
 /// Returns error if send email fails
@@ -53,16 +54,14 @@ pub async fn send_invitation(
 mod tests {
     use stack_string::format_sstr;
 
-    use auth_server_lib::{
-        config::Config, errors::AuthServerError as Error, get_random_string, invitation::Invitation,
-    };
+    use auth_server_lib::{config::Config, get_random_string, invitation::Invitation};
 
-    use crate::{send_invitation, ses_client::SesInstance};
+    use crate::{errors::AuthServerExtError as Error, send_invitation, ses_client::SesInstance};
 
     #[tokio::test]
     async fn test_send_invitation() -> Result<(), Error> {
         let config = Config::init_config()?;
-        let ses = SesInstance::new(None);
+        let ses = SesInstance::new().await;
 
         let email = format_sstr!("ddboline+{}@gmail.com", get_random_string(32));
         let new_invitation = Invitation::from_email(&email);

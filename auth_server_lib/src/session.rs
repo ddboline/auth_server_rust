@@ -327,7 +327,7 @@ mod tests {
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
 
-        let user = User::from_details("test@example.com", "abc123");
+        let user = User::from_details("test@example.com", "abc123")?;
         user.insert(&pool).await?;
 
         let session = Session::new("test@example.com");

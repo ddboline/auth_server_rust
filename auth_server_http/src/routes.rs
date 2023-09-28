@@ -373,6 +373,7 @@ async fn list_session_objs(data: &AppState, user: &LoggedUser) -> HttpResult<Vec
         })
         .try_collect()
         .await
+        .map_err(Into::<AuthServerError>::into)
         .map_err(Into::into)
 }
 
@@ -529,6 +530,7 @@ async fn list_session_data_lines(
         })
         .try_collect()
         .await
+        .map_err(Into::<AuthServerError>::into)
         .map_err(Into::into)
 }
 
@@ -672,7 +674,7 @@ async fn register_user_object(
     if let Some(invitation) = Invitation::get_by_uuid(invitation_id, pool).await? {
         let expires_at: OffsetDateTime = invitation.expires_at.into();
         if expires_at > OffsetDateTime::now_utc() {
-            let user = User::from_details(invitation.email.clone(), &user_data.password);
+            let user = User::from_details(invitation.email.clone(), &user_data.password)?;
             user.upsert(pool).await?;
             invitation.delete(pool).await?;
             let user: AuthorizedUser = user.into();
@@ -713,7 +715,7 @@ async fn change_password_user_body(
     pool: &PgPool,
 ) -> HttpResult<&'static str> {
     if let Some(mut user) = User::get_by_email(&logged_user.email, pool).await? {
-        user.set_password(&user_data.password);
+        user.set_password(&user_data.password)?;
         user.update(pool).await?;
         Ok("password updated")
     } else {
@@ -760,7 +762,7 @@ async fn auth_url_body(
     google_client: &GoogleClient,
 ) -> HttpResult<(StackString, Url)> {
     debug!("{:?}", payload.final_url);
-    let (csrf_state, auth_url) = google_client.get_auth_url().await;
+    let (csrf_state, auth_url) = google_client.get_auth_url().await?;
     Ok((csrf_state, auth_url))
 }
 
@@ -882,7 +884,7 @@ pub async fn status(#[data] data: AppState) -> WarpResult<StatusResponse> {
 }
 
 async fn status_body(pool: &PgPool) -> HttpResult<StatusOutput> {
-    let ses = SesInstance::new(None);
+    let ses = SesInstance::new().await;
     let (
         number_users,
         number_invitations,
@@ -890,10 +892,18 @@ async fn status_body(pool: &PgPool) -> HttpResult<StatusOutput> {
         number_entries,
         Statistics { quotas, stats },
     ) = try_join!(
-        User::get_number_users(pool),
-        Session::get_number_sessions(pool),
-        SessionData::get_number_entries(pool),
-        Invitation::get_number_invitations(pool),
+        async move { User::get_number_users(pool).await.map_err(Into::into) },
+        async move { Session::get_number_sessions(pool).await.map_err(Into::into) },
+        async move {
+            SessionData::get_number_entries(pool)
+                .await
+                .map_err(Into::into)
+        },
+        async move {
+            Invitation::get_number_invitations(pool)
+                .await
+                .map_err(Into::into)
+        },
         ses.get_statistics(),
     )?;
     let result = StatusOutput {

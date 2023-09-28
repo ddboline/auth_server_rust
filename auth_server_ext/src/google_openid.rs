@@ -7,7 +7,7 @@ use rand::{
     distributions::{Distribution, Standard},
     thread_rng,
 };
-use stack_string::{format_sstr, StackString};
+use stack_string::StackString;
 use std::{collections::HashMap, str, sync::Arc, time::Duration};
 use time::OffsetDateTime;
 use tokio::{
@@ -18,9 +18,9 @@ use url::Url;
 
 use authorized_users::AuthorizedUser;
 
-use auth_server_lib::{
-    config::Config, errors::AuthServerError as Error, pgpool::PgPool, user::User,
-};
+use auth_server_lib::{config::Config, pgpool::PgPool, user::User};
+
+use crate::errors::AuthServerExtError as Error;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum TokenState {
@@ -85,7 +85,9 @@ impl GoogleClient {
         }
     }
 
-    pub async fn get_auth_url(&self) -> (StackString, Url) {
+    /// # Errors
+    /// Returns error if missing CSRF state or Nonce
+    pub async fn get_auth_url(&self) -> Result<(StackString, Url), Error> {
         let options = Options {
             scope: Some("email".into()),
             state: Some(get_token_string().into()),
@@ -94,14 +96,14 @@ impl GoogleClient {
         };
         let authorize_url = self.client.auth_url(&options);
         let Options { state, nonce, .. } = options;
-        let csrf_state: StackString = state.expect("No CSRF state").into();
-        let nonce = nonce.expect("No nonce");
+        let csrf_state: StackString = state.ok_or(Error::MissingCSRFState)?.into();
+        let nonce = nonce.ok_or(Error::MissingNonce)?;
 
         self.csrf_tokens
             .lock()
             .await
             .insert(csrf_state.clone(), CsrfTokenCache::new(&nonce));
-        (csrf_state, authorize_url)
+        Ok((csrf_state, authorize_url))
     }
 
     pub async fn wait_csrf(&self, csrf_state: impl AsRef<str>) {
@@ -138,23 +140,21 @@ impl GoogleClient {
             .lock()
             .await
             .remove(state.as_ref())
-            .ok_or_else(|| Error::AuthServerError(format_sstr!("CSRF Token Invalid")))?;
+            .ok_or_else(|| Error::InvalidCsrfToken)?;
         if (OffsetDateTime::now_utc() - timestamp).whole_seconds() > 3600 {
             is_ready.store(TokenState::Expired);
             notify.notify_waiters();
-            return Err(Error::AuthServerError(format_sstr!("Token expired")));
+            return Err(Error::ExpiredToken);
         }
         debug!("Nonce {:?}", nonce);
         let user = match &self.mock_email {
             Some(mock_email) => Self::mock_user(mock_email.as_str()),
             None => {
                 let userinfo = self.request_userinfo(code, &nonce).await?;
-                let user_email = &userinfo
-                    .email
-                    .ok_or_else(|| Error::AuthServerError(format_sstr!("No userinfo")))?;
+                let user_email = &userinfo.email.ok_or_else(|| Error::MissingUserInfo)?;
                 User::get_by_email(user_email, pool)
                     .await?
-                    .ok_or_else(|| Error::AuthServerError(format_sstr!("No User")))?
+                    .ok_or_else(|| Error::MissingUser)?
                     .into()
             }
         };
@@ -171,12 +171,11 @@ impl GoogleClient {
         let token = self
             .client
             .authenticate(code.as_ref(), Some(nonce.as_ref()), None)
-            .await
-            .map_err(|e| Error::AuthServerError(format_sstr!("Openid Error {e:?}")))?;
+            .await?;
         self.client
             .request_userinfo(&token)
             .await
-            .map_err(|e| Error::AuthServerError(format_sstr!("Openid Error {e:?}")))
+            .map_err(Into::into)
     }
 
     fn mock_user(mock_email: &str) -> AuthorizedUser {
@@ -237,11 +236,12 @@ mod tests {
         time::{sleep, Duration},
     };
 
-    use auth_server_lib::{
-        config::Config, errors::AuthServerError as Error, pgpool::PgPool, AUTH_APP_MUTEX,
-    };
+    use auth_server_lib::{config::Config, pgpool::PgPool, AUTH_APP_MUTEX};
 
-    use crate::google_openid::{get_token_string, GoogleClient};
+    use crate::{
+        errors::AuthServerExtError as Error,
+        google_openid::{get_token_string, GoogleClient},
+    };
 
     #[tokio::test]
     async fn test_google_openid() -> Result<(), Error> {
@@ -251,7 +251,7 @@ mod tests {
 
         let mut client = GoogleClient::new(&config).await?;
         client.mock_email = Some("test@example.com".into());
-        let (state, url) = client.get_auth_url().await;
+        let (state, url) = client.get_auth_url().await?;
         let redirect_uri = format_sstr!(
             "redirect_uri=https%3A%2F%2F{}%2Fapi%2Fcallback",
             config.domain
@@ -268,9 +268,7 @@ mod tests {
             let time = SystemTime::now();
             async move {
                 client.wait_csrf(&state).await;
-                let elapsed = time
-                    .elapsed()
-                    .map_err(|e| Error::AuthServerError(format_sstr!("{e}")))?;
+                let elapsed = time.elapsed()?;
                 Ok(elapsed.as_secs_f64())
             }
         });
