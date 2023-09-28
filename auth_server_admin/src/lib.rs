@@ -142,7 +142,7 @@ impl AuthServerOptions {
                 }
             }
             AuthServerOptions::SendInvite { email } => {
-                let ses = SesInstance::new(None);
+                let ses = SesInstance::new().await;
                 let invitation = Invitation::from_email(email.clone());
                 invitation.insert(pool).await?;
                 send_invitation(
@@ -229,7 +229,7 @@ impl AuthServerOptions {
                 }
             }
             AuthServerOptions::Status => {
-                let ses = SesInstance::new(None);
+                let ses = SesInstance::new().await;
                 let (number_users, number_invitations, Statistics { quotas, stats }) = try_join!(
                     async move {
                         User::get_number_users(pool)

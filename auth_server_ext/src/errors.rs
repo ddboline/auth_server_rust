@@ -1,12 +1,14 @@
 use openid::error::Error as OpenidError;
 use refinery::Error as RefineryError;
-use rusoto_core::RusotoError;
-use rusoto_ses::{GetSendQuotaError, GetSendStatisticsError, SendEmailError};
 use std::time::SystemTimeError;
 use thiserror::Error;
 use time::error::Format as TimeFormatError;
 use tokio::task::JoinError;
 use url::ParseError as UrlParseError;
+use aws_sdk_ses::operation::send_email::SendEmailError;
+use aws_sdk_ses::operation::get_send_quota::GetSendQuotaError;
+use aws_sdk_ses::operation::get_send_statistics::GetSendStatisticsError;
+use aws_sdk_ses::error::SdkError;
 
 use auth_server_lib::errors::AuthServerError;
 
@@ -14,12 +16,6 @@ use auth_server_lib::errors::AuthServerError;
 pub enum AuthServerExtError {
     #[error("{0}")]
     AuthServerError(#[from] AuthServerError),
-    #[error("GetSendStatisticsError {0}")]
-    GetSendStatisticsError(#[from] RusotoError<GetSendStatisticsError>),
-    #[error("SendEmailError {0}")]
-    SendEmailError(#[from] RusotoError<SendEmailError>),
-    #[error("GetSendQuotaError {0}")]
-    GetSendQuotaError(#[from] RusotoError<GetSendQuotaError>),
     #[error("TimeFormatError {0}")]
     TimeFormatError(#[from] TimeFormatError),
     #[error("UrlParseError {0}")]
@@ -44,4 +40,12 @@ pub enum AuthServerExtError {
     MissingCSRFState,
     #[error("No nonce")]
     MissingNonce,
+    #[error("SendEmailError {0}")]
+    SendEmailError(#[from] SdkError<SendEmailError>),
+    #[error("GetSendQuotaError {0}")]
+    GetSendQuotaError(#[from] SdkError<GetSendQuotaError>),
+    #[error("MissingQuota")]
+    MissingQuota,
+    #[error("GetSendStatisticsError {0}")]
+    GetSendStatisticsError(#[from] SdkError<GetSendStatisticsError>),
 }

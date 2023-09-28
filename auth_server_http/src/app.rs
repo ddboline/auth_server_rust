@@ -120,7 +120,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
     }
 
     let google_client = GoogleClient::new(&config).await?;
-    let ses = SesInstance::new(None);
+    let ses = SesInstance::new().await;
     let pool = PgPool::new(&config.database_url);
 
     let update_handle = spawn(_update_db(
@@ -191,7 +191,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
 #[allow(clippy::similar_names)]
 pub async fn run_test_app(config: Config) -> Result<(), Error> {
     let google_client = GoogleClient::new(&config).await?;
-    let ses = SesInstance::new(None);
+    let ses = SesInstance::new().await;
     let pool = PgPool::new(&config.database_url);
 
     let app = AppState {
@@ -527,7 +527,7 @@ mod tests {
     async fn test_api_spec() -> Result<(), Error> {
         let config = Config::init_config()?;
         let google_client = GoogleClient::new(&config).await?;
-        let ses = SesInstance::new(None);
+        let ses = SesInstance::new().await;
         let pool = PgPool::new(&config.database_url);
 
         let app = AppState {

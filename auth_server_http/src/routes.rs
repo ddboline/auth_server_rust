@@ -884,7 +884,7 @@ pub async fn status(#[data] data: AppState) -> WarpResult<StatusResponse> {
 }
 
 async fn status_body(pool: &PgPool) -> HttpResult<StatusOutput> {
-    let ses = SesInstance::new(None);
+    let ses = SesInstance::new().await;
     let (
         number_users,
         number_invitations,

@@ -61,7 +61,7 @@ mod tests {
     #[tokio::test]
     async fn test_send_invitation() -> Result<(), Error> {
         let config = Config::init_config()?;
-        let ses = SesInstance::new(None);
+        let ses = SesInstance::new().await;
 
         let email = format_sstr!("ddboline+{}@gmail.com", get_random_string(32));
         let new_invitation = Invitation::from_email(&email);
