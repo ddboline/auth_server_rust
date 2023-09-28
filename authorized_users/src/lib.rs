@@ -73,7 +73,8 @@ impl AuthorizedUsers {
     }
 
     pub fn is_authorized(&self, user: &AuthorizedUser) -> bool {
-        if let Some(AuthStatus::Authorized(last_time)) = self.0.load().get(user.email.as_str()) {
+        if let Some(AuthStatus::Authorized(last_time)) = self.0.load_full().get(user.email.as_str())
+        {
             let current_time = OffsetDateTime::now_utc();
             if (current_time - *last_time).whole_minutes() < 15 {
                 return true;
@@ -89,7 +90,7 @@ impl AuthorizedUsers {
         } else {
             AuthStatus::NotAuthorized
         };
-        let mut auth_map = Arc::try_unwrap(self.0.load().clone()).unwrap_or_else(|a| (*a).clone());
+        let mut auth_map = Arc::try_unwrap(self.0.load_full()).unwrap_or_else(|a| (*a).clone());
         auth_map.insert(user.email, status);
         let auth_map = Arc::new(auth_map);
         self.0.store(auth_map);
@@ -99,7 +100,7 @@ impl AuthorizedUsers {
         let now = OffsetDateTime::now_utc();
         let auth_map: HashMap<_, _> = self
             .0
-            .load()
+            .load_full()
             .keys()
             .map(|k| (k.clone(), AuthStatus::NotAuthorized))
             .chain(users.into_iter().map(|u| (u, AuthStatus::Authorized(now))))
@@ -108,7 +109,7 @@ impl AuthorizedUsers {
     }
 
     pub fn get_users(&self) -> HashSet<StackString> {
-        self.0.load().keys().cloned().collect()
+        self.0.load_full().keys().cloned().collect()
     }
 }
 

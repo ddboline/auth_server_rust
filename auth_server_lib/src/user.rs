@@ -42,8 +42,10 @@ impl Argon {
 
     fn hash_password(&self, plain: impl AsRef<[u8]>) -> Result<StackString, Error> {
         let salt = SaltString::generate(thread_rng());
-        let hash = self.0.hash_password(plain.as_ref(), &salt)?;
-        Ok(StackString::from_display(hash))
+        self.0
+            .hash_password(plain.as_ref(), &salt)
+            .map(StackString::from_display)
+            .map_err(Into::into)
     }
 
     fn verify_password(&self, hashed: &str, password: impl AsRef<[u8]>) -> Result<(), ArgonError> {
@@ -61,21 +63,25 @@ pub struct User {
 }
 
 impl User {
-    pub fn from_details(email: impl Into<StackString>, password: impl AsRef<str>) -> Self {
-        let password = ARGON
-            .hash_password(password.as_ref())
-            .expect("Argon Hash Failed");
-        Self {
+    /// # Errors
+    /// Returns error if hashing fails
+    pub fn from_details(
+        email: impl Into<StackString>,
+        password: impl AsRef<str>,
+    ) -> Result<Self, Error> {
+        ARGON.hash_password(password.as_ref()).map(|password| Self {
             email: email.into(),
             password,
             created_at: DateTimeWrapper::now(),
-        }
+        })
     }
 
-    pub fn set_password(&mut self, password: impl AsRef<str>) {
+    /// # Errors
+    /// Returns error if hashing fails
+    pub fn set_password(&mut self, password: impl AsRef<str>) -> Result<(), Error> {
         self.password = ARGON
-            .hash_password(password.as_ref())
-            .expect("Argon Hash Failed");
+            .hash_password(password.as_ref())?;
+        Ok(())
     }
 
     /// # Errors
@@ -273,7 +279,7 @@ mod tests {
         assert_eq!(User::get_by_email(&email, &pool).await?, None);
 
         let password = get_random_string(32);
-        let user = User::from_details(&email, &password);
+        let user = User::from_details(&email, &password)?;
         println!("{}", user.password);
 
         user.insert(&pool).await?;
@@ -282,7 +288,7 @@ mod tests {
         assert!(db_user.verify_password(&password)?);
 
         let password = get_random_string(32);
-        db_user.set_password(&password);
+        db_user.set_password(&password)?;
         db_user.upsert(&pool).await?;
 
         let db_user = User::get_by_email(&email, &pool).await?.unwrap();

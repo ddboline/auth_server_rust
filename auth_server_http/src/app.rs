@@ -10,7 +10,9 @@ use stack_string::format_sstr;
 use std::{collections::HashSet, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{task::spawn, time::interval};
 
-use auth_server_ext::{google_openid::GoogleClient, ses_client::SesInstance, errors::AuthServerExtError as Error};
+use auth_server_ext::{
+    errors::AuthServerExtError as Error, google_openid::GoogleClient, ses_client::SesInstance,
+};
 use auth_server_lib::{
     config::Config, errors::AuthServerError, pgpool::PgPool, session::Session, user::User,
 };
@@ -47,8 +49,12 @@ pub struct AppState {
 /// Returns error if config init fails or if `get_secrets` call fails
 pub async fn start_app() -> Result<(), Error> {
     let config = Config::init_config()?;
-    update_secrets(&config).await.map_err(Into::<AuthServerError>::into)?;
-    get_secrets(&config.secret_path, &config.jwt_secret_path).await.map_err(Into::<AuthServerError>::into)?;
+    update_secrets(&config)
+        .await
+        .map_err(Into::<AuthServerError>::into)?;
+    get_secrets(&config.secret_path, &config.jwt_secret_path)
+        .await
+        .map_err(Into::<AuthServerError>::into)?;
     run_app(config).await
 }
 
@@ -169,8 +175,9 @@ async fn run_app(config: Config) -> Result<(), Error> {
         .or(spec_yaml_path)
         .recover(error_response)
         .with(cors);
-    let addr: SocketAddr =
-        format_sstr!("{host}:{port}", host = config.host, port = config.port).parse().map_err(Into::<AuthServerError>::into)?;
+    let addr: SocketAddr = format_sstr!("{host}:{port}", host = config.host, port = config.port)
+        .parse()
+        .map_err(Into::<AuthServerError>::into)?;
     debug!("{:?}", addr);
     rweb::serve(routes).bind(addr).await;
     update_handle.await.map_err(Into::into)
@@ -207,7 +214,9 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
         .build();
 
     let routes = auth_path.recover(error_response).with(cors);
-    let addr: SocketAddr = format_sstr!("{host}:{port}", host = config.host).parse().map_err(Into::<AuthServerError>::into)?;
+    let addr: SocketAddr = format_sstr!("{host}:{port}", host = config.host)
+        .parse()
+        .map_err(Into::<AuthServerError>::into)?;
     rweb::serve(routes).bind(addr).await;
     Ok(())
 }
@@ -249,10 +258,12 @@ mod tests {
     };
     use url::Url;
 
-    use auth_server_ext::{google_openid::GoogleClient, ses_client::SesInstance, errors::AuthServerExtError as Error};
+    use auth_server_ext::{
+        errors::AuthServerExtError as Error, google_openid::GoogleClient, ses_client::SesInstance,
+    };
     use auth_server_lib::{
-        config::Config, errors::AuthServerError, get_random_string,
-        invitation::Invitation, pgpool::PgPool, session::Session, user::User, AUTH_APP_MUTEX,
+        config::Config, errors::AuthServerError, get_random_string, invitation::Invitation,
+        pgpool::PgPool, session::Session, user::User, AUTH_APP_MUTEX,
     };
     use authorized_users::{get_random_key, AuthorizedUser, JWT_SECRET, KEY_LENGTH, SECRET_KEY};
 
@@ -473,7 +484,8 @@ mod tests {
             "test",
             &data,
         )
-        .await.map_err(Into::<AuthServerError>::into)?;
+        .await
+        .map_err(Into::<AuthServerError>::into)?;
         debug!("GET session");
         let resp: HashMap<String, String> = AuthorizedUser::get_session_data(
             &base_url,
@@ -482,7 +494,8 @@ mod tests {
             &client,
             "test",
         )
-        .await.map_err(Into::<AuthServerError>::into)?;
+        .await
+        .map_err(Into::<AuthServerError>::into)?;
         debug!("{resp:?}");
         assert_eq!(resp.len(), 1);
         let url = format_sstr!("http://localhost:{test_port}/api/auth");

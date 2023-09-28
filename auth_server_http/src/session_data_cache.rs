@@ -45,14 +45,14 @@ impl SessionDataCache {
 
     pub fn add_session(&self, session: Session) {
         let mut session_data_cache =
-            Arc::try_unwrap(self.load().clone()).unwrap_or_else(|a| (*a).clone());
+            Arc::try_unwrap(self.load_full()).unwrap_or_else(|a| (*a).clone());
         session_data_cache.add_session(session);
         self.store(Arc::new(session_data_cache));
     }
 
     pub fn remove_session(&self, session_id: Uuid) {
         let mut session_data_cache =
-            Arc::try_unwrap(self.load().clone()).unwrap_or_else(|a| (*a).clone());
+            Arc::try_unwrap(self.load_full()).unwrap_or_else(|a| (*a).clone());
         session_data_cache.remove(&session_id);
         self.store(Arc::new(session_data_cache));
     }
@@ -66,7 +66,7 @@ impl SessionDataCache {
         secret_key: impl AsRef<str>,
         session_key: impl AsRef<str>,
     ) -> Result<Option<Value>, Error> {
-        if let Some((secret, session_map)) = self.load().get(&session_id) {
+        if let Some((secret, session_map)) = self.load_full().get(&session_id) {
             if secret != secret_key.as_ref() {
                 return Err(Error::BadRequest("Bad Secret"));
             }
@@ -91,7 +91,7 @@ impl SessionDataCache {
         let secret_key = secret_key.into();
         let session_key = session_key.into();
         let mut session_data_cache =
-            Arc::try_unwrap(self.load().clone()).unwrap_or_else(|a| (*a).clone());
+            Arc::try_unwrap(self.load_full()).unwrap_or_else(|a| (*a).clone());
         if let Some((secret, session_map)) = session_data_cache.get_mut(&session_id) {
             if secret != &secret_key {
                 return Err(Error::BadRequest("Bad Secret"));
@@ -117,7 +117,7 @@ impl SessionDataCache {
     ) -> Result<Option<Value>, Error> {
         let mut result = None;
         let mut session_data_cache =
-            Arc::try_unwrap(self.load().clone()).unwrap_or_else(|a| (*a).clone());
+            Arc::try_unwrap(self.load_full().clone()).unwrap_or_else(|a| (*a).clone());
         if let Some((secret, session_map)) = session_data_cache.get_mut(&session_id) {
             if secret != secret_key.as_ref() {
                 return Err(Error::BadRequest("Bad Secret"));

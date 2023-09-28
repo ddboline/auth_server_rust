@@ -1,12 +1,12 @@
-use thiserror::Error;
+use openid::error::Error as OpenidError;
+use refinery::Error as RefineryError;
 use rusoto_core::RusotoError;
 use rusoto_ses::{GetSendQuotaError, GetSendStatisticsError, SendEmailError};
-use time::error::Format as TimeFormatError;
-use url::ParseError as UrlParseError;
-use openid::error::Error as OpenidError;
 use std::time::SystemTimeError;
+use thiserror::Error;
+use time::error::Format as TimeFormatError;
 use tokio::task::JoinError;
-use refinery::Error as RefineryError;
+use url::ParseError as UrlParseError;
 
 use auth_server_lib::errors::AuthServerError;
 
@@ -40,4 +40,8 @@ pub enum AuthServerExtError {
     JoinError(#[from] JoinError),
     #[error("RefineryError {0}")]
     RefineryError(#[from] RefineryError),
+    #[error("No CSRF state")]
+    MissingCSRFState,
+    #[error("No nonce")]
+    MissingNonce,
 }
