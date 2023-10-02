@@ -25,18 +25,10 @@ impl fmt::Debug for SesInstance {
     }
 }
 
-impl Default for SesInstance {
-    fn default() -> Self {
-        let config = SdkConfig::builder().build();
-        Self::from_conf(&config)
-    }
-}
-
 impl SesInstance {
     #[must_use]
-    pub async fn new() -> Self {
-        let config = aws_config::load_from_env().await;
-        Self::from_conf(&config)
+    pub fn new(sdk_config: &SdkConfig) -> Self {
+        Self::from_conf(sdk_config)
     }
 
     fn from_conf(config: &SdkConfig) -> Self {
@@ -183,7 +175,8 @@ mod tests {
 
     #[test]
     fn test_debug() {
-        let ses = SesInstance::default();
+        let sdk_config = aws_config::SdkConfig::builder().build();
+        let ses = SesInstance::new(&sdk_config);
         assert_eq!(&format!("{:?}", ses), "SesInstance");
     }
 }

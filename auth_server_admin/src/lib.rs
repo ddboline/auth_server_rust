@@ -142,7 +142,8 @@ impl AuthServerOptions {
                 }
             }
             AuthServerOptions::SendInvite { email } => {
-                let ses = SesInstance::new().await;
+                let sdk_config = aws_config::load_from_env().await;
+                let ses = SesInstance::new(&sdk_config);
                 let invitation = Invitation::from_email(email.clone());
                 invitation.insert(pool).await?;
                 send_invitation(
@@ -229,7 +230,8 @@ impl AuthServerOptions {
                 }
             }
             AuthServerOptions::Status => {
-                let ses = SesInstance::new().await;
+                let sdk_config = aws_config::load_from_env().await;
+                let ses = SesInstance::new(&sdk_config);
                 let (number_users, number_invitations, Statistics { quotas, stats }) = try_join!(
                     async move {
                         User::get_number_users(pool)

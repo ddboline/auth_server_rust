@@ -884,7 +884,8 @@ pub async fn status(#[data] data: AppState) -> WarpResult<StatusResponse> {
 }
 
 async fn status_body(pool: &PgPool) -> HttpResult<StatusOutput> {
-    let ses = SesInstance::new().await;
+    let sdk_config = aws_config::load_from_env().await;
+    let ses = SesInstance::new(&sdk_config);
     let (
         number_users,
         number_invitations,
