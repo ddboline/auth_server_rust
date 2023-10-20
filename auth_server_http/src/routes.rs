@@ -9,7 +9,6 @@ use stack_string::{format_sstr, StackString};
 use std::{convert::Infallible, str, time::Duration};
 use time::{macros::format_description, OffsetDateTime};
 use tokio::time::{sleep, timeout};
-use url::Url;
 use uuid::Uuid;
 
 use auth_server_ext::{
@@ -684,7 +683,11 @@ pub async fn auth_await(
         error!("await timed out");
     }
     sleep(Duration::from_millis(10)).await;
-    let final_url = data.google_client.decode(&state).map_err(Into::<Error>::into)?;
+    let final_url = if let Some(s) = data.google_client.decode(&state) {
+        s
+    } else {
+        "".into()
+    };
     Ok(HtmlBase::new(final_url).into())
 }
 
