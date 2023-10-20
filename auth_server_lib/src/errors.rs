@@ -4,7 +4,6 @@ use envy::Error as EnvyError;
 use postgres_query::{extract::Error as QueryExtractError, Error as QueryError};
 use serde_json::Error as SerdeJsonError;
 use serde_yaml::Error as YamlError;
-use stack_string::StackString;
 use std::{io::Error as IoError, net::AddrParseError};
 use stdout_channel::StdoutChannelError;
 use thiserror::Error;
@@ -19,8 +18,6 @@ use authorized_users::errors::AuthUsersError;
 
 #[derive(Error, Debug)]
 pub enum AuthServerError {
-    #[error("AuthServerError {0}")]
-    AuthServerError(StackString),
     #[error("AuthUsers Error {0}")]
     AuthUsersError(#[from] AuthUsersError),
     #[error("QueryError {0}")]
@@ -63,4 +60,6 @@ pub enum AuthServerError {
     AddrParseError(#[from] AddrParseError),
     #[error("UuidError {0}")]
     UuidError(#[from] UuidError),
+    #[error("Bad Secret")]
+    BadSecret,
 }
