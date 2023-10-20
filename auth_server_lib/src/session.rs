@@ -1,3 +1,4 @@
+use log::debug;
 use postgres_query::{client::GenericClient, query, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -309,6 +310,53 @@ impl Session {
             };
         session_data.upsert_conn(conn).await?;
         Ok(session_data)
+    }
+
+    /// # Errors
+    /// Returns error if db query fails
+    pub async fn set_session_from_cache(
+        pool: &PgPool,
+        session: Uuid,
+        secret_key: impl AsRef<str>,
+        session_key: impl AsRef<str>,
+        payload: Value,
+    ) -> Result<Option<SessionData>, Error> {
+        let mut conn = pool.get().await?;
+        let tran = conn.transaction().await?;
+        let conn: &PgTransaction = &tran;
+
+        if let Some(session_obj) = Session::get_session_conn(conn, session).await? {
+            if session_obj.secret_key != secret_key.as_ref() {
+                return Err(Error::BadSecret);
+            }
+            let session_data = session_obj
+                .set_session_data_conn(conn, &session_key, payload.clone())
+                .await?;
+            debug!("session_data {:?}", session_data);
+            tran.commit().await?;
+            Ok(Some(session_data))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// # Errors
+    /// Returns error if db query fails
+    pub async fn delete_session_data_from_cache(
+        pool: &PgPool,
+        session: Uuid,
+        secret_key: impl AsRef<str>,
+        session_key: impl AsRef<str>,
+    ) -> Result<(), Error> {
+        if let Some(session_obj) = Session::get_session(pool, session).await? {
+            if session_obj.secret_key != secret_key.as_ref() {
+                return Err(Error::BadSecret);
+            }
+            if let Some(session_data) = session_obj.get_session_data(pool, session_key).await? {
+                session_data.delete(pool).await?;
+            }
+        }
+        Ok(())
     }
 }
 
