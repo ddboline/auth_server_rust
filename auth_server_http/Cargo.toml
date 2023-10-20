@@ -37,6 +37,7 @@ stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", featur
 rweb-helper = {git = "https://github.com/ddboline/rweb_helper.git", tag="0.5.0-1"}
 
 [dev-dependencies]
+anyhow = "1.0"
 reqwest = {version = "0.11", default_features = false, features=["cookies", "rustls-tls", "gzip", "json"]}
 maplit = "1.0"
 env_logger = "0.10"
