@@ -9,6 +9,7 @@ use crate::{
     date_time_wrapper::DateTimeWrapper,
     errors::AuthServerError as Error,
     pgpool::{PgPool, PgTransaction},
+    session::Session,
 };
 
 #[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug, Eq)]
@@ -200,5 +201,28 @@ impl SessionData {
         let query = query!("DELETE FROM session_values WHERE id = $id", id = self.id);
         query.execute(&conn).await?;
         Ok(())
+    }
+
+    /// # Errors
+    /// Returns error if db query fails
+    pub async fn get_session_from_cache(
+        pool: &PgPool,
+        session: Uuid,
+        secret_key: &str,
+        session_key: &str,
+    ) -> Result<Option<SessionData>, Error> {
+        if let Some(session_obj) = Session::get_session(pool, session).await? {
+            if session_obj.secret_key != secret_key {
+                Err(Error::BadSecret)
+            } else if let Some(session_data) =
+                session_obj.get_session_data(pool, &session_key).await?
+            {
+                Ok(Some(session_data))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(None)
+        }
     }
 }
