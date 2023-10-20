@@ -12,6 +12,7 @@ use thiserror::Error;
 use time::error::Format as TimeFormatError;
 use tokio::task::JoinError;
 use url::ParseError as UrlParseError;
+use base64::DecodeError;
 
 use auth_server_lib::errors::AuthServerError;
 
@@ -51,4 +52,6 @@ pub enum AuthServerExtError {
     MissingQuota,
     #[error("GetSendStatisticsError {0}")]
     GetSendStatisticsError(#[from] SdkError<GetSendStatisticsError>),
+    #[error("DecodeError {0}")]
+    DecodeError(#[from] DecodeError),
 }
