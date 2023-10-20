@@ -1,3 +1,4 @@
+use auth_server_lib::pgpool::PgPool;
 use cookie::{time::Duration, Cookie};
 use log::debug;
 use rweb::{
@@ -13,6 +14,7 @@ use std::{
 };
 use uuid::Uuid;
 
+use auth_server_lib::session::Session;
 use authorized_users::{token::Token, AuthorizedUser, AUTHORIZED_USERS};
 
 use crate::errors::ServiceError as Error;
@@ -41,18 +43,18 @@ impl LoggedUser {
         expiration_seconds: i64,
         secure: bool,
     ) -> Result<UserCookies<'static>, Error> {
-        let domain = domain.as_ref();
+        let domain: String = domain.as_ref().into();
         let session = self.session;
         let session_id = Cookie::build("session-id", session.to_string())
             .path("/")
             .http_only(true)
-            .domain(domain.to_string())
+            .domain(domain.clone())
             .max_age(Duration::seconds(expiration_seconds))
             .secure(secure)
             .finish();
         let token = Token::create_token(
             self.email.clone(),
-            domain,
+            &domain,
             expiration_seconds,
             session.into(),
             self.secret_key.clone(),
@@ -60,7 +62,7 @@ impl LoggedUser {
         let jwt = Cookie::build("jwt", token.to_string())
             .path("/")
             .http_only(true)
-            .domain(domain.to_string())
+            .domain(domain)
             .max_age(Duration::seconds(expiration_seconds))
             .secure(secure)
             .finish();
@@ -109,6 +111,18 @@ impl LoggedUser {
             .and_then(|id: Uuid, user: Self| async move {
                 user.verify_session_id(id).map_err(rweb::reject::custom)
             })
+    }
+
+    /// # Errors
+    /// Returns error if db query fails
+    pub async fn delete_user_session(session_id: Uuid, pool: &PgPool) -> Result<(), Error> {
+        if let Some(session_obj) = Session::get_session(pool, session_id).await? {
+            for session_data in session_obj.get_all_session_data(pool).await? {
+                session_data.delete(pool).await?;
+            }
+            session_obj.delete(pool).await?;
+        }
+        Ok(())
     }
 }
 
