@@ -10,7 +10,6 @@ use rweb::{
 };
 use serde::Serialize;
 use serde_json::Error as SerdeJsonError;
-use stack_string::StackString;
 use std::{
     borrow::Cow,
     convert::{From, Infallible},
@@ -42,8 +41,6 @@ pub enum ServiceError {
     BadRequest(&'static str),
     #[error("Unauthorized")]
     Unauthorized,
-    #[error("blocking error {0}")]
-    BlockingError(StackString),
     #[error("JoinError {0}")]
     JoinError(#[from] JoinError),
     #[error("AuthServerError {0}")]
@@ -64,6 +61,8 @@ pub enum ServiceError {
     FmtError(#[from] FmtError),
     #[error("AuthUsersError {0}")]
     AuthUsersError(#[from] AuthUsersError),
+    #[error("Bad Secret")]
+    BadSecret,
 }
 
 // we can return early in our handlers if UUID provided by the user is not valid
