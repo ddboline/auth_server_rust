@@ -87,10 +87,11 @@ impl GoogleClient {
 
     /// # Errors
     /// Returns error if missing CSRF state or Nonce
-    pub async fn get_auth_url(&self) -> Result<(StackString, Url), Error> {
+    pub async fn get_auth_url(&self, state: Option<&str>) -> Result<(StackString, Url), Error> {
+        let state: String = state.map(|s| self.encode(s).into()).unwrap_or_else(|| get_token_string()).into();
         let options = Options {
             scope: Some("email".into()),
-            state: Some(get_token_string().into()),
+            state: Some(state.clone()),
             nonce: Some(get_token_string().into()),
             ..Options::default()
         };
@@ -104,6 +105,15 @@ impl GoogleClient {
             .await
             .insert(csrf_state.clone(), CsrfTokenCache::new(&nonce));
         Ok((csrf_state, authorize_url))
+    }
+
+    pub fn encode(&self, input: &str) -> StackString {
+        URL_SAFE_NO_PAD.encode(input).into()
+    }
+
+    pub fn decode(&self, input: &str) -> Result<StackString, Error> {
+        let buf = URL_SAFE_NO_PAD.decode(input)?;
+        StackString::from_utf8(&buf).map_err(|_| Error::InvalidCsrfToken)
     }
 
     pub async fn wait_csrf(&self, csrf_state: impl AsRef<str>) {
@@ -251,7 +261,7 @@ mod tests {
 
         let mut client = GoogleClient::new(&config).await?;
         client.mock_email = Some("test@example.com".into());
-        let (state, url) = client.get_auth_url().await?;
+        let (state, url) = client.get_auth_url(Some("test-redirect-url")).await?;
         let redirect_uri = format_sstr!(
             "redirect_uri=https%3A%2F%2F{}%2Fapi%2Fcallback",
             config.domain
@@ -277,6 +287,8 @@ mod tests {
         let result = client
             .run_callback("mock_code", state.as_str(), &pool)
             .await?;
+        let url = client.decode(&state)?;
+        assert_eq!(&url, "test-redirect-url");
         assert!(result.is_some());
         assert_eq!(result.unwrap().email, "test@example.com");
 
