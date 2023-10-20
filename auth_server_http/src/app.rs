@@ -248,6 +248,7 @@ pub async fn fill_auth_from_db(pool: &PgPool, expiration_seconds: i64) -> Result
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Error;
     use http::StatusCode;
     use log::debug;
     use maplit::hashmap;
@@ -260,9 +261,7 @@ mod tests {
     };
     use url::Url;
 
-    use auth_server_ext::{
-        errors::AuthServerExtError as Error, google_openid::GoogleClient, ses_client::SesInstance,
-    };
+    use auth_server_ext::{google_openid::GoogleClient, ses_client::SesInstance};
     use auth_server_lib::{
         config::Config, errors::AuthServerError, get_random_string, invitation::Invitation,
         pgpool::PgPool, session::Session, user::User, AUTH_APP_MUTEX,
@@ -313,10 +312,7 @@ mod tests {
 
         sleep(Duration::from_secs(10)).await;
 
-        let client = reqwest::Client::builder()
-            .cookie_store(true)
-            .build()
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?;
+        let client = reqwest::Client::builder().cookie_store(true).build()?;
         let url = format_sstr!("http://localhost:{test_port}/api/auth");
         let data = hashmap! {
             "email" => &email,
@@ -327,13 +323,10 @@ mod tests {
             .post(url.as_str())
             .json(&data)
             .send()
-            .await
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
-            .error_for_status()
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
+            .await?
+            .error_for_status()?
             .json()
-            .await
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?;
+            .await?;
         debug!("logged in {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
@@ -341,13 +334,10 @@ mod tests {
         let resp: LoggedUser = client
             .get(url.as_str())
             .send()
-            .await
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
-            .error_for_status()
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
+            .await?
+            .error_for_status()?
             .json()
-            .await
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?;
+            .await?;
         debug!("I am: {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
@@ -394,22 +384,16 @@ mod tests {
             "password" => &password,
         };
 
-        let client = reqwest::Client::builder()
-            .cookie_store(true)
-            .build()
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?;
+        let client = reqwest::Client::builder().cookie_store(true).build()?;
         debug!("register");
         let resp: LoggedUser = client
             .post(url.as_str())
             .json(&data)
             .send()
-            .await
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
-            .error_for_status()
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
+            .await?
+            .error_for_status()?
             .json()
-            .await
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?;
+            .await?;
         debug!("registered {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
@@ -427,13 +411,10 @@ mod tests {
             .post(url.as_str())
             .json(&data)
             .send()
-            .await
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
-            .error_for_status()
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
+            .await?
+            .error_for_status()?
             .json()
-            .await
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?;
+            .await?;
         debug!("logged in {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
@@ -442,13 +423,10 @@ mod tests {
         let resp: LoggedUser = client
             .get(url.as_str())
             .send()
-            .await
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
-            .error_for_status()
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
+            .await?
+            .error_for_status()?
             .json()
-            .await
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?;
+            .await?;
         debug!("I am: {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
@@ -463,13 +441,10 @@ mod tests {
             .post(url.as_str())
             .json(&data)
             .send()
-            .await
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
-            .error_for_status()
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
+            .await?
+            .error_for_status()?
             .json()
-            .await
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?;
+            .await?;
         debug!("password changed {:?}", output);
         assert_eq!(output.message.as_str(), "password updated");
 
@@ -504,10 +479,8 @@ mod tests {
         let status: StatusCode = client
             .delete(url.as_str())
             .send()
-            .await
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
-            .error_for_status()
-            .map_err(|e| AuthServerError::AuthServerError(format_sstr!("{e}")))?
+            .await?
+            .error_for_status()?
             .status();
         assert_eq!(status, StatusCode::NO_CONTENT);
 
