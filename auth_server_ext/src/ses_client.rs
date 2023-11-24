@@ -173,9 +173,9 @@ pub struct Statistics {
 mod tests {
     use crate::ses_client::SesInstance;
 
-    #[test]
-    fn test_debug() {
-        let sdk_config = aws_config::SdkConfig::builder().build();
+    #[tokio::test]
+    async fn test_debug() {
+        let sdk_config = aws_config::load_from_env().await;
         let ses = SesInstance::new(&sdk_config);
         assert_eq!(&format!("{:?}", ses), "SesInstance");
     }
