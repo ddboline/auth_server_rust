@@ -1,7 +1,6 @@
-use rweb::http::{Error as HTTPError, StatusCode};
 use log::error;
 use rweb::{
-    http::uri::InvalidUri,
+    http::{uri::InvalidUri, Error as HTTPError, StatusCode},
     openapi::{
         ComponentDescriptor, ComponentOrInlineSchema, Entity, Response, ResponseEntity, Responses,
     },
@@ -24,14 +23,14 @@ use auth_server_ext::{errors::AuthServerExtError, google_openid::OpenidError};
 use auth_server_lib::errors::AuthServerError;
 use authorized_users::{errors::AuthUsersError, TRIGGER_DB_UPDATE};
 
-static LOGIN_HTML: &str = r#"
+static LOGIN_HTML: &str = r"
     <script>
     !function() {
         let final_url = location.href;
         location.replace('/auth/login.html?final_url=' + final_url);
     }()
     </script>
-"#;
+";
 
 #[derive(Debug, Error)]
 pub enum ServiceError {

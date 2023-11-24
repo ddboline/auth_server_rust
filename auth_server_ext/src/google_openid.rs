@@ -88,7 +88,9 @@ impl GoogleClient {
     /// # Errors
     /// Returns error if missing CSRF state or Nonce
     pub async fn get_auth_url(&self, state: Option<&str>) -> Result<(StackString, Url), Error> {
-        let state: String = state.map_or_else(get_token_string,|s| self.encode(s)).into();
+        let state: String = state
+            .map_or_else(get_token_string, |s| self.encode(s))
+            .into();
         let options = Options {
             scope: Some("email".into()),
             state: Some(state.clone()),

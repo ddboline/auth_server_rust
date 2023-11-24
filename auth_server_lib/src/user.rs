@@ -88,7 +88,7 @@ impl User {
     pub fn verify_password(&self, password: impl AsRef<[u8]>) -> Result<bool, Error> {
         ARGON
             .verify_password(&self.password, password)
-            .map(|_| true)
+            .map(|()| true)
             .or_else(|e| match e {
                 ArgonError::Password => Ok(false),
                 e => Err(e.into()),
@@ -105,7 +105,7 @@ impl User {
         };
         ARGON
             .verify_password(&FAKE_PASSWORD, password)
-            .map(|_| unreachable!())
+            .map(|()| unreachable!())
             .or_else(|e| match e {
                 ArgonError::Password => Ok(false),
                 e => Err(e.into()),

@@ -611,8 +611,12 @@ pub async fn change_password_user(
     user_data: Json<UserData>,
 ) -> WarpResult<ApiPasswordChangeResponse> {
     let user_data = user_data.into_inner();
-    let message: StackString = if let Some(mut user) = User::get_by_email(&user.email, &data.pool).await.map_err(Into::<Error>::into)? {
-        user.set_password(&user_data.password).map_err(Into::<Error>::into)?;
+    let message: StackString = if let Some(mut user) = User::get_by_email(&user.email, &data.pool)
+        .await
+        .map_err(Into::<Error>::into)?
+    {
+        user.set_password(&user_data.password)
+            .map_err(Into::<Error>::into)?;
         user.update(&data.pool).await.map_err(Into::<Error>::into)?;
         "password updated".into()
     } else {
@@ -647,7 +651,11 @@ pub async fn auth_url(
     query: Json<GetAuthUrlData>,
 ) -> WarpResult<ApiAuthUrlResponse> {
     let query = query.into_inner();
-    let (csrf_state, authorize_url) = data.google_client.get_auth_url(Some(&query.final_url)).await.map_err(Into::<Error>::into)?;
+    let (csrf_state, authorize_url) = data
+        .google_client
+        .get_auth_url(Some(&query.final_url))
+        .await
+        .map_err(Into::<Error>::into)?;
     let authorize_url: String = authorize_url.into();
     let resp = JsonBase::new(AuthUrlOutput {
         csrf_state,

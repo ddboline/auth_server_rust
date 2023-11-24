@@ -2,10 +2,11 @@ use aws_sdk_ses::{
     error::SdkError,
     operation::{
         get_send_quota::GetSendQuotaError, get_send_statistics::GetSendStatisticsError,
-        send_email::SendEmailError
+        send_email::SendEmailError,
     },
 };
 use aws_smithy_types::error::operation::BuildError;
+use base64::DecodeError;
 use openid::error::Error as OpenidError;
 use refinery::Error as RefineryError;
 use std::time::SystemTimeError;
@@ -13,7 +14,6 @@ use thiserror::Error;
 use time::error::Format as TimeFormatError;
 use tokio::task::JoinError;
 use url::ParseError as UrlParseError;
-use base64::DecodeError;
 
 use auth_server_lib::errors::AuthServerError;
 
