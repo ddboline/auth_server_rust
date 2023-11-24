@@ -92,8 +92,7 @@ impl AuthorizedUsers {
         };
         let mut auth_map = Arc::try_unwrap(self.0.load_full()).unwrap_or_else(|a| (*a).clone());
         auth_map.insert(user.email, status);
-        let auth_map = Arc::new(auth_map);
-        self.0.store(auth_map);
+        self.0.store(Arc::new(auth_map));
     }
 
     pub fn update_users(&self, users: HashSet<StackString>) {

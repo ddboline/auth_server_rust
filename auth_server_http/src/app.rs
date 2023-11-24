@@ -249,7 +249,7 @@ pub async fn fill_auth_from_db(pool: &PgPool, expiration_seconds: i64) -> Result
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
-    use http::StatusCode;
+    use rweb::http::StatusCode;
     use log::debug;
     use maplit::hashmap;
     use rweb::openapi;

@@ -1,4 +1,4 @@
-use http::{Error as HTTPError, StatusCode};
+use rweb::http::{Error as HTTPError, StatusCode};
 use log::error;
 use rweb::{
     http::uri::InvalidUri,

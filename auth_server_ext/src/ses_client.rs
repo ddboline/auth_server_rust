@@ -52,11 +52,11 @@ impl SesInstance {
         let subject = Content::builder()
             .set_charset(Some("UTF-8".into()))
             .set_data(Some(sub.into()))
-            .build();
+            .build()?;
         let html = Content::builder()
             .set_charset(Some("UTF-8".into()))
             .set_data(Some(msg.into()))
-            .build();
+            .build()?;
         let body = Body::builder().text(html.clone()).html(html).build();
         let message = Message::builder().subject(subject).body(body).build();
         self.ses_client

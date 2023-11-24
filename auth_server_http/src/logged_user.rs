@@ -45,13 +45,13 @@ impl LoggedUser {
     ) -> Result<UserCookies<'static>, Error> {
         let domain: String = domain.as_ref().into();
         let session = self.session;
-        let session_id = Cookie::build("session-id", session.to_string())
+        let session_id = Cookie::build(("session-id", session.to_string()))
             .path("/")
             .http_only(true)
             .domain(domain.clone())
             .max_age(Duration::seconds(expiration_seconds))
             .secure(secure)
-            .finish();
+            .build();
         let token = Token::create_token(
             self.email.clone(),
             &domain,
@@ -59,13 +59,13 @@ impl LoggedUser {
             session.into(),
             self.secret_key.clone(),
         )?;
-        let jwt = Cookie::build("jwt", token.to_string())
+        let jwt = Cookie::build(("jwt", token.to_string()))
             .path("/")
             .http_only(true)
             .domain(domain)
             .max_age(Duration::seconds(expiration_seconds))
             .secure(secure)
-            .finish();
+            .build();
         Ok(UserCookies { session_id, jwt })
     }
 
@@ -77,20 +77,20 @@ impl LoggedUser {
     ) -> UserCookies<'static> {
         let domain = domain.as_ref();
         let session = self.session;
-        let session_id = Cookie::build("session-id", session.to_string())
+        let session_id = Cookie::build(("session-id", session.to_string()))
             .path("/")
             .http_only(true)
             .domain(domain.to_string())
             .max_age(Duration::seconds(expiration_seconds))
             .secure(secure)
-            .finish();
-        let jwt = Cookie::build("jwt", String::new())
+            .build();
+        let jwt = Cookie::build(("jwt", String::new()))
             .path("/")
             .http_only(true)
             .domain(domain.to_string())
             .max_age(Duration::seconds(expiration_seconds))
             .secure(secure)
-            .finish();
+            .build();
         UserCookies { session_id, jwt }
     }
 

@@ -2,9 +2,10 @@ use aws_sdk_ses::{
     error::SdkError,
     operation::{
         get_send_quota::GetSendQuotaError, get_send_statistics::GetSendStatisticsError,
-        send_email::SendEmailError,
+        send_email::SendEmailError
     },
 };
+use aws_smithy_types::error::operation::BuildError;
 use openid::error::Error as OpenidError;
 use refinery::Error as RefineryError;
 use std::time::SystemTimeError;
@@ -54,4 +55,6 @@ pub enum AuthServerExtError {
     GetSendStatisticsError(#[from] SdkError<GetSendStatisticsError>),
     #[error("DecodeError {0}")]
     DecodeError(#[from] DecodeError),
+    #[error("BuildError")]
+    BuildError(#[from] BuildError),
 }

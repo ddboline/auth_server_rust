@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_http"
-version = "0.11.2"
+version = "0.11.3"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -11,13 +11,12 @@ auth_server_ext = {path = "../auth_server_ext"}
 auth_server_lib = {path="../auth_server_lib"}
 authorized_users = {path = "../authorized_users"}
 arc-swap = "1.5"
-aws-config = "0.56"
-cookie = {version="0.17", features=["percent-encode"]}
+aws-config = {version="1.0", features=["behavior-version-latest"]}
+cookie = {version="0.18", features=["percent-encode"]}
 derive_more = "0.99"
 dioxus-ssr = "0.4"
 dioxus = "0.4"
 futures = "0.3"
-http = "0.2"
 log = "0.4"
 maplit = "1.0"
 parking_lot = "0.12"
