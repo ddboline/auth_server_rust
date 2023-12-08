@@ -1,4 +1,4 @@
-use dioxus::prelude::{dioxus_elements, rsx, Element, GlobalAttributes, Scope, VirtualDom};
+use dioxus::prelude::{dioxus_elements, rsx, Element, GlobalAttributes, Scope, VirtualDom, IntoDynNode};
 use futures::{try_join, TryStreamExt};
 use log::{debug, error};
 use rweb::{delete, get, post, Json, Query, Rejection, Schema};
