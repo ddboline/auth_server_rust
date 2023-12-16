@@ -54,9 +54,8 @@ function registerViaEmail() {
   xmlhttp.setRequestHeader("Content-Type", "application/json");
   xmlhttp.send(data);
 }
-function openIdConnectLogin() {
+function openIdConnectLogin(final_url) {
   let url = "/api/auth_url";
-  let final_url = getFinalUrl();
   if(final_url == null ) {
     final_url = window.location.href;
   }
@@ -80,12 +79,7 @@ function openIdConnectLogin() {
   xmlhttp.setRequestHeader("Content-Type", "application/json");
   xmlhttp.send(data);
 }
-function getFinalUrl() {
-  let params = new URLSearchParams(window.location.search);
-  return params.get('final_url');
-}
-function login() {
-  let final_url = getFinalUrl();
+function login(final_url) {
   let email = document.querySelector('#email');
   let password = document.querySelector('#password');
   var data = JSON.stringify({"email": email.value, "password": password.value});
