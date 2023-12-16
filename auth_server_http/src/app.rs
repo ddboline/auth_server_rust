@@ -78,10 +78,10 @@ fn get_api_scope(app: &AppState) -> BoxedFilter<(impl Reply,)> {
         .boxed();
     let list_sessions_path = list_sessions(app.clone()).boxed();
     let list_session_data_path = list_session_data(app.clone()).boxed();
-    let index_html_path = index_html();
+    let index_html_path = index_html(app.clone());
     let main_css_path = main_css();
     let main_js_path = main_js();
-    let register_html_path = register_html();
+    let register_html_path = register_html(app.clone());
     let login_html_path = login_html();
     let change_password_path = change_password();
 

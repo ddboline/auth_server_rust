@@ -1,4 +1,7 @@
-use dioxus::prelude::{dioxus_elements, rsx, Element, GlobalAttributes, Scope, VirtualDom, IntoDynNode};
+use dioxus::prelude::{
+    component, dioxus_elements, rsx, Element, GlobalAttributes, IntoDynNode, LazyNodes, Props,
+    Scope, VirtualDom,
+};
 use futures::{try_join, TryStreamExt};
 use log::{debug, error};
 use rweb::{delete, get, post, Json, Query, Rejection, Schema};
@@ -42,13 +45,191 @@ use crate::{
 pub type WarpResult<T> = Result<T, Rejection>;
 pub type HttpResult<T> = Result<T, Error>;
 
+#[derive(Deserialize, Schema)]
+pub struct FinalUrlData {
+    #[schema(description = "Url to redirect to after completion of authorization")]
+    pub final_url: Option<StackString>,
+}
+
 #[derive(RwebResponse)]
 #[response(description = "Main Page", content = "html")]
-struct AuthIndexResponse(HtmlBase<&'static str, Infallible>);
+struct AuthIndexResponse(HtmlBase<StackString, Error>);
 
 #[get("/auth/index.html")]
-pub async fn index_html() -> WarpResult<AuthIndexResponse> {
-    Ok(HtmlBase::new(include_str!("../../templates/index.html")).into())
+pub async fn index_html(
+    user: Option<LoggedUser>,
+    #[data] data: AppState,
+) -> WarpResult<AuthIndexResponse> {
+    let body = {
+        let summaries = if user.is_some() {
+            list_sessions_lines(&data).await?
+        } else {
+            Vec::new()
+        };
+        let data = if let Some(user) = &user {
+            SessionData::get_by_session_id_streaming(&data.pool, user.session.into())
+                .await
+                .map_err(Into::<Error>::into)?
+                .map_ok(|s| {
+                    let js = serde_json::to_vec(&s.session_value).unwrap_or_else(|_| Vec::new());
+                    let js = js.get(..100).unwrap_or_else(|| &js[..]);
+                    let js = match str::from_utf8(js) {
+                        Ok(s) => s,
+                        Err(error) => str::from_utf8(&js[..error.valid_up_to()]).unwrap(),
+                    };
+                    (s, js.into())
+                })
+                .try_collect()
+                .await
+                .map_err(Into::<AuthServerError>::into)
+                .map_err(Into::<Error>::into)?
+        } else {
+            Vec::new()
+        };
+        let mut app = VirtualDom::new_with_props(
+            IndexElement,
+            IndexElementProps {
+                user,
+                summaries,
+                data,
+            },
+        );
+        drop(app.rebuild());
+        dioxus_ssr::render(&app)
+    };
+    Ok(HtmlBase::new(body.into()).into())
+}
+
+#[component]
+fn IndexElement(
+    cx: Scope,
+    user: Option<LoggedUser>,
+    summaries: Vec<SessionSummary>,
+    data: Vec<(SessionData, StackString)>,
+) -> Element {
+    let login_element = if let Some(user) = user {
+        logged_in_element(&user.email)
+    } else {
+        index_element()
+    };
+
+    let list_session_data_box = if user.is_none() {
+        rsx! {div{ id: "list_session_data_box" }}
+    } else {
+        rsx! {div{ id: "list_session_data_box", session_data_element(&data) }}
+    };
+
+    let list_sessions_box = if user.is_none() {
+        rsx! { div { id: "list_sessions_box" }}
+    } else {
+        rsx! { div { id: "list_sessions_box", session_element(&summaries) }}
+    };
+
+    cx.render(rsx! {
+        head_element(),
+        body {
+            login_element,
+            div {
+                h2 {
+                    a {
+                        href: "/api/openapi/json",
+                        target: "_blank",
+                        "Api Docs"
+                    }
+                }
+            },
+            list_session_data_box,
+            div {
+                id: "list_session_data_box",
+            },
+            br {
+                list_sessions_box,
+            }
+        }
+    })
+}
+
+fn head_element<'a>() -> LazyNodes<'a, 'a> {
+    rsx! {
+        head {
+            title: "Auth App",
+            meta {charset: "utf-8"},
+            meta {name: "viewport", content: "width=device-width, initial-scale=1"},
+            link {
+                rel: "stylesheet",
+                "type": "text/css",
+                media: "screen",
+                href: "/auth/main.css",
+            },
+            script {
+                src: "/auth/main.js",
+            }
+        }
+    }
+}
+
+fn logged_in_element(email: &str) -> LazyNodes {
+    rsx! {
+        br {
+            h1 {
+                "Logged in as: {email}"
+            }
+        }
+        input {
+            "type": "button",
+            name: "logout",
+            value: "Logout",
+            "onclick": "logout()",
+        }
+    }
+}
+
+fn index_element<'a>() -> LazyNodes<'a, 'a> {
+    rsx! {
+        div {
+            class: "login",
+            input {
+                class: "field",
+                "type": "text",
+                placeholder: "email",
+                id: "email",
+            },
+            input {
+                class: "btn",
+                "type": "submit",
+                value: "Register via Email",
+                "onclick": "registerViaEmail()",
+            }
+            br {
+                input {
+                    class: "field",
+                    "type": "password",
+                    placeholder: "Password",
+                    id: "password",
+                }
+                input {
+                    class: "btn",
+                    "type": "submit",
+                    value: "Login",
+                    "onclick": "login()",
+                }
+            }
+            input {
+                class: "btn",
+                "type": "submit",
+                value: "Change Password",
+                "onclick": "sendVerificationEmail()",
+            }
+            br {
+                input {
+                    class: "btn",
+                    "type": "submit",
+                    value: "Login via Google Oauth",
+                    "onclick": "openIdConnectLogin()",
+                }
+            }
+        }
+    }
 }
 
 #[derive(RwebResponse)]
@@ -60,13 +241,99 @@ pub async fn main_css() -> WarpResult<CssResponse> {
     Ok(HtmlBase::new(include_str!("../../templates/main.css")).into())
 }
 
+#[derive(Deserialize, Schema)]
+struct RegisterQuery {
+    id: UuidWrapper,
+    email: StackString,
+}
+
 #[derive(RwebResponse)]
 #[response(description = "Registration", content = "html")]
-struct RegisterResponse(HtmlBase<&'static str, Infallible>);
+struct RegisterResponse(HtmlBase<StackString, Error>);
 
 #[get("/auth/register.html")]
-pub async fn register_html() -> WarpResult<RegisterResponse> {
-    Ok(HtmlBase::new(include_str!("../../templates/register.html")).into())
+pub async fn register_html(
+    query: Query<RegisterQuery>,
+    #[data] data: AppState,
+) -> WarpResult<RegisterResponse> {
+    let query = query.into_inner();
+    let invitation_id: Uuid = query.id.into();
+    let email = query.email;
+
+    if let Some(invitation) = Invitation::get_by_uuid(invitation_id, &data.pool)
+        .await
+        .map_err(Into::<Error>::into)?
+    {
+        if invitation.email == email {
+            let body = {
+                let mut app = VirtualDom::new_with_props(
+                    RegisterElement,
+                    RegisterElementProps { invitation_id },
+                );
+                drop(app.rebuild());
+                dioxus_ssr::render(&app)
+            };
+            return Ok(HtmlBase::new(body.into()).into());
+        }
+    }
+    Err(Error::BadRequest("Invalid invitation").into())
+}
+
+#[component]
+fn RegisterElement(cx: Scope, invitation_id: Uuid) -> Element {
+    let register_fn = format_sstr!(
+        "
+            function register() {{
+                let password = document.querySelector('#password');
+                let password_repeat = document.querySelector('#password_repeat');
+                if (password.value == password_repeat.value) {{
+                    post('/api/register/{invitation_id}', {{password: password.value}}).then(
+                        data => {{
+                            password.value = '';
+                            document.getElementsByClassName('login').innerHTML = data;
+                        }}
+                    );
+                }} else {{
+                    console.err('Passwords do not match!');
+                }}
+            }}
+        "
+    );
+    cx.render(rsx! {
+        head_element(),
+        body {
+            div {
+                class: "login",
+                h1 {
+                    "Register Account"
+                },
+                p {
+                    "Please enter your password"
+                },
+                input {
+                    class: "field",
+                    "type": "password",
+                    placeholder: "Password",
+                    id: "password",
+                }
+                input {
+                    class: "field",
+                    "type": "password",
+                    placeholder: "Repeat Password",
+                    id: "password_repeat",
+                }
+                input {
+                    class: "btn",
+                    "type": "submit",
+                    value: "Register",
+                    "onclick": "register()",
+                }
+            }
+            script {
+                dangerous_inner_html: "{register_fn}",
+            }
+        }
+    })
 }
 
 #[derive(RwebResponse)]
@@ -80,20 +347,120 @@ pub async fn main_js() -> WarpResult<JsResponse> {
 
 #[derive(RwebResponse)]
 #[response(description = "Login Page", content = "html")]
-struct AuthLoginResponse(HtmlBase<&'static str, Infallible>);
+struct AuthLoginResponse(HtmlBase<StackString, Error>);
 
 #[get("/auth/login.html")]
-pub async fn login_html() -> WarpResult<AuthLoginResponse> {
-    Ok(HtmlBase::new(include_str!("../../templates/login.html")).into())
+pub async fn login_html(user: Option<LoggedUser>) -> WarpResult<AuthLoginResponse> {
+    let body = {
+        let mut app = VirtualDom::new_with_props(LoginElement, LoginElementProps { user });
+        drop(app.rebuild());
+        dioxus_ssr::render(&app)
+    };
+    Ok(HtmlBase::new(body.into()).into())
+}
+
+#[component]
+fn LoginElement(cx: Scope, user: Option<LoggedUser>) -> Element {
+    cx.render(rsx! {
+        head_element(),
+        body {
+            if let Some(user) = &user {
+                logged_in_element(&user.email)
+            } else {
+                index_element()
+            }
+        }
+    })
 }
 
 #[derive(RwebResponse)]
 #[response(description = "Change Password", content = "html")]
-struct PwChangeResponse(HtmlBase<&'static str, Infallible>);
+struct PwChangeResponse(HtmlBase<StackString, Error>);
 
 #[get("/auth/change_password.html")]
-pub async fn change_password() -> WarpResult<PwChangeResponse> {
-    Ok(HtmlBase::new(include_str!("../../templates/change_password.html")).into())
+pub async fn change_password(user: LoggedUser) -> WarpResult<PwChangeResponse> {
+    let body = {
+        let mut app =
+            VirtualDom::new_with_props(ChangePasswordElement, ChangePasswordElementProps { user });
+        drop(app.rebuild());
+        dioxus_ssr::render(&app)
+    };
+    Ok(HtmlBase::new(body.into()).into())
+}
+
+#[component]
+fn ChangePasswordElement(cx: Scope, user: LoggedUser) -> Element {
+    let email = &user.email;
+    let password_change_fn = format_sstr!(
+        "
+            function password_change() {{
+                let password = document.querySelector('#old_password');
+                var data = JSON.stringify({{\"email\": \"{email}\", \"password\": \
+         password.value}});
+                var xmlhttp = new XMLHttpRequest();
+                xmlhttp.onload = function() {{
+                   password_change()
+                }}
+                xmlhttp.open( \"POST\", '/api/auth' , true );
+                xmlhttp.setRequestHeader(\"Content-Type\", \"application/json\");
+                xmlhttp.send(data);
+            }}
+            function change_password_fn() {{
+                let password = document.querySelector('#new_password');
+                let password_repeat = document.querySelector('#new_password_repeat');
+                if (password.value == password_repeat.value) {{
+                  post('/api/password_change', {{ password: password.value }}).then(data => {{
+                    password.value = '';
+                    document.getElementsByClassName(\"login\").innerHTML = data;
+                  }});
+                }} else {{
+                  console.err('Passwords do not match!');
+                }}
+            }}
+        "
+    );
+
+    cx.render(rsx! {
+        head_element(),
+        body {
+            div {
+                class: "login",
+                h1 {
+                    "Change Password",
+                },
+                p {
+                    "Enter your old password, new password",
+                }
+                input {
+                    class: "field",
+                    "type": "password",
+                    placeholder: "Old Password",
+                    id: "old_password",
+                },
+                input {
+                    class: "field",
+                    "type": "password",
+                    placeholder: "New Password",
+                    id: "new_password",
+                },
+                input {
+                    class: "field",
+                    "type": "password",
+                    placeholder: "Repeat New Password",
+                    id: "new_password_repeat",
+                },
+                input {
+                    class: "btn",
+                    "type": "submit",
+                    value: "Change Password",
+                    "onclick": "password_change()"
+                },
+            }
+            script {
+                dangerous_inner_html: "{password_change_fn}",
+            }
+        }
+    })
 }
 
 #[derive(RwebResponse)]
@@ -295,20 +662,21 @@ pub async fn list_sessions(
 ) -> WarpResult<ListSessionsResponse> {
     let summaries = list_sessions_lines(&data).await?;
     let body = {
-        let mut app = VirtualDom::new_with_props(session_element, SessionProps { summaries });
+        let mut app = VirtualDom::new_with_props(SessionElement, SessionElementProps { summaries });
         drop(app.rebuild());
         dioxus_ssr::render(&app)
     };
     Ok(HtmlBase::new(body.into()).into())
 }
 
-struct SessionProps {
-    summaries: Vec<SessionSummary>,
+#[component]
+fn SessionElement(cx: Scope, summaries: Vec<SessionSummary>) -> Element {
+    cx.render(session_element(summaries))
 }
 
-fn session_element(cx: Scope<SessionProps>) -> Element {
-    cx.render(rsx! {
-         table {
+fn session_element(summaries: &[SessionSummary]) -> LazyNodes {
+    rsx! {
+        table {
             "border": "1",
             class: "dataframe",
             style: "text-align: center",
@@ -321,7 +689,7 @@ fn session_element(cx: Scope<SessionProps>) -> Element {
                 },
             },
             tbody {
-                cx.props.summaries.iter().enumerate().map(|(idx, s)| {
+                summaries.iter().enumerate().map(|(idx, s)| {
                     let id = s.session_id;
                     let email = &s.email_address;
                     let created_at = s.created_at.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z")).unwrap_or_else(|_| String::new());
@@ -346,8 +714,8 @@ fn session_element(cx: Scope<SessionProps>) -> Element {
                     }
                 }),
             }
-         },
-    })
+        }
+    }
 }
 
 async fn list_sessions_lines(data: &AppState) -> HttpResult<Vec<SessionSummary>> {
@@ -384,19 +752,21 @@ pub async fn list_session_data(
             .map_err(Into::<Error>::into)?;
 
     let body = {
-        let mut app = VirtualDom::new_with_props(session_data_element, SessionDataProps { data });
+        let mut app =
+            VirtualDom::new_with_props(SessionDataElement, SessionDataElementProps { data });
         drop(app.rebuild());
         dioxus_ssr::render(&app)
     };
     Ok(HtmlBase::new(body.into()).into())
 }
 
-struct SessionDataProps {
-    data: Vec<(SessionData, StackString)>,
+#[component]
+fn SessionDataElement(cx: Scope, data: Vec<(SessionData, StackString)>) -> Element {
+    cx.render(session_data_element(data))
 }
 
-fn session_data_element(cx: Scope<SessionDataProps>) -> Element {
-    cx.render(rsx! {
+fn session_data_element(data: &[(SessionData, StackString)]) -> LazyNodes {
+    rsx! {
         table {
             "border": "1",
             class: "dataframe",
@@ -409,7 +779,7 @@ fn session_data_element(cx: Scope<SessionDataProps>) -> Element {
                 }
             },
             tbody {
-                cx.props.data.iter().enumerate().map(|(idx, (s, js))| {
+                data.iter().enumerate().map(|(idx, (s, js))| {
                     let id = s.session_id;
                     let key = &s.session_key;
                     let created_at = s.created_at.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z")).unwrap_or_else(|_| String::new());
@@ -434,7 +804,7 @@ fn session_data_element(cx: Scope<SessionDataProps>) -> Element {
                 }),
             }
         }
-    })
+    }
 }
 
 #[derive(RwebResponse)]
