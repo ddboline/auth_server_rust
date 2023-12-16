@@ -189,7 +189,7 @@ fn logged_in_element(email: &str) -> LazyNodes {
     }
 }
 
-fn index_element<'a>(final_url: Option<&'a str>) -> LazyNodes<'a, 'a> {
+fn index_element(final_url: Option<&str>) -> LazyNodes {
     let final_url = if let Some(final_url) = final_url {
         format_sstr!("\"{final_url}\"")
     } else {
