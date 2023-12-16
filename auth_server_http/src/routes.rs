@@ -59,7 +59,10 @@ struct AuthIndexResponse(HtmlBase<StackString, Error>);
 pub async fn index_html(
     user: Option<LoggedUser>,
     #[data] data: AppState,
+    query: Query<FinalUrlData>,
 ) -> WarpResult<AuthIndexResponse> {
+    let query = query.into_inner();
+
     let body = {
         let summaries = if user.is_some() {
             list_sessions_lines(&data).await?
@@ -92,6 +95,7 @@ pub async fn index_html(
                 user,
                 summaries,
                 data,
+                final_url: query.final_url,
             },
         );
         drop(app.rebuild());
@@ -106,11 +110,12 @@ fn IndexElement(
     user: Option<LoggedUser>,
     summaries: Vec<SessionSummary>,
     data: Vec<(SessionData, StackString)>,
+    final_url: Option<StackString>,
 ) -> Element {
     let login_element = if let Some(user) = user {
         logged_in_element(&user.email)
     } else {
-        index_element()
+        index_element(final_url.as_ref().map(Into::into))
     };
 
     let list_session_data_box = if user.is_none() {
@@ -184,7 +189,12 @@ fn logged_in_element(email: &str) -> LazyNodes {
     }
 }
 
-fn index_element<'a>() -> LazyNodes<'a, 'a> {
+fn index_element<'a>(final_url: Option<&'a str>) -> LazyNodes<'a, 'a> {
+    let final_url = if let Some(final_url) = final_url {
+        format_sstr!("\"{final_url}\"")
+    } else {
+        format_sstr!("null")
+    };
     rsx! {
         div {
             class: "login",
@@ -211,7 +221,7 @@ fn index_element<'a>() -> LazyNodes<'a, 'a> {
                     class: "btn",
                     "type": "submit",
                     value: "Login",
-                    "onclick": "login()",
+                    "onclick": "login({final_url})",
                 }
             }
             input {
@@ -225,7 +235,7 @@ fn index_element<'a>() -> LazyNodes<'a, 'a> {
                     class: "btn",
                     "type": "submit",
                     value: "Login via Google Oauth",
-                    "onclick": "openIdConnectLogin()",
+                    "onclick": "openIdConnectLogin({final_url})",
                 }
             }
         }
@@ -350,9 +360,19 @@ pub async fn main_js() -> WarpResult<JsResponse> {
 struct AuthLoginResponse(HtmlBase<StackString, Error>);
 
 #[get("/auth/login.html")]
-pub async fn login_html(user: Option<LoggedUser>) -> WarpResult<AuthLoginResponse> {
+pub async fn login_html(
+    user: Option<LoggedUser>,
+    query: Query<FinalUrlData>,
+) -> WarpResult<AuthLoginResponse> {
+    let query = query.into_inner();
     let body = {
-        let mut app = VirtualDom::new_with_props(LoginElement, LoginElementProps { user });
+        let mut app = VirtualDom::new_with_props(
+            LoginElement,
+            LoginElementProps {
+                user,
+                final_url: query.final_url,
+            },
+        );
         drop(app.rebuild());
         dioxus_ssr::render(&app)
     };
@@ -360,14 +380,14 @@ pub async fn login_html(user: Option<LoggedUser>) -> WarpResult<AuthLoginRespons
 }
 
 #[component]
-fn LoginElement(cx: Scope, user: Option<LoggedUser>) -> Element {
+fn LoginElement(cx: Scope, user: Option<LoggedUser>, final_url: Option<StackString>) -> Element {
     cx.render(rsx! {
         head_element(),
         body {
             if let Some(user) = &user {
                 logged_in_element(&user.email)
             } else {
-                index_element()
+                index_element(final_url.as_ref().map(Into::into))
             }
         }
     })
@@ -395,8 +415,12 @@ fn ChangePasswordElement(cx: Scope, user: LoggedUser) -> Element {
         "
             function password_change() {{
                 let password = document.querySelector('#old_password');
-                var data = JSON.stringify({{\"email\": \"{email}\", \"password\": \
-         password.value}});
+                var data = JSON.stringify(
+                    {{
+                        \"email\": \"{email}\",
+                        \"password\": password.value
+                    }}
+                );
                 var xmlhttp = new XMLHttpRequest();
                 xmlhttp.onload = function() {{
                    password_change()
@@ -409,10 +433,15 @@ fn ChangePasswordElement(cx: Scope, user: LoggedUser) -> Element {
                 let password = document.querySelector('#new_password');
                 let password_repeat = document.querySelector('#new_password_repeat');
                 if (password.value == password_repeat.value) {{
-                  post('/api/password_change', {{ password: password.value }}).then(data => {{
-                    password.value = '';
-                    document.getElementsByClassName(\"login\").innerHTML = data;
-                  }});
+                        post(
+                            '/api/password_change', {{
+                                password: password.value
+                            }}).then(
+                                data => {{
+                                password.value = '';
+                                document.getElementsByClassName(\"login\").innerHTML = data;
+                            }}
+                        );
                 }} else {{
                   console.err('Passwords do not match!');
                 }}
