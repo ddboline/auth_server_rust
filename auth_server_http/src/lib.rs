@@ -8,11 +8,11 @@
 
 pub mod app;
 pub mod auth;
+pub mod elements;
 pub mod errors;
 pub mod logged_user;
 pub mod routes;
 pub mod session_data_cache;
-pub mod elements;
 
 use derive_more::{From, Into};
 use rweb::Schema;

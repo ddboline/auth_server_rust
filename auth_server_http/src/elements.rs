@@ -2,12 +2,11 @@ use dioxus::prelude::{
     component, dioxus_elements, rsx, Element, GlobalAttributes, IntoDynNode, LazyNodes, Props,
     Scope,
 };
-use stack_string::{StackString, format_sstr};
-use uuid::Uuid;
+use stack_string::{format_sstr, StackString};
 use time::macros::format_description;
+use uuid::Uuid;
 
-use auth_server_lib::session::SessionSummary;
-use auth_server_lib::session_data::SessionData;
+use auth_server_lib::{session::SessionSummary, session_data::SessionData};
 
 use crate::logged_user::LoggedUser;
 
@@ -298,7 +297,11 @@ fn session_element(summaries: &[SessionSummary]) -> LazyNodes {
 }
 
 #[component]
-pub fn LoginElement(cx: Scope, user: Option<LoggedUser>, final_url: Option<StackString>) -> Element {
+pub fn LoginElement(
+    cx: Scope,
+    user: Option<LoggedUser>,
+    final_url: Option<StackString>,
+) -> Element {
     cx.render(rsx! {
         head_element(),
         body {
