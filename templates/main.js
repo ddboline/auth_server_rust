@@ -108,3 +108,21 @@ function sendVerificationEmail() {
   xmlhttp.setRequestHeader("Content-Type", "application/json");
   xmlhttp.send(data);
 }
+function list_sessions() {
+  let url = "/api/list-sessions";
+  let xmlhttp = new XMLHttpRequest();
+  xmlhttp.onload = function f() {
+    document.getElementById( 'list_sessions_box' ).innerHTML = xmlhttp.responseText;
+  }
+  xmlhttp.open("GET", url, true);
+  xmlhttp.send(null);
+};
+function list_session_data() {
+  let url = "/api/list-session-data";
+  let xmlhttp = new XMLHttpRequest();
+  xmlhttp.onload = function f() {
+    document.getElementById( 'list_session_data_box' ).innerHTML = xmlhttp.responseText;
+  }
+  xmlhttp.open("GET", url, true);
+  xmlhttp.send(null);
+};
