@@ -1,6 +1,6 @@
 use dioxus::prelude::{
     component, dioxus_elements, rsx, Element, GlobalAttributes, IntoDynNode, LazyNodes, Props,
-    Scope,
+    Scope, VirtualDom,
 };
 use stack_string::{format_sstr, StackString};
 use time::macros::format_description;
@@ -10,8 +10,27 @@ use auth_server_lib::{session::SessionSummary, session_data::SessionData};
 
 use crate::logged_user::LoggedUser;
 
+pub fn index_body(
+    user: Option<LoggedUser>,
+    summaries: Vec<SessionSummary>,
+    data: Vec<(SessionData, StackString)>,
+    final_url: Option<StackString>,
+) -> String {
+    let mut app = VirtualDom::new_with_props(
+        IndexElement,
+        IndexElementProps {
+            user,
+            summaries,
+            data,
+            final_url,
+        },
+    );
+    drop(app.rebuild());
+    dioxus_ssr::render(&app)
+}
+
 #[component]
-pub fn IndexElement(
+fn IndexElement(
     cx: Scope,
     user: Option<LoggedUser>,
     summaries: Vec<SessionSummary>,
@@ -148,8 +167,15 @@ fn index_element(final_url: Option<&str>) -> LazyNodes {
     }
 }
 
+pub fn register_body(invitation_id: Uuid) -> String {
+    let mut app =
+        VirtualDom::new_with_props(RegisterElement, RegisterElementProps { invitation_id });
+    drop(app.rebuild());
+    dioxus_ssr::render(&app)
+}
+
 #[component]
-pub fn RegisterElement(cx: Scope, invitation_id: Uuid) -> Element {
+fn RegisterElement(cx: Scope, invitation_id: Uuid) -> Element {
     let register_fn = format_sstr!(
         "
             function register() {{
@@ -247,8 +273,14 @@ fn session_data_element(data: &[(SessionData, StackString)]) -> LazyNodes {
     }
 }
 
+pub fn session_body(summaries: Vec<SessionSummary>) -> String {
+    let mut app = VirtualDom::new_with_props(SessionElement, SessionElementProps { summaries });
+    drop(app.rebuild());
+    dioxus_ssr::render(&app)
+}
+
 #[component]
-pub fn SessionElement(cx: Scope, summaries: Vec<SessionSummary>) -> Element {
+fn SessionElement(cx: Scope, summaries: Vec<SessionSummary>) -> Element {
     cx.render(session_element(summaries))
 }
 
@@ -296,12 +328,14 @@ fn session_element(summaries: &[SessionSummary]) -> LazyNodes {
     }
 }
 
+pub fn login_body(user: Option<LoggedUser>, final_url: Option<StackString>) -> String {
+    let mut app = VirtualDom::new_with_props(LoginElement, LoginElementProps { user, final_url });
+    drop(app.rebuild());
+    dioxus_ssr::render(&app)
+}
+
 #[component]
-pub fn LoginElement(
-    cx: Scope,
-    user: Option<LoggedUser>,
-    final_url: Option<StackString>,
-) -> Element {
+fn LoginElement(cx: Scope, user: Option<LoggedUser>, final_url: Option<StackString>) -> Element {
     cx.render(rsx! {
         head_element(),
         body {
@@ -314,8 +348,15 @@ pub fn LoginElement(
     })
 }
 
+pub fn change_password_body(user: LoggedUser) -> String {
+    let mut app =
+        VirtualDom::new_with_props(ChangePasswordElement, ChangePasswordElementProps { user });
+    drop(app.rebuild());
+    dioxus_ssr::render(&app)
+}
+
 #[component]
-pub fn ChangePasswordElement(cx: Scope, user: LoggedUser) -> Element {
+fn ChangePasswordElement(cx: Scope, user: LoggedUser) -> Element {
     let email = &user.email;
     let password_change_fn = format_sstr!(
         "
@@ -398,7 +439,13 @@ pub fn ChangePasswordElement(cx: Scope, user: LoggedUser) -> Element {
     })
 }
 
+pub fn session_data_body(data: Vec<(SessionData, StackString)>) -> String {
+    let mut app = VirtualDom::new_with_props(SessionDataElement, SessionDataElementProps { data });
+    drop(app.rebuild());
+    dioxus_ssr::render(&app)
+}
+
 #[component]
-pub fn SessionDataElement(cx: Scope, data: Vec<(SessionData, StackString)>) -> Element {
+fn SessionDataElement(cx: Scope, data: Vec<(SessionData, StackString)>) -> Element {
     cx.render(session_data_element(data))
 }

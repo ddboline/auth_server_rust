@@ -1,4 +1,3 @@
-use dioxus::prelude::VirtualDom;
 use futures::{try_join, TryStreamExt};
 use log::{debug, error};
 use rweb::{delete, get, post, Json, Query, Rejection, Schema};
@@ -34,9 +33,8 @@ use crate::{
     app::AppState,
     auth::AuthRequest,
     elements::{
-        ChangePasswordElement, ChangePasswordElementProps, IndexElement, IndexElementProps,
-        LoginElement, LoginElementProps, RegisterElement, RegisterElementProps, SessionDataElement,
-        SessionDataElementProps, SessionElement, SessionElementProps,
+        change_password_body, index_body, login_body, register_body, session_body,
+        session_data_body,
     },
     errors::ServiceError as Error,
     iso8601,
@@ -91,17 +89,7 @@ pub async fn index_html(
         } else {
             Vec::new()
         };
-        let mut app = VirtualDom::new_with_props(
-            IndexElement,
-            IndexElementProps {
-                user,
-                summaries,
-                data,
-                final_url: query.final_url,
-            },
-        );
-        drop(app.rebuild());
-        dioxus_ssr::render(&app)
+        index_body(user, summaries, data, query.final_url)
     };
     Ok(HtmlBase::new(body.into()).into())
 }
@@ -139,14 +127,7 @@ pub async fn register_html(
         .map_err(Into::<Error>::into)?
     {
         if invitation.email == email {
-            let body = {
-                let mut app = VirtualDom::new_with_props(
-                    RegisterElement,
-                    RegisterElementProps { invitation_id },
-                );
-                drop(app.rebuild());
-                dioxus_ssr::render(&app)
-            };
+            let body = register_body(invitation_id);
             return Ok(HtmlBase::new(body.into()).into());
         }
     }
@@ -172,17 +153,7 @@ pub async fn login_html(
     query: Query<FinalUrlData>,
 ) -> WarpResult<AuthLoginResponse> {
     let query = query.into_inner();
-    let body = {
-        let mut app = VirtualDom::new_with_props(
-            LoginElement,
-            LoginElementProps {
-                user,
-                final_url: query.final_url,
-            },
-        );
-        drop(app.rebuild());
-        dioxus_ssr::render(&app)
-    };
+    let body = login_body(user, query.final_url);
     Ok(HtmlBase::new(body.into()).into())
 }
 
@@ -192,12 +163,7 @@ struct PwChangeResponse(HtmlBase<StackString, Error>);
 
 #[get("/auth/change_password.html")]
 pub async fn change_password(user: LoggedUser) -> WarpResult<PwChangeResponse> {
-    let body = {
-        let mut app =
-            VirtualDom::new_with_props(ChangePasswordElement, ChangePasswordElementProps { user });
-        drop(app.rebuild());
-        dioxus_ssr::render(&app)
-    };
+    let body = change_password_body(user);
     Ok(HtmlBase::new(body.into()).into())
 }
 
@@ -399,11 +365,7 @@ pub async fn list_sessions(
     #[data] data: AppState,
 ) -> WarpResult<ListSessionsResponse> {
     let summaries = list_sessions_lines(&data).await?;
-    let body = {
-        let mut app = VirtualDom::new_with_props(SessionElement, SessionElementProps { summaries });
-        drop(app.rebuild());
-        dioxus_ssr::render(&app)
-    };
+    let body = session_body(summaries);
     Ok(HtmlBase::new(body.into()).into())
 }
 
@@ -440,12 +402,7 @@ pub async fn list_session_data(
             .map_err(Into::<AuthServerError>::into)
             .map_err(Into::<Error>::into)?;
 
-    let body = {
-        let mut app =
-            VirtualDom::new_with_props(SessionDataElement, SessionDataElementProps { data });
-        drop(app.rebuild());
-        dioxus_ssr::render(&app)
-    };
+    let body = session_data_body(data);
     Ok(HtmlBase::new(body.into()).into())
 }
 
