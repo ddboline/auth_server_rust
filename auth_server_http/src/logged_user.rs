@@ -20,6 +20,7 @@ use authorized_users::{token::Token, AuthorizedUser, AUTHORIZED_USERS};
 use crate::errors::ServiceError as Error;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Schema)]
+#[schema(component="LoggedUser")]
 pub struct LoggedUser {
     #[schema(description = "Email Address")]
     pub email: StackString,

@@ -316,6 +316,7 @@ pub async fn delete_session(
 }
 
 #[derive(Schema, Serialize, Deserialize)]
+#[schema(component="SessionData")]
 struct SessionDataObj {
     #[schema(description = "Session ID")]
     session_id: UuidWrapper,
@@ -461,12 +462,14 @@ pub async fn delete_sessions(
 }
 
 #[derive(Deserialize, Schema)]
+#[schema(component="CreateInvitation")]
 pub struct CreateInvitation {
     #[schema(description = "Email to send invitation to")]
     pub email: StackString,
 }
 
 #[derive(Serialize, Schema)]
+#[schema(component="Invitation")]
 pub struct InvitationOutput {
     #[schema(description = "Invitation ID")]
     pub id: StackString,
@@ -731,6 +734,7 @@ async fn callback_body(
 }
 
 #[derive(Serialize, Schema)]
+#[schema(component="Status")]
 pub struct StatusOutput {
     #[schema(description = "Number of Users")]
     number_of_users: i64,
