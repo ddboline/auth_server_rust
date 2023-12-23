@@ -21,16 +21,7 @@ use uuid::Error as ParseError;
 
 use auth_server_ext::{errors::AuthServerExtError, google_openid::OpenidError};
 use auth_server_lib::errors::AuthServerError;
-use authorized_users::{errors::AuthUsersError, TRIGGER_DB_UPDATE};
-
-static LOGIN_HTML: &str = r"
-    <script>
-    !function() {
-        let final_url = location.href;
-        location.replace('/auth/login.html?final_url=' + final_url);
-    }()
-    </script>
-";
+use authorized_users::{errors::AuthUsersError, LOGIN_HTML, TRIGGER_DB_UPDATE};
 
 #[derive(Debug, Error)]
 pub enum ServiceError {

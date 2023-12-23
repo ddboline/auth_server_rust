@@ -51,6 +51,15 @@ lazy_static! {
     pub static ref JWT_SECRET: AuthSecret = AuthSecret::new(JWT_SECRET_CACHE);
 }
 
+pub static LOGIN_HTML: &str = r"
+    <script>
+    !function() {
+        let final_url = location.href;
+        location.replace('/auth/login.html?final_url=' + final_url);
+    }()
+    </script>
+";
+
 #[derive(Clone, Debug, Copy)]
 enum AuthStatus {
     Authorized(OffsetDateTime),
