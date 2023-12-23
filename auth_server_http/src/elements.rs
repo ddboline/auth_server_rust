@@ -176,24 +176,6 @@ pub fn register_body(invitation_id: Uuid) -> String {
 
 #[component]
 fn RegisterElement(cx: Scope, invitation_id: Uuid) -> Element {
-    let register_fn = format_sstr!(
-        "
-            function register() {{
-                let password = document.querySelector('#password');
-                let password_repeat = document.querySelector('#password_repeat');
-                if (password.value == password_repeat.value) {{
-                    post('/api/register/{invitation_id}', {{password: password.value}}).then(
-                        data => {{
-                            password.value = '';
-                            document.getElementsByClassName('login').innerHTML = data;
-                        }}
-                    );
-                }} else {{
-                    console.err('Passwords do not match!');
-                }}
-            }}
-        "
-    );
     cx.render(rsx! {
         head_element(),
         body {
@@ -221,11 +203,8 @@ fn RegisterElement(cx: Scope, invitation_id: Uuid) -> Element {
                     class: "btn",
                     "type": "submit",
                     value: "Register",
-                    "onclick": "register()",
+                    "onclick": "register({invitation_id})",
                 }
-            }
-            script {
-                dangerous_inner_html: "{register_fn}",
             }
         }
     })
@@ -358,43 +337,6 @@ pub fn change_password_body(user: LoggedUser) -> String {
 #[component]
 fn ChangePasswordElement(cx: Scope, user: LoggedUser) -> Element {
     let email = &user.email;
-    let password_change_fn = format_sstr!(
-        "
-            function password_change() {{
-                let password = document.querySelector('#old_password');
-                var data = JSON.stringify(
-                    {{
-                        \"email\": \"{email}\",
-                        \"password\": password.value
-                    }}
-                );
-                var xmlhttp = new XMLHttpRequest();
-                xmlhttp.onload = function() {{
-                   password_change()
-                }}
-                xmlhttp.open( \"POST\", '/api/auth' , true );
-                xmlhttp.setRequestHeader(\"Content-Type\", \"application/json\");
-                xmlhttp.send(data);
-            }}
-            function change_password_fn() {{
-                let password = document.querySelector('#new_password');
-                let password_repeat = document.querySelector('#new_password_repeat');
-                if (password.value == password_repeat.value) {{
-                        post(
-                            '/api/password_change', {{
-                                password: password.value
-                            }}).then(
-                                data => {{
-                                password.value = '';
-                                document.getElementsByClassName(\"login\").innerHTML = data;
-                            }}
-                        );
-                }} else {{
-                  console.err('Passwords do not match!');
-                }}
-            }}
-        "
-    );
 
     cx.render(rsx! {
         head_element(),
@@ -429,11 +371,8 @@ fn ChangePasswordElement(cx: Scope, user: LoggedUser) -> Element {
                     class: "btn",
                     "type": "submit",
                     value: "Change Password",
-                    "onclick": "password_change()"
+                    "onclick": "password_change('{email}')"
                 },
-            }
-            script {
-                dangerous_inner_html: "{password_change_fn}",
             }
         }
     })

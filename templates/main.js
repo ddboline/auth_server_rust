@@ -1,4 +1,4 @@
-function post(url = ``, data = {}) {
+function post(url, data) {
   // Default options are marked with *
   return fetch(url, {
     method: 'POST', // *GET, POST, PUT, DELETE, etc.
@@ -22,7 +22,7 @@ function logout() {
   xmlhttp.send(null);
 }
 function delete_session_data( session_key ) {
-  let url = "/api/sessions?session_key=" + session_key;
+  let url = `/api/sessions?session_key=${session_key}`;
   let xmlhttp = new XMLHttpRequest();
   xmlhttp.onload = function() {
       list_sessions();
@@ -32,7 +32,7 @@ function delete_session_data( session_key ) {
   xmlhttp.send(null);
 }
 function delete_session( session_id ) {
-  let url = "/api/sessions?session=" + session_id;
+  let url = `/api/sessions?session=${session_id}`
   let xmlhttp = new XMLHttpRequest();
   xmlhttp.onload = function() {
       list_sessions();
@@ -68,7 +68,7 @@ function openIdConnectLogin(final_url) {
     xmlhttp2.onload = function() {
       location.replace(final_url);
     }
-    let url2 = "/api/await?state=" + js.csrf_state;
+    let url2 = `/api/await?state=${js.csrf_state}`;
     xmlhttp2.open("GET", url2, true);
     xmlhttp2.send(null);
 
@@ -126,3 +126,50 @@ function list_session_data() {
   xmlhttp.open("GET", url, true);
   xmlhttp.send(null);
 };
+function register(invitation_id) {
+  let password = document.querySelector('#password');
+  let password_repeat = document.querySelector('#password_repeat');
+  if (password.value == password_repeat.value) {
+      post(`/api/register/${invitation_id}`, {password: password.value}).then(
+          data => {
+              password.value = '';
+              document.getElementsByClassName('login').innerHTML = data;
+          }
+      );
+  } else {
+      console.err('Passwords do not match!');
+  }
+}
+function password_change(email) {
+  let password = document.querySelector('#old_password');
+  var data = JSON.stringify(
+      {
+          "email": email,
+          "password": password.value
+      }
+  );
+  var xmlhttp = new XMLHttpRequest();
+  xmlhttp.onload = function() {
+     password_change()
+  }
+  xmlhttp.open( "POST", '/api/auth' , true );
+  xmlhttp.setRequestHeader("Content-Type", "application/json");
+  xmlhttp.send(data);
+}
+function change_password_fn() {
+  let password = document.querySelector('#new_password');
+  let password_repeat = document.querySelector('#new_password_repeat');
+  if (password.value == password_repeat.value) {
+          post(
+              '/api/password_change', {
+                  password: password.value
+              }).then(
+                  data => {
+                  password.value = '';
+                  document.getElementsByClassName("login").innerHTML = data;
+              }
+          );
+  } else {
+    console.err('Passwords do not match!');
+  }
+}
