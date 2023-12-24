@@ -55,7 +55,7 @@ pub static LOGIN_HTML: &str = r"
     <script>
     !function() {
         let final_url = location.href;
-        location.replace('/auth/login.html?final_url=' + final_url);
+        location.replace(`/auth/login.html?final_url=${encodeURIComponent(final_url)}`);
     }()
     </script>
 ";
