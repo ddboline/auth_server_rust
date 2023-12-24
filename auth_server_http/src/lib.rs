@@ -30,6 +30,7 @@ derive_rweb_schema!(SesQuotasWrapper, _SesQuotasWrapper);
 
 #[allow(dead_code)]
 #[derive(Schema)]
+#[schema(component="SesQuotas")]
 struct _SesQuotasWrapper {
     #[schema(description = "Maximum Emails per Day")]
     max_24_hour_send: f64,
@@ -46,6 +47,7 @@ derive_rweb_schema!(EmailStatsWrapper, _EmailStatsWrapper);
 
 #[allow(dead_code)]
 #[derive(Schema)]
+#[schema(component="EmailStats")]
 struct _EmailStatsWrapper {
     #[schema(description = "Number of Bounced Emails")]
     bounces: i64,
@@ -68,6 +70,7 @@ derive_rweb_schema!(SessionSummaryWrapper, _SessionSummaryWrapper);
 
 #[allow(dead_code)]
 #[derive(Schema)]
+#[schema(component="SessionSummary")]
 struct _SessionSummaryWrapper {
     #[schema(description = "Session ID")]
     session_id: UuidWrapper,

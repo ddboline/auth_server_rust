@@ -46,8 +46,9 @@ pub type WarpResult<T> = Result<T, Rejection>;
 pub type HttpResult<T> = Result<T, Error>;
 
 #[derive(Deserialize, Schema)]
+#[schema(component="FinalUrl")]
 pub struct FinalUrlData {
-    #[schema(description = "Url to redirect to after completion of authorization")]
+    #[schema(description = "Url to redirect to after completion of authorization", example=r#""https://example.com""#)]
     pub final_url: Option<StackString>,
 }
 
@@ -523,7 +524,8 @@ pub async fn register_email(
 }
 
 #[derive(Debug, Deserialize, Schema)]
-pub struct UserData {
+#[schema(component="PasswordData")]
+pub struct PasswordData {
     #[schema(description = "Password")]
     pub password: StackString,
 }
@@ -537,9 +539,9 @@ struct ApiRegisterResponse(JsonBase<LoggedUser, Error>);
 pub async fn register_user(
     invitation_id: UuidWrapper,
     #[data] data: AppState,
-    user_data: Json<UserData>,
+    user_data: Json<PasswordData>,
 ) -> WarpResult<ApiRegisterResponse> {
-    let user_data: UserData = user_data.into_inner();
+    let user_data: PasswordData = user_data.into_inner();
     if let Some(invitation) = Invitation::get_by_uuid(invitation_id.into(), &data.pool)
         .await
         .map_err(Into::<Error>::into)?
@@ -567,6 +569,7 @@ pub async fn register_user(
 }
 
 #[derive(Serialize, Deserialize, Debug, Schema)]
+#[schema(component="PasswordChange")]
 pub struct PasswordChangeOutput {
     pub message: StackString,
 }
@@ -580,7 +583,7 @@ struct ApiPasswordChangeResponse(JsonBase<PasswordChangeOutput, Error>);
 pub async fn change_password_user(
     user: LoggedUser,
     #[data] data: AppState,
-    user_data: Json<UserData>,
+    user_data: Json<PasswordData>,
 ) -> WarpResult<ApiPasswordChangeResponse> {
     let user_data = user_data.into_inner();
     let message: StackString = if let Some(mut user) = User::get_by_email(&user.email, &data.pool)
@@ -598,13 +601,8 @@ pub async fn change_password_user(
     Ok(resp.into())
 }
 
-#[derive(Deserialize, Schema)]
-pub struct GetAuthUrlData {
-    #[schema(description = "Url to redirect to after completion of authorization")]
-    pub final_url: StackString,
-}
-
 #[derive(Serialize, Deserialize, Schema)]
+#[schema(component="AuthUrl")]
 pub struct AuthUrlOutput {
     #[schema(description = "CSRF State")]
     pub csrf_state: StackString,
@@ -620,12 +618,12 @@ struct ApiAuthUrlResponse(JsonBase<AuthUrlOutput, Error>);
 #[openapi(description = "Get Oauth Url")]
 pub async fn auth_url(
     #[data] data: AppState,
-    query: Json<GetAuthUrlData>,
+    query: Json<FinalUrlData>,
 ) -> WarpResult<ApiAuthUrlResponse> {
     let query = query.into_inner();
     let (csrf_state, authorize_url) = data
         .google_client
-        .get_auth_url(Some(&query.final_url))
+        .get_auth_url(query.final_url.as_ref().map(StackString::as_str))
         .await
         .map_err(Into::<Error>::into)?;
     let authorize_url: String = authorize_url.into();
