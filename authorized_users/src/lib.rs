@@ -44,8 +44,8 @@ thread_local! {
     static JWT_SECRET_CACHE: Cell<Option<SecretKey>> = Cell::new(None);
 }
 
-pub static AUTHORIZED_USERS: Lazy<AuthorizedUsers> = Lazy::new(|| AuthorizedUsers::new());
-pub static TRIGGER_DB_UPDATE: Lazy<AuthTrigger> = Lazy::new(|| AuthTrigger::new());
+pub static AUTHORIZED_USERS: Lazy<AuthorizedUsers> = Lazy::new(AuthorizedUsers::new);
+pub static TRIGGER_DB_UPDATE: Lazy<AuthTrigger> = Lazy::new(AuthTrigger::new);
 pub static SECRET_KEY: Lazy<AuthSecret> = Lazy::new(|| AuthSecret::new(SECRET_KEY_CACHE));
 pub static JWT_SECRET: Lazy<AuthSecret> = Lazy::new(|| AuthSecret::new(JWT_SECRET_CACHE));
 
