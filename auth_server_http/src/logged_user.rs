@@ -20,9 +20,9 @@ use authorized_users::{token::Token, AuthorizedUser, AUTHORIZED_USERS};
 use crate::errors::ServiceError as Error;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Schema)]
-#[schema(component="LoggedUser")]
+#[schema(component = "LoggedUser")]
 pub struct LoggedUser {
-    #[schema(description = "Email Address", example=r#""user@example.com""#)]
+    #[schema(description = "Email Address", example = r#""user@example.com""#)]
     pub email: StackString,
     #[schema(description = "Session ID")]
     pub session: UuidWrapper,

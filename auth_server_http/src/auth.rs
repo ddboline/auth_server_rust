@@ -13,9 +13,9 @@ use crate::{
 };
 
 #[derive(Debug, Deserialize, Schema)]
-#[schema(component="AuthRequest")]
+#[schema(component = "AuthRequest")]
 pub struct AuthRequest {
-    #[schema(description = "Email Address", example=r#""test@example.com""#)]
+    #[schema(description = "Email Address", example = r#""test@example.com""#)]
     pub email: StackString,
     #[schema(description = "Password")]
     pub password: StackString,

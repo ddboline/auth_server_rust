@@ -13,7 +13,7 @@ use arc_swap::ArcSwap;
 pub use authorized_user::AuthorizedUser;
 use biscuit::{jwk, jws, Empty};
 use crossbeam::atomic::AtomicCell;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use rand::{
     distributions::{Distribution, Standard},
     thread_rng,
@@ -44,12 +44,10 @@ thread_local! {
     static JWT_SECRET_CACHE: Cell<Option<SecretKey>> = Cell::new(None);
 }
 
-lazy_static! {
-    pub static ref AUTHORIZED_USERS: AuthorizedUsers = AuthorizedUsers::new();
-    pub static ref TRIGGER_DB_UPDATE: AuthTrigger = AuthTrigger::new();
-    pub static ref SECRET_KEY: AuthSecret = AuthSecret::new(SECRET_KEY_CACHE);
-    pub static ref JWT_SECRET: AuthSecret = AuthSecret::new(JWT_SECRET_CACHE);
-}
+pub static AUTHORIZED_USERS: Lazy<AuthorizedUsers> = Lazy::new(|| AuthorizedUsers::new());
+pub static TRIGGER_DB_UPDATE: Lazy<AuthTrigger> = Lazy::new(|| AuthTrigger::new());
+pub static SECRET_KEY: Lazy<AuthSecret> = Lazy::new(|| AuthSecret::new(SECRET_KEY_CACHE));
+pub static JWT_SECRET: Lazy<AuthSecret> = Lazy::new(|| AuthSecret::new(JWT_SECRET_CACHE));
 
 pub static LOGIN_HTML: &str = r"
     <script>

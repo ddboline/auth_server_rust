@@ -46,9 +46,12 @@ pub type WarpResult<T> = Result<T, Rejection>;
 pub type HttpResult<T> = Result<T, Error>;
 
 #[derive(Deserialize, Schema)]
-#[schema(component="FinalUrl")]
+#[schema(component = "FinalUrl")]
 pub struct FinalUrlData {
-    #[schema(description = "Url to redirect to after completion of authorization", example=r#""https://example.com""#)]
+    #[schema(
+        description = "Url to redirect to after completion of authorization",
+        example = r#""https://example.com""#
+    )]
     pub final_url: Option<StackString>,
 }
 
@@ -317,7 +320,7 @@ pub async fn delete_session(
 }
 
 #[derive(Schema, Serialize, Deserialize)]
-#[schema(component="SessionData")]
+#[schema(component = "SessionData")]
 struct SessionDataObj {
     #[schema(description = "Session ID")]
     session_id: UuidWrapper,
@@ -463,14 +466,14 @@ pub async fn delete_sessions(
 }
 
 #[derive(Deserialize, Schema)]
-#[schema(component="CreateInvitation")]
+#[schema(component = "CreateInvitation")]
 pub struct CreateInvitation {
     #[schema(description = "Email to send invitation to")]
     pub email: StackString,
 }
 
 #[derive(Serialize, Schema)]
-#[schema(component="Invitation")]
+#[schema(component = "Invitation")]
 pub struct InvitationOutput {
     #[schema(description = "Invitation ID")]
     pub id: StackString,
@@ -524,7 +527,7 @@ pub async fn register_email(
 }
 
 #[derive(Debug, Deserialize, Schema)]
-#[schema(component="PasswordData")]
+#[schema(component = "PasswordData")]
 pub struct PasswordData {
     #[schema(description = "Password")]
     pub password: StackString,
@@ -569,7 +572,7 @@ pub async fn register_user(
 }
 
 #[derive(Serialize, Deserialize, Debug, Schema)]
-#[schema(component="PasswordChange")]
+#[schema(component = "PasswordChange")]
 pub struct PasswordChangeOutput {
     pub message: StackString,
 }
@@ -602,7 +605,7 @@ pub async fn change_password_user(
 }
 
 #[derive(Serialize, Deserialize, Schema)]
-#[schema(component="AuthUrl")]
+#[schema(component = "AuthUrl")]
 pub struct AuthUrlOutput {
     #[schema(description = "CSRF State")]
     pub csrf_state: StackString,
@@ -732,7 +735,7 @@ async fn callback_body(
 }
 
 #[derive(Serialize, Schema)]
-#[schema(component="Status")]
+#[schema(component = "Status")]
 pub struct StatusOutput {
     #[schema(description = "Number of Users")]
     number_of_users: i64,

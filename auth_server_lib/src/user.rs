@@ -3,7 +3,7 @@ use argon2::{
     Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version,
 };
 use futures::Stream;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use postgres_query::{client::GenericClient, query, Error as PqError, FromSqlRow};
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
@@ -19,15 +19,17 @@ use crate::{
     pgpool::{PgPool, PgTransaction},
 };
 
-lazy_static! {
-    static ref ARGON: Argon = Argon::new().expect("Failed to init Argon");
-    static ref FAKE_PASSWORD: StackString = ARGON
+static ARGON: Lazy<Argon> = Lazy::new(|| Argon::new().expect("Failed to init Argon"));
+static FAKE_PASSWORD: Lazy<StackString> = Lazy::new(|| {
+    ARGON
         .hash_password("password")
-        .expect("Failed to generate password");
-    static ref ALTERNATE_FAKE: StackString = ARGON
+        .expect("Failed to generate password")
+});
+static ALTERNATE_FAKE: Lazy<StackString> = Lazy::new(|| {
+    ARGON
         .hash_password("fake password")
-        .expect("Failed to generate password");
-}
+        .expect("Failed to generate password")
+});
 
 struct Argon(Argon2<'static>);
 
