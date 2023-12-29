@@ -358,6 +358,7 @@ paths:
           description: Internal Server Error
   /api/list-sessions:
     get:
+      description: List Sessions
       responses:
         '200':
           description: List Sessions
@@ -373,6 +374,7 @@ paths:
           description: Internal Server Error
   /api/list-session-data:
     get:
+      description: List Session Data
       responses:
         '200':
           description: List Session Data
@@ -388,6 +390,7 @@ paths:
           description: Internal Server Error
   /auth/index.html:
     get:
+      description: Main Page
       parameters:
       - name: final_url
         in: query
@@ -430,6 +433,7 @@ paths:
                 type: string
   /auth/register.html:
     get:
+      description: Registration Page
       parameters:
       - name: id
         in: query
@@ -458,6 +462,7 @@ paths:
           description: Internal Server Error
   /auth/login.html:
     get:
+      description: Login Page
       parameters:
       - name: final_url
         in: query
@@ -482,6 +487,7 @@ paths:
           description: Internal Server Error
   /auth/change_password.html:
     get:
+      description: Password Change Page
       responses:
         '200':
           description: Change Password
