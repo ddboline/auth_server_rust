@@ -60,6 +60,7 @@ pub struct FinalUrlData {
 struct AuthIndexResponse(HtmlBase<StackString, Error>);
 
 #[get("/auth/index.html")]
+#[openapi(description = "Main Page")]
 pub async fn index_html(
     user: Option<LoggedUser>,
     #[data] data: AppState,
@@ -118,6 +119,7 @@ struct RegisterQuery {
 struct RegisterResponse(HtmlBase<StackString, Error>);
 
 #[get("/auth/register.html")]
+#[openapi(description = "Registration Page")]
 pub async fn register_html(
     query: Query<RegisterQuery>,
     #[data] data: AppState,
@@ -152,6 +154,7 @@ pub async fn main_js() -> WarpResult<JsResponse> {
 struct AuthLoginResponse(HtmlBase<StackString, Error>);
 
 #[get("/auth/login.html")]
+#[openapi(description = "Login Page")]
 pub async fn login_html(
     user: Option<LoggedUser>,
     query: Query<FinalUrlData>,
@@ -166,6 +169,7 @@ pub async fn login_html(
 struct PwChangeResponse(HtmlBase<StackString, Error>);
 
 #[get("/auth/change_password.html")]
+#[openapi(description = "Password Change Page")]
 pub async fn change_password(user: LoggedUser) -> WarpResult<PwChangeResponse> {
     let body = change_password_body(user);
     Ok(HtmlBase::new(body.into()).into())
@@ -365,6 +369,7 @@ pub async fn list_session_obj(
 struct ListSessionsResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/list-sessions")]
+#[openapi(description = "List Sessions")]
 pub async fn list_sessions(
     _: LoggedUser,
     #[data] data: AppState,
@@ -385,6 +390,7 @@ async fn list_sessions_lines(data: &AppState) -> HttpResult<Vec<SessionSummary>>
 struct ListSessionDataResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/list-session-data")]
+#[openapi(description = "List Session Data")]
 pub async fn list_session_data(
     user: LoggedUser,
     #[data] data: AppState,
