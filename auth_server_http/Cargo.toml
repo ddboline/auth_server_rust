@@ -32,11 +32,11 @@ url = "2.3"
 uuid = { version = "1.0", features = ["serde", "v4"] }
 warp = "0.3"
 rweb = {git = "https://github.com/ddboline/rweb.git", features=["openapi"], default-features=false, tag="0.15.1-1"}
+rweb-helper = {git = "https://github.com/ddboline/rweb_helper.git", tag="0.5.2"}
 stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types", "rweb-openapi"], tag="0.9.2" }
-rweb-helper = {git = "https://github.com/ddboline/rweb_helper.git", tag="0.5.1"}
 
 [dev-dependencies]
 anyhow = "1.0"
 reqwest = {version = "0.11", default_features = false, features=["cookies", "rustls-tls", "gzip", "json"]}
 maplit = "1.0"
-env_logger = "0.10"
+env_logger = "0.11"

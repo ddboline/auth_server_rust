@@ -26,7 +26,7 @@ members = [
 auth_server_admin = {path="auth_server_admin"}
 auth_server_ext = {path="auth_server_ext"}
 auth_server_http = {path = "auth_server_http"}
-env_logger = "0.10"
+env_logger = "0.11"
 tokio = {version="1.35", features=["rt", "macros", "rt-multi-thread"]}
 
 [[bin]]
