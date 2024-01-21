@@ -396,7 +396,7 @@ mod test {
         let _lock = AUTH_APP_MUTEX.lock().await;
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
-        let email = format_sstr!("ddboline+{}@gmail.com", get_random_string(32));
+        let email = format_sstr!("ddboline+{}@ddboline.net", get_random_string(32));
         let password = get_random_string(32);
 
         let mock_stdout = MockStdout::new();
@@ -574,7 +574,7 @@ mod test {
         assert_eq!(mock_stderr.lock().await.len(), 0);
         assert!(mock_stdout.lock().await.join("").contains("EmailStats"));
 
-        let email = format_sstr!("ddboline+{}@gmail.com", get_random_string(32));
+        let email = format_sstr!("ddboline+{}@ddboline.net", get_random_string(32));
         let password = get_random_string(32);
 
         let mock_stdout = MockStdout::new();
