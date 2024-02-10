@@ -10,7 +10,7 @@ edition = "2018"
 auth_server_lib = {path = "../auth_server_lib"}
 authorized_users = {path = "../authorized_users"}
 aws-config = {version="1.1", features=["behavior-version-latest"]}
-aws-sdk-ses = "1.10"
+aws-sdk-ses = "1.13"
 aws-smithy-types = "1.1"
 log = "0.4"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting", "parsing"]}
