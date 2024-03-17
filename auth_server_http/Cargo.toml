@@ -39,4 +39,4 @@ stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", featur
 anyhow = "1.0"
 reqwest = {version = "0.11", default_features = false, features=["cookies", "rustls-tls", "gzip", "json"]}
 maplit = "1.0"
-env_logger = "0.11"
+env_logger = {version="0.11", features=["color", "humantime", "regex"], default_features = false}
