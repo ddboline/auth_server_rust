@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 arc-swap = "1.5"
-base64 = "0.21"
+base64 = "0.22"
 biscuit = "0.7"
 bytes = "1.1"
 crossbeam = "0.8"
@@ -22,6 +22,6 @@ smallvec = "1.8"
 stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types"], tag="0.9.2" }
 thiserror = "1.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}
-tokio = {version="1.35", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.36", features=["rt", "macros", "rt-multi-thread"]}
 url = "2.3"
 uuid = { version = "1.0", features = ["serde", "v4"] }
