@@ -11,7 +11,7 @@ use serde::Serialize;
 use serde_json::Error as SerdeJsonError;
 use std::{
     borrow::Cow,
-    convert::{From, Infallible},
+    convert::Infallible,
     fmt::{Debug, Error as FmtError},
 };
 use thiserror::Error;
