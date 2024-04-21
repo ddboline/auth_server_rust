@@ -29,7 +29,7 @@ impl Default for Session {
     }
 }
 
-#[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug, Eq)]
+#[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug, Eq, Clone)]
 pub struct SessionSummary {
     pub session_id: Uuid,
     pub email_address: StackString,

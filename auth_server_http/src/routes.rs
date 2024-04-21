@@ -94,9 +94,9 @@ pub async fn index_html(
         } else {
             Vec::new()
         };
-        index_body(user, summaries, data, query.final_url)
+        index_body(user, summaries, data, query.final_url)?
     };
-    Ok(HtmlBase::new(body.into()).into())
+    Ok(HtmlBase::new(body).into())
 }
 
 #[derive(RwebResponse)]
@@ -133,8 +133,8 @@ pub async fn register_html(
         .map_err(Into::<Error>::into)?
     {
         if invitation.email == email {
-            let body = register_body(invitation_id);
-            return Ok(HtmlBase::new(body.into()).into());
+            let body = register_body(invitation_id)?;
+            return Ok(HtmlBase::new(body).into());
         }
     }
     Err(Error::BadRequest("Invalid invitation").into())
@@ -160,8 +160,8 @@ pub async fn login_html(
     query: Query<FinalUrlData>,
 ) -> WarpResult<AuthLoginResponse> {
     let query = query.into_inner();
-    let body = login_body(user, query.final_url);
-    Ok(HtmlBase::new(body.into()).into())
+    let body = login_body(user, query.final_url)?;
+    Ok(HtmlBase::new(body).into())
 }
 
 #[derive(RwebResponse)]
@@ -171,8 +171,8 @@ struct PwChangeResponse(HtmlBase<StackString, Error>);
 #[get("/auth/change_password.html")]
 #[openapi(description = "Password Change Page")]
 pub async fn change_password(user: LoggedUser) -> WarpResult<PwChangeResponse> {
-    let body = change_password_body(user);
-    Ok(HtmlBase::new(body.into()).into())
+    let body = change_password_body(user)?;
+    Ok(HtmlBase::new(body).into())
 }
 
 #[derive(RwebResponse)]
@@ -375,8 +375,8 @@ pub async fn list_sessions(
     #[data] data: AppState,
 ) -> WarpResult<ListSessionsResponse> {
     let summaries = list_sessions_lines(&data).await?;
-    let body = session_body(summaries);
-    Ok(HtmlBase::new(body.into()).into())
+    let body = session_body(summaries)?;
+    Ok(HtmlBase::new(body).into())
 }
 
 async fn list_sessions_lines(data: &AppState) -> HttpResult<Vec<SessionSummary>> {
@@ -413,8 +413,8 @@ pub async fn list_session_data(
             .map_err(Into::<AuthServerError>::into)
             .map_err(Into::<Error>::into)?;
 
-    let body = session_data_body(data);
-    Ok(HtmlBase::new(body.into()).into())
+    let body = session_data_body(data)?;
+    Ok(HtmlBase::new(body).into())
 }
 
 #[derive(RwebResponse)]

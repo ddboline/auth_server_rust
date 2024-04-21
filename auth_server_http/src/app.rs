@@ -475,13 +475,13 @@ mod tests {
         debug!("{resp:?}");
         assert_eq!(resp.len(), 1);
         let url = format_sstr!("http://localhost:{test_port}/api/auth");
-        let status: StatusCode = client
+        let status = client
             .delete(url.as_str())
             .send()
             .await?
             .error_for_status()?
             .status();
-        assert_eq!(status, StatusCode::NO_CONTENT);
+        assert_eq!(status.as_u16(), StatusCode::NO_CONTENT.as_u16());
 
         let sessions = Session::get_by_email(&pool, &email).await?;
         for session in sessions {

@@ -1,6 +1,5 @@
 use dioxus::prelude::{
-    component, dioxus_elements, rsx, Element, GlobalAttributes, IntoDynNode, LazyNodes, Props,
-    Scope, VirtualDom,
+    component, dioxus_elements, rsx, Element, GlobalAttributes, IntoDynNode, Props, VirtualDom,
 };
 use stack_string::{format_sstr, StackString};
 use time::macros::format_description;
@@ -8,14 +7,16 @@ use uuid::Uuid;
 
 use auth_server_lib::{session::SessionSummary, session_data::SessionData};
 
-use crate::logged_user::LoggedUser;
+use crate::{errors::ServiceError as Error, logged_user::LoggedUser};
 
+/// # Errors
+/// Returns formatting error.
 pub fn index_body(
     user: Option<LoggedUser>,
     summaries: Vec<SessionSummary>,
     data: Vec<(SessionData, StackString)>,
     final_url: Option<StackString>,
-) -> String {
+) -> Result<StackString, Error> {
     let mut app = VirtualDom::new_with_props(
         IndexElement,
         IndexElementProps {
@@ -25,19 +26,21 @@ pub fn index_body(
             final_url,
         },
     );
-    drop(app.rebuild());
-    dioxus_ssr::render(&app)
+    app.rebuild_in_place();
+    let mut renderer = dioxus_ssr::Renderer::default();
+    let mut buffer = String::new();
+    renderer.render_to(&mut buffer, &app)?;
+    Ok(buffer.into())
 }
 
 #[component]
 fn IndexElement(
-    cx: Scope,
     user: Option<LoggedUser>,
     summaries: Vec<SessionSummary>,
     data: Vec<(SessionData, StackString)>,
     final_url: Option<StackString>,
 ) -> Element {
-    let login_element = if let Some(user) = user {
+    let login_element = if let Some(user) = &user {
         logged_in_element(&user.email)
     } else {
         index_element(final_url.as_ref().map(Into::into))
@@ -46,19 +49,19 @@ fn IndexElement(
     let list_session_data_box = if user.is_none() {
         rsx! {div{ id: "list_session_data_box" }}
     } else {
-        rsx! {div{ id: "list_session_data_box", session_data_element(&data) }}
+        rsx! {div{ id: "list_session_data_box", {session_data_element(&data)} }}
     };
 
     let list_sessions_box = if user.is_none() {
         rsx! { div { id: "list_sessions_box" }}
     } else {
-        rsx! { div { id: "list_sessions_box", session_element(&summaries) }}
+        rsx! { div { id: "list_sessions_box", {session_element(&summaries)} }}
     };
 
-    cx.render(rsx! {
-        head_element(),
+    rsx! {
+        {head_element()},
         body {
-            login_element,
+            {login_element},
             div {
                 h2 {
                     a {
@@ -68,18 +71,18 @@ fn IndexElement(
                     }
                 }
             },
-            list_session_data_box,
+            {list_session_data_box},
             div {
                 id: "list_session_data_box",
             },
             br {
-                list_sessions_box,
+                {list_sessions_box},
             }
         }
-    })
+    }
 }
 
-fn head_element<'a>() -> LazyNodes<'a, 'a> {
+fn head_element() -> Element {
     rsx! {
         head {
             title: "Auth App",
@@ -98,7 +101,7 @@ fn head_element<'a>() -> LazyNodes<'a, 'a> {
     }
 }
 
-fn logged_in_element(email: &str) -> LazyNodes {
+fn logged_in_element(email: &str) -> Element {
     rsx! {
         br {
             h1 {
@@ -114,7 +117,7 @@ fn logged_in_element(email: &str) -> LazyNodes {
     }
 }
 
-fn index_element(final_url: Option<&str>) -> LazyNodes {
+fn index_element(final_url: Option<&str>) -> Element {
     let final_url = if let Some(final_url) = final_url {
         format_sstr!("'{final_url}'")
     } else {
@@ -167,17 +170,21 @@ fn index_element(final_url: Option<&str>) -> LazyNodes {
     }
 }
 
-pub fn register_body(invitation_id: Uuid) -> String {
-    let mut app =
-        VirtualDom::new_with_props(RegisterElement, RegisterElementProps { invitation_id });
-    drop(app.rebuild());
-    dioxus_ssr::render(&app)
+/// # Errors
+/// Returns formatting error.
+pub fn register_body(invitation_id: Uuid) -> Result<StackString, Error> {
+    let mut app = VirtualDom::new_with_props(RegisterElement, RegisterElementProps { invitation_id });
+    app.rebuild_in_place();
+    let mut renderer = dioxus_ssr::Renderer::default();
+    let mut buffer = String::new();
+    renderer.render_to(&mut buffer, &app)?;
+    Ok(buffer.into())
 }
 
 #[component]
-fn RegisterElement(cx: Scope, invitation_id: Uuid) -> Element {
-    cx.render(rsx! {
-        head_element(),
+fn RegisterElement(invitation_id: Uuid) -> Element {
+    rsx! {
+        {head_element()},
         body {
             div {
                 class: "login",
@@ -207,10 +214,10 @@ fn RegisterElement(cx: Scope, invitation_id: Uuid) -> Element {
                 }
             }
         }
-    })
+    }
 }
 
-fn session_data_element(data: &[(SessionData, StackString)]) -> LazyNodes {
+fn session_data_element(data: &[(SessionData, StackString)]) -> Element {
     rsx! {
         table {
             "border": "1",
@@ -224,7 +231,7 @@ fn session_data_element(data: &[(SessionData, StackString)]) -> LazyNodes {
                 }
             },
             tbody {
-                data.iter().enumerate().map(|(idx, (s, js))| {
+                {data.iter().enumerate().map(|(idx, (s, js))| {
                     let id = s.session_id;
                     let key = &s.session_key;
                     let created_at = s.created_at.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z")).unwrap_or_else(|_| String::new());
@@ -246,24 +253,29 @@ fn session_data_element(data: &[(SessionData, StackString)]) -> LazyNodes {
                             }
                         }
                     }
-                }),
+                })},
             }
         }
     }
 }
 
-pub fn session_body(summaries: Vec<SessionSummary>) -> String {
+/// # Errors
+/// Returns formatting error.
+pub fn session_body(summaries: Vec<SessionSummary>) -> Result<StackString, Error> {
     let mut app = VirtualDom::new_with_props(SessionElement, SessionElementProps { summaries });
-    drop(app.rebuild());
-    dioxus_ssr::render(&app)
+    app.rebuild_in_place();
+    let mut renderer = dioxus_ssr::Renderer::default();
+    let mut buffer = String::new();
+    renderer.render_to(&mut buffer, &app)?;
+    Ok(buffer.into())
 }
 
 #[component]
-fn SessionElement(cx: Scope, summaries: Vec<SessionSummary>) -> Element {
-    cx.render(session_element(summaries))
+fn SessionElement(summaries: Vec<SessionSummary>) -> Element {
+    session_element(&summaries)
 }
 
-fn session_element(summaries: &[SessionSummary]) -> LazyNodes {
+fn session_element(summaries: &[SessionSummary]) -> Element {
     rsx! {
         table {
             "border": "1",
@@ -278,7 +290,7 @@ fn session_element(summaries: &[SessionSummary]) -> LazyNodes {
                 },
             },
             tbody {
-                summaries.iter().enumerate().map(|(idx, s)| {
+                {summaries.iter().enumerate().map(|(idx, s)| {
                     let id = s.session_id;
                     let email = &s.email_address;
                     let created_at = s.created_at.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z")).unwrap_or_else(|_| String::new());
@@ -301,45 +313,57 @@ fn session_element(summaries: &[SessionSummary]) -> LazyNodes {
                             }
                         }
                     }
-                }),
+                })},
             }
         }
     }
 }
 
-pub fn login_body(user: Option<LoggedUser>, final_url: Option<StackString>) -> String {
+/// # Errors
+/// Returns formatting error.
+pub fn login_body(
+    user: Option<LoggedUser>,
+    final_url: Option<StackString>,
+) -> Result<StackString, Error> {
     let mut app = VirtualDom::new_with_props(LoginElement, LoginElementProps { user, final_url });
-    drop(app.rebuild());
-    dioxus_ssr::render(&app)
+    app.rebuild_in_place();
+    let mut renderer = dioxus_ssr::Renderer::default();
+    let mut buffer = String::new();
+    renderer.render_to(&mut buffer, &app)?;
+    Ok(buffer.into())
 }
 
 #[component]
-fn LoginElement(cx: Scope, user: Option<LoggedUser>, final_url: Option<StackString>) -> Element {
-    cx.render(rsx! {
-        head_element(),
+fn LoginElement(user: Option<LoggedUser>, final_url: Option<StackString>) -> Element {
+    rsx! {
+        {head_element()},
         body {
             if let Some(user) = &user {
-                logged_in_element(&user.email)
+                {logged_in_element(&user.email)}
             } else {
-                index_element(final_url.as_ref().map(Into::into))
+                {index_element(final_url.as_ref().map(Into::into))}
             }
         }
-    })
+    }
 }
 
-pub fn change_password_body(user: LoggedUser) -> String {
-    let mut app =
-        VirtualDom::new_with_props(ChangePasswordElement, ChangePasswordElementProps { user });
-    drop(app.rebuild());
-    dioxus_ssr::render(&app)
+/// # Errors
+/// Returns formatting error.
+pub fn change_password_body(user: LoggedUser) -> Result<StackString, Error> {
+    let mut app = VirtualDom::new_with_props(ChangePasswordElement, ChangePasswordElementProps { user });
+    app.rebuild_in_place();
+    let mut renderer = dioxus_ssr::Renderer::default();
+    let mut buffer = String::new();
+    renderer.render_to(&mut buffer, &app)?;
+    Ok(buffer.into())
 }
 
 #[component]
-fn ChangePasswordElement(cx: Scope, user: LoggedUser) -> Element {
+fn ChangePasswordElement(user: LoggedUser) -> Element {
     let email = &user.email;
 
-    cx.render(rsx! {
-        head_element(),
+    rsx! {
+        {head_element()},
         body {
             div {
                 class: "login",
@@ -375,16 +399,21 @@ fn ChangePasswordElement(cx: Scope, user: LoggedUser) -> Element {
                 },
             }
         }
-    })
+    }
 }
 
-pub fn session_data_body(data: Vec<(SessionData, StackString)>) -> String {
+/// # Errors
+/// Returns formatting error.
+pub fn session_data_body(data: Vec<(SessionData, StackString)>) -> Result<StackString, Error> {
     let mut app = VirtualDom::new_with_props(SessionDataElement, SessionDataElementProps { data });
-    drop(app.rebuild());
-    dioxus_ssr::render(&app)
+    app.rebuild_in_place();
+    let mut renderer = dioxus_ssr::Renderer::default();
+    let mut buffer = String::new();
+    renderer.render_to(&mut buffer, &app)?;
+    Ok(buffer.into())
 }
 
 #[component]
-fn SessionDataElement(cx: Scope, data: Vec<(SessionData, StackString)>) -> Element {
-    cx.render(session_data_element(data))
+fn SessionDataElement(data: Vec<(SessionData, StackString)>) -> Element {
+    session_data_element(&data)
 }

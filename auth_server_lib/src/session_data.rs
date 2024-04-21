@@ -12,7 +12,7 @@ use crate::{
     session::Session,
 };
 
-#[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug, Eq)]
+#[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug, Eq, Clone)]
 pub struct SessionData {
     pub id: Uuid,
     pub session_id: Uuid,
