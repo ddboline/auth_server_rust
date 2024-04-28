@@ -173,7 +173,8 @@ fn index_element(final_url: Option<&str>) -> Element {
 /// # Errors
 /// Returns formatting error.
 pub fn register_body(invitation_id: Uuid) -> Result<StackString, Error> {
-    let mut app = VirtualDom::new_with_props(RegisterElement, RegisterElementProps { invitation_id });
+    let mut app =
+        VirtualDom::new_with_props(RegisterElement, RegisterElementProps { invitation_id });
     app.rebuild_in_place();
     let mut renderer = dioxus_ssr::Renderer::default();
     let mut buffer = String::new();
@@ -350,7 +351,8 @@ fn LoginElement(user: Option<LoggedUser>, final_url: Option<StackString>) -> Ele
 /// # Errors
 /// Returns formatting error.
 pub fn change_password_body(user: LoggedUser) -> Result<StackString, Error> {
-    let mut app = VirtualDom::new_with_props(ChangePasswordElement, ChangePasswordElementProps { user });
+    let mut app =
+        VirtualDom::new_with_props(ChangePasswordElement, ChangePasswordElementProps { user });
     app.rebuild_in_place();
     let mut renderer = dioxus_ssr::Renderer::default();
     let mut buffer = String::new();
