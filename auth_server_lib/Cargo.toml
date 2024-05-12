@@ -12,7 +12,7 @@ argon2 = {version="0.5", features=["std"]}
 authorized_users = {path = "../authorized_users"}
 bytes = "1.1"
 crossbeam = "0.8"
-deadpool = { version = "0.11", features=["serde", "rt_tokio_1"] }
+deadpool = { version = "0.12", features=["serde", "rt_tokio_1"] }
 deadpool-postgres = { version = "0.13", features=["serde"] }
 derive_more = "0.99"
 dirs = "5.0"
