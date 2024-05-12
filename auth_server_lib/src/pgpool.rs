@@ -72,6 +72,6 @@ impl PgPool {
             .ok_or_else(|| Error::MissingPool)?
             .get()
             .await
-            .map_err(Into::into)
+            .map_err(|_| Error::DeadPoolError)
     }
 }

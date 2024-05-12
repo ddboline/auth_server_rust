@@ -1,5 +1,4 @@
 use argon2::password_hash::Error as ArgonError;
-use deadpool::managed::PoolError as DeadPoolError;
 use envy::Error as EnvyError;
 use postgres_query::{extract::Error as QueryExtractError, Error as QueryError};
 use serde_json::Error as SerdeJsonError;
@@ -32,8 +31,8 @@ pub enum AuthServerError {
     SerdeJsonError(#[from] SerdeJsonError),
     #[error("TomlError {0}")]
     TomlError(#[from] TomlError),
-    #[error("DeadPoolError {0}")]
-    DeadPoolError(#[from] DeadPoolError<PostgresError>),
+    #[error("DeadPoolError")]
+    DeadPoolError,
     #[error("UrlParseError {0}")]
     UrlParseError(#[from] UrlParseError),
     #[error("EnvyError {0}")]
