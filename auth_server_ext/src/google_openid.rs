@@ -261,7 +261,7 @@ mod tests {
     async fn test_google_openid() -> Result<(), Error> {
         let _lock = AUTH_APP_MUTEX.lock().await;
         let config = Config::init_config()?;
-        let pool = PgPool::new(&config.database_url);
+        let pool = PgPool::new(&config.database_url)?;
 
         let mut client = GoogleClient::new(&config).await?;
         client.mock_email = Some("test@example.com".into());

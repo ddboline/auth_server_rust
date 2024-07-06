@@ -39,20 +39,19 @@ impl TryFrom<TomlEntry> for Entry {
 }
 
 impl Entry {
-    #[must_use]
-    pub fn get_pool(&self) -> PgPool {
+    /// # Errors
+    /// Returns error if setup of pool fails
+    pub fn get_pool(&self) -> Result<PgPool, Error> {
         PgPool::new(self.database_url.as_str())
     }
 
     /// # Errors
     /// Returns error if db query fails
     pub async fn get_authorized_users(&self) -> Result<Vec<StackString>, Error> {
-        let pool = self.get_pool();
-        let query = format_sstr!(
-            "SELECT {email_field} FROM {table}",
-            table = self.table,
-            email_field = self.email_field
-        );
+        let pool = self.get_pool()?;
+        let email_field = &self.email_field;
+        let table = &self.table;
+        let query = format_sstr!("SELECT {email_field} FROM {table}");
         let query = query_dyn!(&query)?;
         let conn = pool.get().await?;
         query
@@ -70,7 +69,7 @@ impl Entry {
     /// # Errors
     /// Returns error if db query fails
     pub async fn add_user(&self, email: impl AsRef<str>) -> Result<(), Error> {
-        let pool = self.get_pool();
+        let pool = self.get_pool()?;
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
         let conn: &PgTransaction = &tran;
@@ -97,7 +96,7 @@ impl Entry {
     /// # Errors
     /// Returns error if db query fails
     pub async fn remove_user(&self, email: impl AsRef<str>) -> Result<(), Error> {
-        let pool = self.get_pool();
+        let pool = self.get_pool()?;
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
         let conn: &PgTransaction = &tran;

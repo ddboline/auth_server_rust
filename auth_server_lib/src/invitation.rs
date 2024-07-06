@@ -73,19 +73,22 @@ impl Invitation {
         Ok(())
     }
 
-    async fn insert_conn<C>(&self, conn: &C) -> Result<(), Error>
-    where
-        C: GenericClient + Sync,
-    {
-        let query = query!(
+    fn insert_query(&self) -> Query {
+        query!(
             "
             INSERT INTO invitations (id, email, expires_at)
             VALUES ($id, $email, $expires_at)",
             id = self.id,
             email = self.email,
             expires_at = self.expires_at,
-        );
-        query.execute(conn).await?;
+        )
+    }
+
+    async fn insert_conn<C>(&self, conn: &C) -> Result<(), Error>
+    where
+        C: GenericClient + Sync,
+    {
+        self.insert_query().execute(conn).await?;
         Ok(())
     }
 
@@ -125,7 +128,7 @@ mod tests {
     async fn test_create_delete_invitation() -> Result<(), Error> {
         let _lock = AUTH_APP_MUTEX.lock().await;
         let config = Config::init_config()?;
-        let pool = PgPool::new(&config.database_url);
+        let pool = PgPool::new(&config.database_url)?;
         let email = format_sstr!("{}@localhost", get_random_string(32));
         let invitation = Invitation::from_email(email);
         let uuid = invitation.id;
@@ -144,7 +147,7 @@ mod tests {
     async fn test_get_all_get_number_invitations() -> Result<(), Error> {
         let _lock = AUTH_APP_MUTEX.lock().await;
         let config = Config::init_config()?;
-        let pool = PgPool::new(&config.database_url);
+        let pool = PgPool::new(&config.database_url)?;
         let (invitations, count) = try_join!(
             Invitation::get_all(&pool),
             Invitation::get_number_invitations(&pool)

@@ -1,5 +1,5 @@
 use futures::Stream;
-use postgres_query::{client::GenericClient, query, Error as PqError, FromSqlRow};
+use postgres_query::{client::GenericClient, query, Error as PqError, FromSqlRow, Query};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use stack_string::StackString;
@@ -119,11 +119,8 @@ impl SessionData {
         Ok(count)
     }
 
-    async fn insert_conn<C>(&self, conn: &C) -> Result<(), Error>
-    where
-        C: GenericClient + Sync,
-    {
-        let query = query!(
+    fn insert_query(&self) -> Query {
+        query!(
             "
                 INSERT INTO session_values (id, session_id, session_key, session_value)
                 VALUES ($id, $session_id, $session_key, $session_value)
@@ -132,16 +129,20 @@ impl SessionData {
             session_id = self.session_id,
             session_key = self.session_key,
             session_value = self.session_value,
-        );
+        )
+    }
+
+    async fn insert_conn<C>(&self, conn: &C) -> Result<(), Error>
+    where
+        C: GenericClient + Sync,
+    {
+        let query = self.insert_query();
         query.execute(conn).await?;
         Ok(())
     }
 
-    async fn update_conn<C>(&self, conn: &C) -> Result<(), Error>
-    where
-        C: GenericClient + Sync,
-    {
-        let query = query!(
+    fn update_query(&self) -> Query {
+        query!(
             "
                 UPDATE session_values
                 SET session_value=$session_value,modified_at=now()
@@ -153,7 +154,14 @@ impl SessionData {
             session_id = self.session_id,
             session_key = self.session_key,
             session_value = self.session_value
-        );
+        )
+    }
+
+    async fn update_conn<C>(&self, conn: &C) -> Result<(), Error>
+    where
+        C: GenericClient + Sync,
+    {
+        let query = self.update_query();
         query.execute(conn).await?;
         Ok(())
     }

@@ -122,7 +122,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
     let google_client = GoogleClient::new(&config).await?;
     let sdk_config = aws_config::load_from_env().await;
     let ses = SesInstance::new(&sdk_config);
-    let pool = PgPool::new(&config.database_url);
+    let pool = PgPool::new(&config.database_url)?;
 
     let update_handle = spawn(_update_db(
         pool.clone(),
@@ -194,7 +194,7 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
     let google_client = GoogleClient::new(&config).await?;
     let sdk_config = aws_config::load_from_env().await;
     let ses = SesInstance::new(&sdk_config);
-    let pool = PgPool::new(&config.database_url);
+    let pool = PgPool::new(&config.database_url)?;
 
     let app = AppState {
         config: config.clone(),
@@ -362,7 +362,7 @@ mod tests {
 
         let config = Config::init_config()?;
 
-        let pool = PgPool::new(&config.database_url);
+        let pool = PgPool::new(&config.database_url)?;
         let email = format_sstr!("{}@localhost", get_random_string(32));
         let password = get_random_string(32);
         let invitation = Invitation::from_email(&email);
@@ -503,7 +503,7 @@ mod tests {
         let google_client = GoogleClient::new(&config).await?;
         let sdk_config = aws_config::load_from_env().await;
         let ses = SesInstance::new(&sdk_config);
-        let pool = PgPool::new(&config.database_url);
+        let pool = PgPool::new(&config.database_url)?;
 
         let app = AppState {
             config: config.clone(),

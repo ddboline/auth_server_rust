@@ -1,5 +1,5 @@
 use log::debug;
-use postgres_query::{client::GenericClient, query, FromSqlRow};
+use postgres_query::{client::GenericClient, query, FromSqlRow, Query};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use stack_string::StackString;
@@ -90,10 +90,8 @@ impl Session {
         query.fetch(&conn).await.map_err(Into::into)
     }
 
-    /// # Errors
-    /// Returns error if db query fails
-    pub async fn get_session_summary(pool: &PgPool) -> Result<Vec<SessionSummary>, Error> {
-        let query = query!(
+    fn get_session_query() -> Query<'static> {
+        query!(
             "
                 SELECT s.id as session_id,
                        s.email as email_address,
@@ -105,7 +103,13 @@ impl Session {
                 GROUP BY 1,2,3,4
                 ORDER BY created_at
             "
-        );
+        )
+    }
+
+    /// # Errors
+    /// Returns error if db query fails
+    pub async fn get_session_summary(pool: &PgPool) -> Result<Vec<SessionSummary>, Error> {
+        let query = Self::get_session_query();
         let conn = pool.get().await?;
         query.fetch(&conn).await.map_err(Into::into)
     }
@@ -139,18 +143,22 @@ impl Session {
         Ok(())
     }
 
-    async fn insert_conn<C>(&self, conn: &C) -> Result<(), Error>
-    where
-        C: GenericClient + Sync,
-    {
-        let query = query!(
+    fn insert_query(&self) -> Query {
+        query!(
             "
             INSERT INTO sessions (id, email, secret_key)
             VALUES ($id, $email, $secret_key)",
             id = self.id,
             email = self.email,
             secret_key = self.secret_key,
-        );
+        )
+    }
+
+    async fn insert_conn<C>(&self, conn: &C) -> Result<(), Error>
+    where
+        C: GenericClient + Sync,
+    {
+        let query = self.insert_query();
         query.execute(&conn).await?;
         Ok(())
     }
@@ -373,7 +381,7 @@ mod tests {
     async fn test_session() -> Result<(), Error> {
         let _lock = AUTH_APP_MUTEX.lock().await;
         let config = Config::init_config()?;
-        let pool = PgPool::new(&config.database_url);
+        let pool = PgPool::new(&config.database_url)?;
 
         let user = User::from_details("test@example.com", "abc123")?;
         user.insert(&pool).await?;

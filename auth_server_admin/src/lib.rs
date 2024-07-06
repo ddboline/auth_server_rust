@@ -354,7 +354,7 @@ async fn get_auth_user_app_map(
 pub async fn run_cli() -> Result<(), Error> {
     let opts = AuthServerOptions::parse();
     let config = Config::init_config()?;
-    let pool = PgPool::new(&config.database_url);
+    let pool = PgPool::new(&config.database_url)?;
     let stdout = StdoutChannel::new();
 
     opts.process_args(&pool, &stdout).await?;
@@ -395,7 +395,7 @@ mod test {
     async fn test_process_args() -> Result<(), Error> {
         let _lock = AUTH_APP_MUTEX.lock().await;
         let config = Config::init_config()?;
-        let pool = PgPool::new(&config.database_url);
+        let pool = PgPool::new(&config.database_url)?;
         let email = format_sstr!("ddboline+{}@ddboline.net", get_random_string(32));
         let password = get_random_string(32);
 

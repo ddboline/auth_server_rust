@@ -83,7 +83,7 @@ mod test {
     #[tokio::test]
     async fn test_authenticate() -> Result<(), Error> {
         let config = Config::init_config()?;
-        let pool = PgPool::new(&config.database_url);
+        let pool = PgPool::new(&config.database_url)?;
 
         let email = format_sstr!("{}@localhost", get_random_string(32));
         let password = get_random_string(32);

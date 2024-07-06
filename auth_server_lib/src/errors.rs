@@ -1,4 +1,5 @@
 use argon2::password_hash::Error as ArgonError;
+use deadpool_postgres::{BuildError, ConfigError};
 use envy::Error as EnvyError;
 use postgres_query::{extract::Error as QueryExtractError, Error as QueryError};
 use serde_json::Error as SerdeJsonError;
@@ -61,4 +62,8 @@ pub enum AuthServerError {
     UuidError(#[from] UuidError),
     #[error("Bad Secret")]
     BadSecret,
+    #[error("ConfigError {0}")]
+    ConfigError(#[from] ConfigError),
+    #[error("BuildError {0}")]
+    BuildError(#[from] BuildError),
 }
