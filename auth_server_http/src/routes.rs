@@ -709,8 +709,8 @@ pub async fn callback(
         <script language="JavaScript" type="text/javascript">window.close()</script>
     "#;
     Ok(HtmlBase::new(body)
-        .with_cookie(&session_id.encoded().to_string())
-        .with_cookie(&jwt.encoded().to_string())
+        .with_cookie(session_id.encoded().to_string())
+        .with_cookie(jwt.encoded().to_string())
         .into())
 }
 

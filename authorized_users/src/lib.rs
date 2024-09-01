@@ -40,8 +40,8 @@ pub const KEY_LENGTH: usize = 32;
 type SecretKey = [u8; KEY_LENGTH];
 
 thread_local! {
-    static SECRET_KEY_CACHE: Cell<Option<SecretKey>> = Cell::new(None);
-    static JWT_SECRET_CACHE: Cell<Option<SecretKey>> = Cell::new(None);
+    static SECRET_KEY_CACHE: Cell<Option<SecretKey>> = const { Cell::new(None) };
+    static JWT_SECRET_CACHE: Cell<Option<SecretKey>> = const { Cell::new(None) };
 }
 
 pub static AUTHORIZED_USERS: Lazy<AuthorizedUsers> = Lazy::new(AuthorizedUsers::new);

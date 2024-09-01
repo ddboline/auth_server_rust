@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_ext"
-version = "0.11.15"
+version = "0.11.16"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -16,7 +16,7 @@ aws-smithy-types = "1.1"
 base64 = "0.22"
 bytes = "1.1"
 crossbeam = "0.8"
-derive_more = "0.99"
+derive_more = {version="1.0", features=["full"]}
 dirs = "5.0"
 dotenv = "0.15"
 envy = "0.4"
@@ -32,10 +32,10 @@ smallvec = "1.8"
 stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types"], tag="0.9.3" }
 thiserror = "1.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting", "parsing"]}
-tokio = {version="1.38", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.40", features=["rt", "macros", "rt-multi-thread"]}
 toml = "0.8"
 uuid = { version = "1.0", features = ["serde", "v4"] }
 url = "2.3"
 
 [dev-dependencies]
-reqwest = {version = "0.12", default_features = false, features=["cookies", "rustls-tls", "gzip", "json"]}
+reqwest = {version = "0.12", default-features = false, features=["cookies", "rustls-tls", "gzip", "json"]}

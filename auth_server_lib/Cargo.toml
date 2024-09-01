@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_lib"
-version = "0.11.15"
+version = "0.11.16"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -14,7 +14,7 @@ bytes = "1.1"
 crossbeam = "0.8"
 deadpool = { version = "0.12", features=["serde", "rt_tokio_1"] }
 deadpool-postgres = { version = "0.14", features=["serde"] }
-derive_more = "0.99"
+derive_more = {version="1.0", features=["full"]}
 dirs = "5.0"
 dotenv = "0.15"
 envy = "0.4"
@@ -33,7 +33,7 @@ stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", featur
 stdout-channel = "0.6"
 thiserror = "1.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}
-tokio = {version="1.38", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.40", features=["rt", "macros", "rt-multi-thread"]}
 tokio-postgres = {version = "0.7", features = ["with-time-0_3", "with-uuid-1", "with-serde_json-1"]}
 toml = "0.8"
 uuid = { version = "1.0", features = ["serde", "v4"] }

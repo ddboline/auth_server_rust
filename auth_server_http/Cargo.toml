@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_http"
-version = "0.11.15"
+version = "0.11.16"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -13,7 +13,7 @@ authorized_users = {path = "../authorized_users"}
 arc-swap = "1.5"
 aws-config = {version="1.1", features=["behavior-version-latest"]}
 cookie = {version="0.18", features=["percent-encode"]}
-derive_more = "0.99"
+derive_more = {version="1.0", features=["full"]}
 dioxus-core = "0.5"
 dioxus-ssr = "0.5"
 dioxus = "0.5"
@@ -30,7 +30,7 @@ serde_yaml = "0.9"
 stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types", "rweb-openapi"], tag="0.9.3" }
 thiserror = "1.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting", "parsing"]}
-tokio = {version="1.38", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.40", features=["rt", "macros", "rt-multi-thread"]}
 toml = "0.8"
 url = "2.3"
 uuid = { version = "1.0", features = ["serde", "v4"] }
@@ -38,6 +38,6 @@ warp = "0.3"
 
 [dev-dependencies]
 anyhow = "1.0"
-reqwest = {version = "0.12", default_features = false, features=["cookies", "rustls-tls", "gzip", "json"]}
+reqwest = {version = "0.12", default-features = false, features=["cookies", "rustls-tls", "gzip", "json"]}
 maplit = "1.0"
-env_logger = {version="0.11", features=["color", "humantime", "regex"], default_features = false}
+env_logger = {version="0.11", features=["color", "humantime", "regex"], default-features = false}
