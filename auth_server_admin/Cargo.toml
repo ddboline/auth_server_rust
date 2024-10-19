@@ -39,4 +39,4 @@ url = "2.3"
 uuid = { version = "1.0", features = ["serde", "v4"] }
 
 [dev-dependencies]
-reqwest = {version = "0.12", default_features = false, features=["cookies", "rustls-tls", "gzip", "json"]}
+reqwest = {version = "0.12", default-features = false, features=["cookies", "rustls-tls", "gzip", "json"]}

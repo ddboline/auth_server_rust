@@ -75,26 +75,13 @@ pub async fn index_html(
             Vec::new()
         };
         let data = if let Some(user) = &user {
-            SessionData::get_by_session_id_streaming(&data.pool, user.session.into())
+            SessionData::get_session_summary(&data.pool, user.session.into())
                 .await
-                .map_err(Into::<Error>::into)?
-                .map_ok(|s| {
-                    let js = serde_json::to_vec(&s.session_value).unwrap_or_else(|_| Vec::new());
-                    let js = js.get(..100).unwrap_or_else(|| &js[..]);
-                    let js = match str::from_utf8(js) {
-                        Ok(s) => s,
-                        Err(error) => str::from_utf8(&js[..error.valid_up_to()]).unwrap(),
-                    };
-                    (s, js.into())
-                })
-                .try_collect()
-                .await
-                .map_err(Into::<AuthServerError>::into)
                 .map_err(Into::<Error>::into)?
         } else {
             Vec::new()
         };
-        index_body(user, summaries, data, query.final_url)?
+        index_body(user, summaries, data, query.final_url).map_err(Into::<Error>::into)?
     };
     Ok(HtmlBase::new(body).into())
 }
@@ -133,7 +120,7 @@ pub async fn register_html(
         .map_err(Into::<Error>::into)?
     {
         if invitation.email == email {
-            let body = register_body(invitation_id)?;
+            let body = register_body(invitation_id).map_err(Into::<Error>::into)?;
             return Ok(HtmlBase::new(body).into());
         }
     }
@@ -160,7 +147,7 @@ pub async fn login_html(
     query: Query<FinalUrlData>,
 ) -> WarpResult<AuthLoginResponse> {
     let query = query.into_inner();
-    let body = login_body(user, query.final_url)?;
+    let body = login_body(user, query.final_url).map_err(Into::<Error>::into)?;
     Ok(HtmlBase::new(body).into())
 }
 
@@ -171,7 +158,7 @@ struct PwChangeResponse(HtmlBase<StackString, Error>);
 #[get("/auth/change_password.html")]
 #[openapi(description = "Password Change Page")]
 pub async fn change_password(user: LoggedUser) -> WarpResult<PwChangeResponse> {
-    let body = change_password_body(user)?;
+    let body = change_password_body(user).map_err(Into::<Error>::into)?;
     Ok(HtmlBase::new(body).into())
 }
 
@@ -337,6 +324,17 @@ struct SessionDataObj {
     created_at: DateTimeType,
 }
 
+impl From<SessionData> for SessionDataObj {
+    fn from(value: SessionData) -> Self {
+        Self {
+            session_id: value.session_id.into(),
+            session_key: value.session_key,
+            session_value: value.session_value,
+            created_at: value.created_at.to_offsetdatetime().into(),
+        }
+    }
+}
+
 #[derive(RwebResponse)]
 #[response(description = "Session Data")]
 struct SessionDataObjResponse(JsonBase<Vec<SessionDataObj>, Error>);
@@ -350,12 +348,7 @@ pub async fn list_session_obj(
     let values = SessionData::get_by_session_id_streaming(&data.pool, user.session.into())
         .await
         .map_err(Into::<Error>::into)?
-        .map_ok(|s| SessionDataObj {
-            session_id: user.session,
-            session_key: s.session_key,
-            session_value: s.session_value,
-            created_at: s.created_at.to_offsetdatetime().into(),
-        })
+        .map_ok(Into::into)
         .try_collect()
         .await
         .map_err(Into::<AuthServerError>::into)
@@ -375,7 +368,7 @@ pub async fn list_sessions(
     #[data] data: AppState,
 ) -> WarpResult<ListSessionsResponse> {
     let summaries = list_sessions_lines(&data).await?;
-    let body = session_body(summaries)?;
+    let body = session_body(summaries).map_err(Into::<Error>::into)?;
     Ok(HtmlBase::new(body).into())
 }
 
@@ -395,25 +388,10 @@ pub async fn list_session_data(
     user: LoggedUser,
     #[data] data: AppState,
 ) -> WarpResult<ListSessionDataResponse> {
-    let data: Vec<(SessionData, StackString)> =
-        SessionData::get_by_session_id_streaming(&data.pool, user.session.into())
-            .await
-            .map_err(Into::<Error>::into)?
-            .map_ok(|s| {
-                let js = serde_json::to_vec(&s.session_value).unwrap_or_else(|_| Vec::new());
-                let js = js.get(..100).unwrap_or_else(|| &js[..]);
-                let js = match str::from_utf8(js) {
-                    Ok(s) => s,
-                    Err(error) => str::from_utf8(&js[..error.valid_up_to()]).unwrap(),
-                };
-                (s, js.into())
-            })
-            .try_collect()
-            .await
-            .map_err(Into::<AuthServerError>::into)
-            .map_err(Into::<Error>::into)?;
-
-    let body = session_data_body(data)?;
+    let data = SessionData::get_session_summary(&data.pool, user.session.into())
+        .await
+        .map_err(Into::<Error>::into)?;
+    let body = session_data_body(data).map_err(Into::<Error>::into)?;
     Ok(HtmlBase::new(body).into())
 }
 
@@ -790,15 +768,14 @@ async fn status_body(pool: &PgPool) -> HttpResult<StatusOutput> {
         },
         ses.get_statistics(),
     )?;
-    let result = StatusOutput {
+    Ok(StatusOutput {
         number_of_users: number_users,
         number_of_invitations: number_invitations,
         number_of_sessions: number_sessions,
         number_of_entries: number_entries,
         quota: quotas.into(),
         stats: stats.into(),
-    };
-    Ok(result)
+    })
 }
 
 #[derive(RwebResponse)]

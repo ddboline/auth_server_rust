@@ -1,8 +1,9 @@
-use futures::Stream;
+use futures::{Stream, TryStreamExt};
 use postgres_query::{client::GenericClient, query, Error as PqError, FromSqlRow, Query};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use stack_string::StackString;
+use std::str;
 use uuid::Uuid;
 
 use crate::{
@@ -77,6 +78,28 @@ impl SessionData {
         );
         let conn = pool.get().await?;
         query.fetch_streaming(&conn).await.map_err(Into::into)
+    }
+
+    /// # Errors
+    /// Returns error if db query fails
+    pub async fn get_session_summary(
+        pool: &PgPool,
+        session_id: Uuid,
+    ) -> Result<Vec<(Self, StackString)>, Error> {
+        let result: Vec<_> = Self::get_by_session_id_streaming(pool, session_id)
+            .await?
+            .map_ok(|s| {
+                let js = serde_json::to_vec(&s.session_value).unwrap_or_else(|_| Vec::new());
+                let js = js.get(..100).unwrap_or_else(|| &js[..]);
+                let js = match str::from_utf8(js) {
+                    Ok(s) => s,
+                    Err(error) => str::from_utf8(&js[..error.valid_up_to()]).unwrap_or(""),
+                };
+                (s, js.into())
+            })
+            .try_collect()
+            .await?;
+        Ok(result)
     }
 
     /// # Errors

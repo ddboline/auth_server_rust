@@ -2,12 +2,13 @@ use dioxus::prelude::{
     component, dioxus_elements, rsx, Element, GlobalAttributes, IntoDynNode, Props, VirtualDom,
 };
 use stack_string::{format_sstr, StackString};
+use std::fmt::Error;
 use time::macros::format_description;
 use uuid::Uuid;
 
 use auth_server_lib::{session::SessionSummary, session_data::SessionData};
 
-use crate::{errors::ServiceError as Error, logged_user::LoggedUser};
+use crate::logged_user::LoggedUser;
 
 /// # Errors
 /// Returns formatting error.
