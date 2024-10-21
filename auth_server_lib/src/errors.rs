@@ -3,7 +3,7 @@ use deadpool_postgres::{BuildError, ConfigError};
 use envy::Error as EnvyError;
 use postgres_query::{extract::Error as QueryExtractError, Error as QueryError};
 use serde_json::Error as SerdeJsonError;
-use serde_yaml::Error as YamlError;
+use serde_yml::Error as YamlError;
 use std::{io::Error as IoError, net::AddrParseError};
 use stdout_channel::StdoutChannelError;
 use thiserror::Error;

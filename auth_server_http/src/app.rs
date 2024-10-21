@@ -156,7 +156,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
             move || warp::reply::json(spec.as_ref())
         });
 
-    let spec_yaml = serde_yaml::to_string(spec.as_ref()).map_err(Into::<AuthServerError>::into)?;
+    let spec_yaml = serde_yml::to_string(spec.as_ref()).map_err(Into::<AuthServerError>::into)?;
     let spec_yaml_path = rweb::path!("api" / "openapi" / "yaml")
         .and(rweb::path::end())
         .map(move || {
@@ -514,7 +514,7 @@ mod tests {
         };
 
         let (spec, _) = openapi::spec().build(|| get_api_scope(&app));
-        let spec_yaml = serde_yaml::to_string(&spec).map_err(Into::<AuthServerError>::into)?;
+        let spec_yaml = serde_yml::to_string(&spec).map_err(Into::<AuthServerError>::into)?;
 
         debug!("{}", spec_yaml);
         Ok(())
