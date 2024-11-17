@@ -114,6 +114,7 @@ mod tests {
             email: "test@local".into(),
             session,
             secret_key: secret.into(),
+            created_at: None,
         };
 
         let token = Token::create_token(
