@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_http"
-version = "0.11.16"
+version = "0.12.0"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -27,10 +27,10 @@ rweb-helper = {git = "https://github.com/ddboline/rweb_helper.git", tag="0.5.3"}
 serde = { version="1.0", features=["derive"] }
 serde_json="1.0"
 serde_yml = "0.0.12"
-stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types", "rweb-openapi"], tag="0.9.3" }
-thiserror = "1.0"
+stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types", "rweb-openapi"], tag="1.0.2" }
+thiserror = "2.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting", "parsing"]}
-tokio = {version="1.40", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.41", features=["rt", "macros", "rt-multi-thread"]}
 toml = "0.8"
 url = "2.3"
 uuid = { version = "1.0", features = ["serde", "v4"] }

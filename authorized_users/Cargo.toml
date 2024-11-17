@@ -1,6 +1,6 @@
 [package]
 name = "authorized_users"
-version = "0.11.16"
+version = "0.12.0"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -10,7 +10,7 @@ edition = "2018"
 arc-swap = "1.5"
 base64 = "0.22"
 biscuit = "0.7"
-bytes = "1.1"
+bytes = "1.8"
 crossbeam = "0.8"
 derive_more = {version="1.0", features=["full"]}
 log = "0.4"
@@ -19,9 +19,9 @@ rand = "0.8"
 reqwest = {version="0.12", features=["cookies", "json", "rustls-tls", "stream"], default-features=false}
 serde = { version="1.0", features=["derive"] }
 smallvec = "1.8"
-stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types"], tag="0.9.3" }
-thiserror = "1.0"
+stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types"], tag="1.0.2" }
+thiserror = "2.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}
-tokio = {version="1.40", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.41", features=["rt", "macros", "rt-multi-thread"]}
 url = "2.3"
 uuid = { version = "1.0", features = ["serde", "v4"] }
