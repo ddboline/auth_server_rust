@@ -174,16 +174,13 @@ pub async fn login(
 ) -> WarpResult<ApiAuthResponse> {
     let auth_data = auth_data.into_inner();
 
-    let (user, session, UserCookies { session_id, jwt }) =
-        auth_data.login_user_jwt(&data.pool, &data.config).await?;
+    let (user, session, cookies) = auth_data.login_user_jwt(&data.pool, &data.config).await?;
 
-    data.session_cache.add_session(session);
-    let session_str = format_sstr!("{}", session_id.encoded());
-    let jwt_str = format_sstr!("{}", jwt.encoded());
+    let _ = data.session_cache.add_session(session);
 
     let resp = JsonBase::new(user)
-        .with_cookie(&session_str)
-        .with_cookie(&jwt_str);
+        .with_cookie(cookies.get_session_cookie_str())
+        .with_cookie(cookies.get_jwt_cookie_str());
     Ok(resp.into())
 }
 
@@ -194,17 +191,18 @@ struct ApiAuthDeleteResponse(JsonBase<StackString, Error>);
 #[delete("/api/auth")]
 #[openapi(description = "Log out")]
 pub async fn logout(user: LoggedUser, #[data] data: AppState) -> WarpResult<ApiAuthDeleteResponse> {
-    LoggedUser::delete_user_session(user.session.into(), &data.pool).await?;
-    data.session_cache.remove_session(user.session.into());
-    let UserCookies { session_id, jwt } = user.clear_jwt_cookie(
+    let session_id = user.session.into();
+    let _ = data.session_cache.remove_session(session_id);
+    LoggedUser::delete_user_session(session_id, &data.pool).await?;
+    let cookies = user.clear_jwt_cookie(
         &data.config.domain,
         data.config.expiration_seconds,
         data.config.secure,
     );
     let body = format_sstr!("{} has been logged out", user.email);
     let resp = JsonBase::new(body)
-        .with_cookie(session_id.encoded().to_string())
-        .with_cookie(jwt.encoded().to_string());
+        .with_cookie(cookies.get_session_cookie_str())
+        .with_cookie(cookies.get_jwt_cookie_str());
     Ok(resp.into())
 }
 
@@ -214,7 +212,18 @@ struct ApiAuthGetResponse(JsonBase<LoggedUser, Error>);
 
 #[get("/api/auth")]
 #[openapi(description = "Get current username if logged in")]
-pub async fn get_me(user: LoggedUser) -> WarpResult<ApiAuthGetResponse> {
+pub async fn get_user(user: LoggedUser, #[data] data: AppState) -> WarpResult<ApiAuthGetResponse> {
+    let session_id = user.session.into();
+    if !data.session_cache.has_session(session_id) {
+        if let Some(session) = Session::get_session(&data.pool, session_id)
+            .await
+            .map_err(Into::<Error>::into)?
+        {
+            let _ = data.session_cache.add_session(session);
+        } else {
+            return Err(Error::Unauthorized.into());
+        }
+    }
     Ok(JsonBase::new(user).into())
 }
 
@@ -431,20 +440,21 @@ pub async fn delete_sessions(
 ) -> WarpResult<DeleteSessionsResponse> {
     let session_query = session_query.into_inner();
     if let Some(session_key) = &session_query.session_key {
+        let session_id = user.session.into();
         Session::delete_session_data_from_cache(
             &data.pool,
-            user.session.into(),
+            session_id,
             &user.secret_key,
             session_key,
         )
         .await
         .map_err(Into::<Error>::into)?;
         data.session_cache
-            .remove_data(user.session.into(), &user.secret_key, session_key)?;
+            .remove_data(session_id, &user.secret_key, session_key)?;
     }
     if let Some(session) = session_query.session {
         LoggedUser::delete_user_session(session.into(), &data.pool).await?;
-        data.session_cache.remove_session(session.into());
+        let _ = data.session_cache.remove_session(session.into());
     }
     Ok(HtmlBase::new("finished").into())
 }
@@ -674,7 +684,7 @@ pub async fn callback(
     #[data] data: AppState,
     query: Query<CallbackQuery>,
 ) -> WarpResult<ApiCallbackResponse> {
-    let UserCookies { session_id, jwt } = callback_body(
+    let cookies = callback_body(
         query.into_inner(),
         &data.pool,
         &data.google_client,
@@ -687,8 +697,8 @@ pub async fn callback(
         <script language="JavaScript" type="text/javascript">window.close()</script>
     "#;
     Ok(HtmlBase::new(body)
-        .with_cookie(session_id.encoded().to_string())
-        .with_cookie(jwt.encoded().to_string())
+        .with_cookie(cookies.get_session_cookie_str())
+        .with_cookie(cookies.get_jwt_cookie_str())
         .into())
 }
 
@@ -789,12 +799,16 @@ pub async fn test_login(
 ) -> WarpResult<TestLoginResponse> {
     let auth_data = auth_data.into_inner();
     let session = Session::new(auth_data.email.as_str());
-    let (user, UserCookies { session_id, jwt }) =
-        test_login_user_jwt(auth_data, session, &data.config).await?;
+    let (user, cookies) = test_login_user_jwt(auth_data, session, &data.config).await?;
     let resp = JsonBase::new(user)
-        .with_cookie(session_id.encoded().to_string())
-        .with_cookie(jwt.encoded().to_string());
+        .with_cookie(cookies.get_session_cookie_str())
+        .with_cookie(cookies.get_jwt_cookie_str());
     Ok(resp.into())
+}
+
+#[get("/api/auth")]
+pub async fn test_get_user(user: LoggedUser) -> WarpResult<ApiAuthGetResponse> {
+    Ok(JsonBase::new(user).into())
 }
 
 async fn test_login_user_jwt(
@@ -802,7 +816,7 @@ async fn test_login_user_jwt(
     session: Session,
     config: &Config,
 ) -> HttpResult<(LoggedUser, UserCookies<'static>)> {
-    use maplit::hashset;
+    use maplit::hashmap;
 
     if let Ok(s) = std::env::var("TESTENV") {
         if &s == "true" {
@@ -811,8 +825,9 @@ async fn test_login_user_jwt(
                 email,
                 session: session.id,
                 secret_key: session.secret_key.clone(),
+                created_at: Some(OffsetDateTime::now_utc()),
             };
-            AUTHORIZED_USERS.update_users(hashset! {user.email.clone()});
+            AUTHORIZED_USERS.update_users(hashmap! {user.email.clone() => user.clone()});
             let mut user: LoggedUser = user.into();
             user.session = session.id.into();
             let cookies = user.get_jwt_cookie(&config.domain, config.expiration_seconds, false)?;
