@@ -21,7 +21,7 @@ use uuid::Error as ParseError;
 
 use auth_server_ext::{errors::AuthServerExtError, google_openid::OpenidError};
 use auth_server_lib::errors::AuthServerError;
-use authorized_users::{errors::AuthUsersError, LOGIN_HTML, TRIGGER_DB_UPDATE};
+use authorized_users::{errors::AuthUsersError, LOGIN_HTML};
 
 #[derive(Debug, Error)]
 pub enum ServiceError {
@@ -95,11 +95,9 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
         code = StatusCode::NOT_FOUND;
         message = "NOT FOUND";
     } else if err.find::<InvalidHeader>().is_some() {
-        TRIGGER_DB_UPDATE.set();
         return Ok(Box::new(login_html()));
     } else if let Some(missing_cookie) = err.find::<MissingCookie>() {
         if missing_cookie.name() == "jwt" {
-            TRIGGER_DB_UPDATE.set();
             return Ok(Box::new(login_html()));
         }
         code = StatusCode::INTERNAL_SERVER_ERROR;
@@ -111,12 +109,10 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
                 message = msg;
             }
             ServiceError::Unauthorized => {
-                TRIGGER_DB_UPDATE.set();
                 return Ok(Box::new(login_html()));
             }
             ServiceError::AuthUsersError(error) => {
                 error!("Auth error {error}");
-                TRIGGER_DB_UPDATE.set();
                 return Ok(Box::new(login_html()));
             }
             _ => {
