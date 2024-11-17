@@ -5,7 +5,7 @@ use rweb::{
     filters::{cookie::cookie, BoxedFilter},
     Filter, FromRequest, Rejection, Schema,
 };
-use rweb_helper::UuidWrapper;
+use rweb_helper::{DateTimeType, UuidWrapper};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::{
@@ -28,11 +28,25 @@ pub struct LoggedUser {
     pub session: UuidWrapper,
     #[schema(description = "Secret Key")]
     pub secret_key: StackString,
+    #[schema(description = "User Created At")]
+    pub created_at: Option<DateTimeType>,
 }
 
 pub struct UserCookies<'a> {
-    pub session_id: Cookie<'a>,
+    pub session: Cookie<'a>,
     pub jwt: Cookie<'a>,
+}
+
+impl<'a> UserCookies<'a> {
+    #[must_use]
+    pub fn get_session_cookie_str(&self) -> StackString {
+        StackString::from_display(self.session.encoded())
+    }
+
+    #[must_use]
+    pub fn get_jwt_cookie_str(&self) -> StackString {
+        StackString::from_display(self.jwt.encoded())
+    }
 }
 
 impl LoggedUser {
@@ -45,8 +59,8 @@ impl LoggedUser {
         secure: bool,
     ) -> Result<UserCookies<'static>, Error> {
         let domain: String = domain.as_ref().into();
-        let session = self.session;
-        let session_id = Cookie::build(("session-id", session.to_string()))
+        let session_id: Uuid = self.session.into();
+        let session = Cookie::build(("session-id", session_id.to_string()))
             .path("/")
             .http_only(true)
             .domain(domain.clone())
@@ -57,7 +71,7 @@ impl LoggedUser {
             self.email.clone(),
             &domain,
             expiration_seconds,
-            session.into(),
+            session_id,
             self.secret_key.clone(),
         )?;
         let jwt = Cookie::build(("jwt", token.to_string()))
@@ -67,7 +81,7 @@ impl LoggedUser {
             .max_age(Duration::seconds(expiration_seconds))
             .secure(secure)
             .build();
-        Ok(UserCookies { session_id, jwt })
+        Ok(UserCookies { session, jwt })
     }
 
     pub fn clear_jwt_cookie(
@@ -77,8 +91,8 @@ impl LoggedUser {
         secure: bool,
     ) -> UserCookies<'static> {
         let domain = domain.as_ref();
-        let session = self.session;
-        let session_id = Cookie::build(("session-id", session.to_string()))
+        let session_id = self.session;
+        let session = Cookie::build(("session-id", session_id.to_string()))
             .path("/")
             .http_only(true)
             .domain(domain.to_string())
@@ -92,7 +106,7 @@ impl LoggedUser {
             .max_age(Duration::seconds(expiration_seconds))
             .secure(secure)
             .build();
-        UserCookies { session_id, jwt }
+        UserCookies { session, jwt }
     }
 
     /// # Errors
@@ -141,6 +155,7 @@ impl From<AuthorizedUser> for LoggedUser {
             email: user.email,
             session: user.session.into(),
             secret_key: user.secret_key,
+            created_at: user.created_at.map(Into::into),
         }
     }
 }
@@ -151,6 +166,7 @@ impl From<LoggedUser> for AuthorizedUser {
             email: user.email,
             session: user.session.into(),
             secret_key: user.secret_key,
+            created_at: user.created_at.map(Into::into),
         }
     }
 }
