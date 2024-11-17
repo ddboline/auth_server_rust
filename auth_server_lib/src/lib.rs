@@ -21,8 +21,9 @@ use rand::{
     thread_rng,
 };
 use smallvec::SmallVec;
-use stack_string::{StackString, MAX_INLINE};
+use stack_string::StackString;
 use tokio::sync::Mutex;
+use stack_string::MAX_INLINE;
 
 pub static AUTH_APP_MUTEX: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
@@ -32,8 +33,7 @@ pub fn get_random_string(n: usize) -> StackString {
     if n > MAX_INLINE {
         Alphanumeric.sample_string(&mut rng, n).into()
     } else {
-        let buf: SmallVec<[u8; MAX_INLINE]> =
-            (0..n).map(|_| Alphanumeric.sample(&mut rng)).collect();
+        let buf: SmallVec<[u8; MAX_INLINE]> = Alphanumeric.sample_iter(&mut rng).take(n).collect();
         StackString::from_utf8_lossy(&buf[0..n])
     }
 }
