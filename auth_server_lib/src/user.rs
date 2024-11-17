@@ -8,6 +8,7 @@ use postgres_query::{client::GenericClient, query, Error as PqError, FromSqlRow}
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use authorized_users::AuthorizedUser;
@@ -122,6 +123,19 @@ impl User {
         let query = query!("SELECT * FROM users");
         let conn = pool.get().await?;
         query.fetch_streaming(&conn).await.map_err(Into::into)
+    }
+
+    /// # Errors
+    /// Returns error if db query fails
+    pub async fn get_most_recent_created_at(
+        pool: &PgPool,
+    ) -> Result<Option<OffsetDateTime>, Error> {
+        let query = query!("SELECT max(created_at) FROM users");
+        let conn = pool.get().await?;
+        match query.fetch_opt(&conn).await? {
+            Some((max,)) => Ok(Some(max)),
+            None => Ok(None),
+        }
     }
 
     /// # Errors
@@ -249,6 +263,7 @@ impl From<User> for AuthorizedUser {
             email: user.email,
             session: Uuid::new_v4(),
             secret_key: get_random_string(16),
+            created_at: Some(user.created_at.into()),
         }
     }
 }
@@ -335,6 +350,16 @@ mod tests {
         let password = "password";
         let hash = argon.hash_password(password).unwrap();
         assert_eq!(argon.verify_password(&hash, password), Ok(()));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_get_most_recent_created_at() -> Result<(), Error> {
+        let _lock = AUTH_APP_MUTEX.lock().await;
+        let config = Config::init_config()?;
+        let pool = PgPool::new(&config.database_url)?;
+        let max_dt = User::get_most_recent_created_at(&pool).await?;
+        assert!(max_dt.is_some());
         Ok(())
     }
 }
