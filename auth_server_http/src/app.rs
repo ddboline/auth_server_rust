@@ -1,4 +1,4 @@
-use futures::TryStreamExt;
+use futures::{try_join, TryStreamExt};
 use log::debug;
 use rweb::{
     filters::BoxedFilter,
@@ -6,8 +6,8 @@ use rweb::{
     openapi::{self, Info},
     Filter, Reply,
 };
-use stack_string::format_sstr;
-use std::{collections::HashSet, net::SocketAddr, sync::Arc, time::Duration};
+use stack_string::{format_sstr, StackString};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{task::spawn, time::interval};
 
 use auth_server_ext::{
@@ -17,16 +17,17 @@ use auth_server_lib::{
     config::Config, errors::AuthServerError, pgpool::PgPool, session::Session, user::User,
 };
 use authorized_users::{
-    errors::AuthUsersError, get_secrets, update_secret, AUTHORIZED_USERS, TRIGGER_DB_UPDATE,
+    errors::AuthUsersError, get_secrets, update_secret, AuthorizedUser, AUTHORIZED_USERS,
 };
 
 use crate::{
     errors::error_response,
     routes::{
         auth_await, auth_url, callback, change_password, change_password_user, delete_session,
-        delete_sessions, get_me, get_session, get_sessions, index_html, list_session_data,
+        delete_sessions, get_session, get_sessions, get_user, index_html, list_session_data,
         list_session_obj, list_sessions, login, login_html, logout, main_css, main_js,
-        post_session, register_email, register_html, register_user, status, test_login,
+        post_session, register_email, register_html, register_user, status, test_get_user,
+        test_login,
     },
     session_data_cache::SessionDataCache,
 };
@@ -59,7 +60,9 @@ pub async fn start_app() -> Result<(), Error> {
 }
 
 fn get_api_scope(app: &AppState) -> BoxedFilter<(impl Reply,)> {
-    let auth_path = login(app.clone()).or(logout(app.clone())).or(get_me());
+    let auth_path = login(app.clone())
+        .or(logout(app.clone()))
+        .or(get_user(app.clone()));
 
     let invitation_path = register_email(app.clone());
     let register_path = register_user(app.clone());
@@ -206,7 +209,9 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
 
     let port = config.port;
 
-    let auth_path = test_login(app.clone()).or(logout(app.clone())).or(get_me());
+    let auth_path = test_login(app.clone())
+        .or(logout(app.clone()))
+        .or(test_get_user());
 
     let cors = rweb::cors()
         .allow_methods(vec!["GET", "POST", "DELETE"])
@@ -229,20 +234,28 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
 ///     * `User::get_authorized_users` fails
 ///     * `AUTHORIZED_USERS.merge_users` fails
 pub async fn fill_auth_from_db(pool: &PgPool, expiration_seconds: i64) -> Result<(), Error> {
-    debug!("{:?}", *TRIGGER_DB_UPDATE);
-    let users = if TRIGGER_DB_UPDATE.check() {
-        Session::cleanup(pool, expiration_seconds).await?;
-        let result: Result<HashSet<_>, _> = User::get_authorized_users(pool)
-            .await?
-            .map_ok(|user| user.email)
-            .try_collect()
-            .await;
-        result.map_err(Into::<AuthServerError>::into)?
-    } else {
-        AUTHORIZED_USERS.get_users()
-    };
+    let (cleanup_result, (most_recent_created, most_recent_deleted)) = try_join!(
+        Session::cleanup(pool, expiration_seconds),
+        User::get_most_recent(pool),
+    )?;
+    let most_recent_user_db = most_recent_created.max(most_recent_deleted);
+    let existing_users = AUTHORIZED_USERS.get_users();
+    let most_recent_user = existing_users.values().map(|i| i.created_at).max();
+    debug!("most_recent_user_db {most_recent_user_db:?} most_recent_user {most_recent_user:?}");
+    if cleanup_result == 0 && most_recent_user_db.is_some()
+        && most_recent_user.is_some()
+        && most_recent_user_db <= most_recent_user
+    {
+        return Ok(());
+    }
+    let result: Result<HashMap<StackString, AuthorizedUser>, _> = User::get_authorized_users(pool)
+        .await?
+        .map_ok(|user| (user.email.clone(), user.into()))
+        .try_collect()
+        .await;
+    let users = result.map_err(Into::<AuthServerError>::into)?;
     AUTHORIZED_USERS.update_users(users);
-    debug!("{:?}", *AUTHORIZED_USERS);
+    debug!("AUTHORIZED_USERS {:?}", *AUTHORIZED_USERS);
     Ok(())
 }
 
@@ -330,6 +343,14 @@ mod tests {
         assert_eq!(resp.email.as_str(), email.as_str());
 
         debug!("get me");
+        let resp = client
+            .get(url.as_str())
+            .send()
+            .await?
+            .error_for_status()?
+            .text()
+            .await?;
+        debug!("resp {resp}");
         let resp: LoggedUser = client
             .get(url.as_str())
             .send()
