@@ -21,7 +21,7 @@ use rand::{
 use stack_string::StackString;
 use std::{
     cell::Cell,
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     path::Path,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -59,7 +59,7 @@ pub static LOGIN_HTML: &str = r"
 ";
 
 #[derive(Clone, Debug, Copy)]
-enum AuthStatus {
+pub enum AuthStatus {
     Authorized(OffsetDateTime),
     NotAuthorized,
 }
@@ -70,8 +70,14 @@ impl Default for AuthStatus {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct AuthInfo {
+    pub status: AuthStatus,
+    pub created_at: OffsetDateTime,
+}
+
 #[derive(Debug, Default)]
-pub struct AuthorizedUsers(ArcSwap<HashMap<StackString, AuthStatus>>);
+pub struct AuthorizedUsers(ArcSwap<HashMap<StackString, AuthInfo>>);
 
 impl AuthorizedUsers {
     #[must_use]
@@ -80,7 +86,10 @@ impl AuthorizedUsers {
     }
 
     pub fn is_authorized(&self, user: &AuthorizedUser) -> bool {
-        if let Some(AuthStatus::Authorized(last_time)) = self.0.load_full().get(user.email.as_str())
+        if let Some(AuthInfo {
+            status: AuthStatus::Authorized(last_time),
+            ..
+        }) = self.0.load_full().get(user.email.as_str())
         {
             let current_time = OffsetDateTime::now_utc();
             if (current_time - *last_time).whole_minutes() < 15 {
@@ -97,25 +106,42 @@ impl AuthorizedUsers {
         } else {
             AuthStatus::NotAuthorized
         };
+        let created_at = user.created_at.unwrap_or(OffsetDateTime::now_utc());
         let mut auth_map = Arc::try_unwrap(self.0.load_full()).unwrap_or_else(|a| (*a).clone());
-        auth_map.insert(user.email, status);
+        auth_map.insert(user.email, AuthInfo { status, created_at });
         self.0.store(Arc::new(auth_map));
     }
 
-    pub fn update_users(&self, users: HashSet<StackString>) {
+    pub fn update_users(&self, users: HashMap<StackString, AuthorizedUser>) {
         let now = OffsetDateTime::now_utc();
         let auth_map: HashMap<_, _> = self
             .0
             .load_full()
-            .keys()
-            .map(|k| (k.clone(), AuthStatus::NotAuthorized))
-            .chain(users.into_iter().map(|u| (u, AuthStatus::Authorized(now))))
+            .iter()
+            .map(|(k, i)| {
+                (
+                    k.clone(),
+                    AuthInfo {
+                        status: AuthStatus::NotAuthorized,
+                        created_at: i.created_at,
+                    },
+                )
+            })
+            .chain(users.into_iter().map(|(k, u)| {
+                (
+                    k,
+                    AuthInfo {
+                        status: AuthStatus::Authorized(now),
+                        created_at: u.created_at.unwrap_or(now),
+                    },
+                )
+            }))
             .collect();
         self.0.store(Arc::new(auth_map));
     }
 
-    pub fn get_users(&self) -> HashSet<StackString> {
-        self.0.load_full().keys().cloned().collect()
+    pub fn get_users(&self) -> Arc<HashMap<StackString, AuthInfo>> {
+        self.0.load_full().clone()
     }
 }
 
