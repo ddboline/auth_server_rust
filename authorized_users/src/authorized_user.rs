@@ -2,6 +2,7 @@ use reqwest::{header::HeaderValue, Client};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use stack_string::{format_sstr, StackString};
 use std::convert::TryFrom;
+use time::OffsetDateTime;
 use url::Url;
 use uuid::Uuid;
 
@@ -12,6 +13,7 @@ pub struct AuthorizedUser {
     pub email: StackString,
     pub session: Uuid,
     pub secret_key: StackString,
+    pub created_at: Option<OffsetDateTime>,
 }
 
 impl TryFrom<Token> for AuthorizedUser {
