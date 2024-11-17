@@ -43,18 +43,25 @@ impl SessionDataCache {
         Self(Arc::new(ArcSwap::new(Arc::new(SessionDataMap::new()))))
     }
 
-    pub fn add_session(&self, session: Session) {
+    #[must_use]
+    pub fn has_session(&self, session_id: Uuid) -> bool {
+        self.load().contains_key(&session_id)
+    }
+
+    #[must_use]
+    pub fn add_session(&self, session: Session) -> Arc<SessionDataMap> {
         let mut session_data_cache =
             Arc::try_unwrap(self.load_full()).unwrap_or_else(|a| (*a).clone());
         session_data_cache.add_session(session);
-        self.store(Arc::new(session_data_cache));
+        self.swap(Arc::new(session_data_cache))
     }
 
-    pub fn remove_session(&self, session_id: Uuid) {
+    #[must_use]
+    pub fn remove_session(&self, session_id: Uuid) -> Arc<SessionDataMap> {
         let mut session_data_cache =
             Arc::try_unwrap(self.load_full()).unwrap_or_else(|a| (*a).clone());
         session_data_cache.remove(&session_id);
-        self.store(Arc::new(session_data_cache));
+        self.swap(Arc::new(session_data_cache))
     }
 
     /// # Errors
@@ -87,7 +94,7 @@ impl SessionDataCache {
         secret_key: impl Into<StackString>,
         session_key: impl Into<StackString>,
         session_value: &Value,
-    ) -> Result<(), Error> {
+    ) -> Result<Arc<SessionDataMap>, Error> {
         let secret_key = secret_key.into();
         let session_key = session_key.into();
         let mut session_data_cache =
@@ -102,8 +109,7 @@ impl SessionDataCache {
             session_map.insert(session_key, session_value.clone());
             session_data_cache.insert(session_id, (secret_key, Arc::new(Mutex::new(session_map))));
         }
-        self.store(Arc::new(session_data_cache));
-        Ok(())
+        Ok(self.swap(Arc::new(session_data_cache)))
     }
 
     /// # Errors
