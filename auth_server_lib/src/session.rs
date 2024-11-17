@@ -198,19 +198,20 @@ impl Session {
 
     /// # Errors
     /// Returns error if db query fails
-    pub async fn cleanup(pool: &PgPool, expiration_seconds: i64) -> Result<(), Error> {
+    pub async fn cleanup(pool: &PgPool, expiration_seconds: i64) -> Result<u64, Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
         let conn: &PgTransaction = &tran;
-        Self::cleanup_conn(conn, expiration_seconds).await?;
+        let result = Self::cleanup_conn(conn, expiration_seconds).await?;
         tran.commit().await?;
-        Ok(())
+        Ok(result)
     }
 
-    async fn cleanup_conn<C>(conn: &C, expiration_seconds: i64) -> Result<(), Error>
+    async fn cleanup_conn<C>(conn: &C, expiration_seconds: i64) -> Result<u64, Error>
     where
         C: GenericClient + Sync,
     {
+        let mut result = 0;
         let time = OffsetDateTime::now_utc() - Duration::seconds(expiration_seconds);
         let query = query!(
             "
@@ -223,13 +224,13 @@ impl Session {
             ",
             time = time,
         );
-        query.execute(conn).await?;
+        result += query.execute(conn).await?;
         let query = query!(
             "DELETE FROM sessions WHERE last_accessed < $time",
             time = time
         );
-        query.execute(conn).await?;
-        Ok(())
+        result += query.execute(conn).await?;
+        Ok(result)
     }
 
     /// # Errors
