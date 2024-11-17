@@ -127,14 +127,14 @@ impl User {
 
     /// # Errors
     /// Returns error if db query fails
-    pub async fn get_most_recent_created_at(
+    pub async fn get_most_recent(
         pool: &PgPool,
-    ) -> Result<Option<OffsetDateTime>, Error> {
-        let query = query!("SELECT max(created_at) FROM users");
+    ) -> Result<(Option<OffsetDateTime>, Option<OffsetDateTime>), Error> {
+        let query = query!("SELECT max(created_at), max(deleted_at) FROM users");
         let conn = pool.get().await?;
         match query.fetch_opt(&conn).await? {
-            Some((max,)) => Ok(Some(max)),
-            None => Ok(None),
+            Some((max_created,max_deleted)) => Ok((Some(max_created),Some(max_deleted))),
+            None => Ok((None, None)),
         }
     }
 
@@ -354,12 +354,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_most_recent_created_at() -> Result<(), Error> {
+    async fn test_get_get_most_recent() -> Result<(), Error> {
         let _lock = AUTH_APP_MUTEX.lock().await;
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url)?;
-        let max_dt = User::get_most_recent_created_at(&pool).await?;
-        assert!(max_dt.is_some());
+        let (max_created, _) = User::get_most_recent(&pool).await?;
+        assert!(max_created.is_some());
         Ok(())
     }
 }
