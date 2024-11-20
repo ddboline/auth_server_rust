@@ -120,7 +120,7 @@ impl User {
     pub async fn get_authorized_users(
         pool: &PgPool,
     ) -> Result<impl Stream<Item = Result<Self, PqError>>, Error> {
-        let query = query!("SELECT * FROM users");
+        let query = query!("SELECT * FROM users WHERE deleted_at IS NULL");
         let conn = pool.get().await?;
         query.fetch_streaming(&conn).await.map_err(Into::into)
     }
@@ -130,10 +130,19 @@ impl User {
     pub async fn get_most_recent(
         pool: &PgPool,
     ) -> Result<(Option<OffsetDateTime>, Option<OffsetDateTime>), Error> {
-        let query = query!("SELECT max(created_at), max(deleted_at) FROM users");
+        #[derive(FromSqlRow)]
+        struct CreatedDeleted {
+            created_at: Option<OffsetDateTime>,
+            deleted_at: Option<OffsetDateTime>,
+        }
+
+        let query = query!(
+            "SELECT max(created_at) as created_at, max(deleted_at) as deleted_at FROM users"
+        );
         let conn = pool.get().await?;
-        match query.fetch_opt(&conn).await? {
-            Some((max_created,max_deleted)) => Ok((Some(max_created),Some(max_deleted))),
+        let result: Option<CreatedDeleted> = query.fetch_opt(&conn).await?;
+        match result {
+            Some(result) => Ok((result.created_at, result.deleted_at)),
             None => Ok((None, None)),
         }
     }
@@ -141,7 +150,7 @@ impl User {
     /// # Errors
     /// Returns error if db query fails
     pub async fn get_number_users(pool: &PgPool) -> Result<i64, Error> {
-        let query = query!("SELECT count(*) FROM users");
+        let query = query!("SELECT count(*) FROM users WHERE deleted_at IS NULL");
         let conn = pool.get().await?;
         let (count,) = query.fetch_one(&conn).await?;
         Ok(count)
@@ -166,7 +175,10 @@ impl User {
         C: GenericClient + Sync,
     {
         let email = email.as_ref();
-        let query = query!("SELECT * FROM users WHERE email = $email", email = email);
+        let query = query!(
+            "SELECT * FROM users WHERE email = $email AND deleted_at IS NULL",
+            email = email
+        );
         query.fetch_opt(&conn).await.map_err(Into::into)
     }
 
