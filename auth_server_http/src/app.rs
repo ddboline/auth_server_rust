@@ -242,7 +242,8 @@ pub async fn fill_auth_from_db(pool: &PgPool, expiration_seconds: i64) -> Result
     let existing_users = AUTHORIZED_USERS.get_users();
     let most_recent_user = existing_users.values().map(|i| i.created_at).max();
     debug!("most_recent_user_db {most_recent_user_db:?} most_recent_user {most_recent_user:?}");
-    if cleanup_result == 0 && most_recent_user_db.is_some()
+    if cleanup_result == 0
+        && most_recent_user_db.is_some()
         && most_recent_user.is_some()
         && most_recent_user_db <= most_recent_user
     {
