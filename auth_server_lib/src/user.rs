@@ -225,7 +225,7 @@ impl User {
         C: GenericClient + Sync,
     {
         let query = query!(
-            "UPDATE users set password = $password WHERE email = $email",
+            "UPDATE users set password = $password, deleted_at = null WHERE email = $email",
             password = self.password,
             email = self.email,
         );
@@ -263,7 +263,7 @@ impl User {
     where
         C: GenericClient + Sync,
     {
-        let query = query!("DELETE FROM users WHERE email = $email", email = self.email);
+        let query = query!("UPDATE users SET deleted_at = now() WHERE email = $email", email = self.email);
         query.execute(&conn).await?;
         Ok(())
     }
@@ -275,7 +275,7 @@ impl From<User> for AuthorizedUser {
             email: user.email,
             session: Uuid::new_v4(),
             secret_key: get_random_string(16),
-            created_at: Some(user.created_at.into()),
+            created_at: user.created_at.into(),
         }
     }
 }
