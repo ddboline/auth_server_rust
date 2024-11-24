@@ -29,7 +29,7 @@ pub struct LoggedUser {
     #[schema(description = "Secret Key")]
     pub secret_key: StackString,
     #[schema(description = "User Created At")]
-    pub created_at: Option<DateTimeType>,
+    pub created_at: DateTimeType,
 }
 
 pub struct UserCookies<'a> {
@@ -155,7 +155,7 @@ impl From<AuthorizedUser> for LoggedUser {
             email: user.email,
             session: user.session.into(),
             secret_key: user.secret_key,
-            created_at: user.created_at.map(Into::into),
+            created_at: user.created_at.into(),
         }
     }
 }
@@ -166,7 +166,7 @@ impl From<LoggedUser> for AuthorizedUser {
             email: user.email,
             session: user.session.into(),
             secret_key: user.secret_key,
-            created_at: user.created_at.map(Into::into),
+            created_at: user.created_at.into(),
         }
     }
 }
