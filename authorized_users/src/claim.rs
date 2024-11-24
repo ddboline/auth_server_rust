@@ -109,7 +109,7 @@ impl From<Claim> for AuthorizedUser {
             email: claim.get_email().into(),
             session: claim.session,
             secret_key: claim.secret_key,
-            created_at: None,
+            ..Self::default()
         }
     }
 }

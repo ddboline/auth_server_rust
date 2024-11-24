@@ -8,12 +8,23 @@ use uuid::Uuid;
 
 use crate::{errors::AuthUsersError as Error, token::Token};
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
 pub struct AuthorizedUser {
     pub email: StackString,
     pub session: Uuid,
     pub secret_key: StackString,
-    pub created_at: Option<OffsetDateTime>,
+    pub created_at: OffsetDateTime,
+}
+
+impl Default for AuthorizedUser {
+    fn default() -> Self {
+        Self {
+            email: StackString::default(),
+            session: Uuid::default(),
+            secret_key: StackString::default(),
+            created_at: OffsetDateTime::now_utc(),
+        }
+    }
 }
 
 impl TryFrom<Token> for AuthorizedUser {

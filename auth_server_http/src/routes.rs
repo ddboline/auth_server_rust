@@ -825,7 +825,7 @@ async fn test_login_user_jwt(
                 email,
                 session: session.id,
                 secret_key: session.secret_key.clone(),
-                created_at: Some(OffsetDateTime::now_utc()),
+                created_at: OffsetDateTime::now_utc(),
             };
             AUTHORIZED_USERS.update_users(hashmap! {user.email.clone() => user.clone()});
             let mut user: LoggedUser = user.into();

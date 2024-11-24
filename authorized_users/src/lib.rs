@@ -60,7 +60,7 @@ pub static LOGIN_HTML: &str = r"
 
 #[derive(Clone, Debug, Copy)]
 pub enum AuthStatus {
-    Authorized(OffsetDateTime),
+    Authorized,
     NotAuthorized,
 }
 
@@ -87,33 +87,28 @@ impl AuthorizedUsers {
 
     pub fn is_authorized(&self, user: &AuthorizedUser) -> bool {
         if let Some(AuthInfo {
-            status: AuthStatus::Authorized(last_time),
+            status: AuthStatus::Authorized,
             ..
         }) = self.0.load_full().get(user.email.as_str())
         {
-            let current_time = OffsetDateTime::now_utc();
-            if (current_time - *last_time).whole_minutes() < 15 {
-                return true;
-            }
+            return true;
         }
         false
     }
 
     pub fn store_auth(&self, user: AuthorizedUser, is_auth: bool) {
-        let current_time = OffsetDateTime::now_utc();
         let status = if is_auth {
-            AuthStatus::Authorized(current_time)
+            AuthStatus::Authorized
         } else {
             AuthStatus::NotAuthorized
         };
-        let created_at = user.created_at.unwrap_or(OffsetDateTime::now_utc());
+        let created_at = user.created_at;
         let mut auth_map = Arc::try_unwrap(self.0.load_full()).unwrap_or_else(|a| (*a).clone());
         auth_map.insert(user.email, AuthInfo { status, created_at });
         self.0.store(Arc::new(auth_map));
     }
 
     pub fn update_users(&self, users: HashMap<StackString, AuthorizedUser>) {
-        let now = OffsetDateTime::now_utc();
         let auth_map: HashMap<_, _> = self
             .0
             .load_full()
@@ -131,8 +126,8 @@ impl AuthorizedUsers {
                 (
                     k,
                     AuthInfo {
-                        status: AuthStatus::Authorized(now),
-                        created_at: u.created_at.unwrap_or(now),
+                        status: AuthStatus::Authorized,
+                        created_at: u.created_at,
                     },
                 )
             }))

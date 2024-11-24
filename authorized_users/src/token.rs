@@ -92,6 +92,7 @@ impl Token {
 mod tests {
     use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
     use log::debug;
+    use time::OffsetDateTime;
     use uuid::Uuid;
 
     use crate::{
@@ -114,7 +115,7 @@ mod tests {
             email: "test@local".into(),
             session,
             secret_key: secret.into(),
-            created_at: None,
+            created_at: OffsetDateTime::now_utc(),
         };
 
         let token = Token::create_token(
