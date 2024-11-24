@@ -169,7 +169,7 @@ impl AuthServerOptions {
             AuthServerOptions::Add { email, password } => {
                 if User::get_by_email(email.clone(), pool).await?.is_none() {
                     let user = User::from_details(email, password)?;
-                    user.insert(pool).await?;
+                    user.upsert(pool).await?;
                     stdout.send(format_sstr!("Add user {}", user.email));
                 } else {
                     stdout.send(format_sstr!("User {email} exists"));
