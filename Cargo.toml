@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_rust"
-version = "0.12.1"
+version = "0.12.2"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -27,7 +27,7 @@ auth_server_admin = {path="auth_server_admin"}
 auth_server_ext = {path="auth_server_ext"}
 auth_server_http = {path = "auth_server_http"}
 env_logger = {version="0.11", features=["color", "humantime", "regex"], default-features = false}
-tokio = {version="1.41", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.42", features=["rt", "macros", "rt-multi-thread"]}
 
 [[bin]]
 name = "auth-server-rust"

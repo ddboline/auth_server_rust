@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_http"
-version = "0.12.1"
+version = "0.12.2"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -14,9 +14,9 @@ arc-swap = "1.5"
 aws-config = {version="1.1", features=["behavior-version-latest"]}
 cookie = {version="0.18", features=["percent-encode"]}
 derive_more = {version="1.0", features=["full"]}
-dioxus-core = "0.5"
-dioxus-ssr = "0.5"
-dioxus = "0.5"
+dioxus-core = "0.6"
+dioxus-ssr = "0.6"
+dioxus = "0.6"
 futures = "0.3"
 log = "0.4"
 maplit = "1.0"
@@ -30,7 +30,7 @@ serde_yml = "0.0.12"
 stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types", "rweb-openapi"], tag="1.0.2" }
 thiserror = "2.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting", "parsing"]}
-tokio = {version="1.41", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.42", features=["rt", "macros", "rt-multi-thread"]}
 toml = "0.8"
 url = "2.3"
 uuid = { version = "1.0", features = ["serde", "v4"] }
