@@ -1,15 +1,14 @@
 use reqwest::{header::HeaderValue, Client};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use stack_string::{format_sstr, StackString};
-use std::convert::TryFrom;
+use std::{cmp::PartialEq, convert::TryFrom, hash::Hash};
 use time::OffsetDateTime;
 use url::Url;
 use uuid::Uuid;
-use std::cmp::PartialEq;
 
 use crate::{errors::AuthUsersError as Error, token::Token};
 
-#[derive(Debug, Serialize, Deserialize, Hash, Clone, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq)]
 pub struct AuthorizedUser {
     pub email: StackString,
     pub session: Uuid,
@@ -19,7 +18,17 @@ pub struct AuthorizedUser {
 
 impl PartialEq for AuthorizedUser {
     fn eq(&self, other: &Self) -> bool {
-        self.email == other.email && self.session == other.session && self.secret_key == other.secret_key
+        self.email == other.email
+            && self.session == other.session
+            && self.secret_key == other.secret_key
+    }
+}
+
+impl Hash for AuthorizedUser {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.email.hash(state);
+        self.session.hash(state);
+        self.secret_key.hash(state);
     }
 }
 

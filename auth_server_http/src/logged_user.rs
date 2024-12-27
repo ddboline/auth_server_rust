@@ -9,7 +9,9 @@ use rweb_helper::{DateTimeType, UuidWrapper};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::{
+    cmp::PartialEq,
     convert::{TryFrom, TryInto},
+    hash::Hash,
     str::FromStr,
 };
 use uuid::Uuid;
@@ -19,7 +21,7 @@ use authorized_users::{token::Token, AuthorizedUser, AUTHORIZED_USERS};
 
 use crate::errors::ServiceError as Error;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Schema)]
+#[derive(Debug, Serialize, Deserialize, Eq, Clone, Schema)]
 #[schema(component = "LoggedUser")]
 pub struct LoggedUser {
     #[schema(description = "Email Address", example = r#""user@example.com""#)]
@@ -30,6 +32,22 @@ pub struct LoggedUser {
     pub secret_key: StackString,
     #[schema(description = "User Created At")]
     pub created_at: DateTimeType,
+}
+
+impl PartialEq for LoggedUser {
+    fn eq(&self, other: &Self) -> bool {
+        self.email == other.email
+            && self.session == other.session
+            && self.secret_key == other.secret_key
+    }
+}
+
+impl Hash for LoggedUser {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.email.hash(state);
+        self.session.hash(state);
+        self.secret_key.hash(state);
+    }
 }
 
 pub struct UserCookies<'a> {
