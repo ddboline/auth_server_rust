@@ -1,5 +1,6 @@
 use dioxus::prelude::{
-    component, dioxus_elements, rsx, Element, GlobalAttributes, IntoDynNode, Props, VirtualDom,
+    component, dioxus_elements, rsx, Element, GlobalSignal, IntoDynNode, Props, Readable,
+    VirtualDom,
 };
 use stack_string::{format_sstr, StackString};
 use std::fmt::Error;

@@ -161,16 +161,15 @@ impl GoogleClient {
             return Err(Error::ExpiredToken);
         }
         debug!("Nonce {:?}", nonce);
-        let user = match &self.mock_email {
-            Some(mock_email) => Self::mock_user(mock_email.as_str()),
-            None => {
-                let userinfo = self.request_userinfo(code, &nonce).await?;
-                let user_email = &userinfo.email.ok_or_else(|| Error::MissingUserInfo)?;
-                User::get_by_email(user_email, pool)
-                    .await?
-                    .ok_or_else(|| Error::MissingUser)?
-                    .into()
-            }
+        let user = if let Some(mock_email) = &self.mock_email {
+            Self::mock_user(mock_email.as_str())
+        } else {
+            let userinfo = self.request_userinfo(code, &nonce).await?;
+            let user_email = &userinfo.email.ok_or_else(|| Error::MissingUserInfo)?;
+            User::get_by_email(user_email, pool)
+                .await?
+                .ok_or_else(|| Error::MissingUser)?
+                .into()
         };
         is_ready.store(TokenState::Authorized);
         notify.notify_waiters();

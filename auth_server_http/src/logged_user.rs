@@ -37,7 +37,7 @@ pub struct UserCookies<'a> {
     pub jwt: Cookie<'a>,
 }
 
-impl<'a> UserCookies<'a> {
+impl UserCookies<'_> {
     #[must_use]
     pub fn get_session_cookie_str(&self) -> StackString {
         StackString::from_display(self.session.encoded())

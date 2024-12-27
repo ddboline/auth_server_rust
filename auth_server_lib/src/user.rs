@@ -263,7 +263,10 @@ impl User {
     where
         C: GenericClient + Sync,
     {
-        let query = query!("UPDATE users SET deleted_at = now() WHERE email = $email", email = self.email);
+        let query = query!(
+            "UPDATE users SET deleted_at = now() WHERE email = $email",
+            email = self.email
+        );
         query.execute(&conn).await?;
         Ok(())
     }
