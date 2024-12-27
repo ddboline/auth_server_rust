@@ -263,7 +263,7 @@ mod tests {
         let pool = PgPool::new(&config.database_url)?;
 
         let mut client = GoogleClient::new(&config).await?;
-        client.mock_email = Some("test@example.com".into());
+        client.mock_email = Some("test+openid@example.com".into());
         let (state, url) = client.get_auth_url(Some("test-redirect-url")).await?;
         let redirect_uri = format_sstr!(
             "redirect_uri=https%3A%2F%2F{}%2Fapi%2Fcallback",
@@ -293,7 +293,7 @@ mod tests {
         let url = client.decode(&state).unwrap();
         assert_eq!(&url, "test-redirect-url");
         assert!(result.is_some());
-        assert_eq!(result.unwrap().email, "test@example.com");
+        assert_eq!(result.unwrap().email, "test+openid@example.com");
 
         let x = task.await??;
         assert!(x > 2.0);

@@ -5,15 +5,22 @@ use std::convert::TryFrom;
 use time::OffsetDateTime;
 use url::Url;
 use uuid::Uuid;
+use std::cmp::PartialEq;
 
 use crate::{errors::AuthUsersError as Error, token::Token};
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, Serialize, Deserialize, Hash, Clone, Eq)]
 pub struct AuthorizedUser {
     pub email: StackString,
     pub session: Uuid,
     pub secret_key: StackString,
     pub created_at: OffsetDateTime,
+}
+
+impl PartialEq for AuthorizedUser {
+    fn eq(&self, other: &Self) -> bool {
+        self.email == other.email && self.session == other.session && self.secret_key == other.secret_key
+    }
 }
 
 impl Default for AuthorizedUser {
