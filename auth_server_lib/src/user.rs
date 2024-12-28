@@ -8,6 +8,7 @@ use postgres_query::{client::GenericClient, query, Error as PqError, FromSqlRow}
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
+use std::cmp::PartialEq;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
@@ -57,12 +58,18 @@ impl Argon {
     }
 }
 
-#[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug, Eq)]
+#[derive(FromSqlRow, Serialize, Deserialize, Debug, Eq)]
 pub struct User {
     pub email: StackString,
     // password here is always the hashed password
     password: StackString,
     pub created_at: DateTimeWrapper,
+}
+
+impl PartialEq for User {
+    fn eq(&self, other: &Self) -> bool {
+        self.email == other.email && self.password == other.password
+    }
 }
 
 impl User {

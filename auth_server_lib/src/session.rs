@@ -3,6 +3,7 @@ use postgres_query::{client::GenericClient, query, FromSqlRow, Query};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use stack_string::StackString;
+use std::cmp::PartialEq;
 use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
@@ -14,7 +15,7 @@ use crate::{
     session_data::SessionData,
 };
 
-#[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug, Eq)]
+#[derive(FromSqlRow, Serialize, Deserialize, Debug, Eq)]
 pub struct Session {
     pub id: Uuid,
     pub email: StackString,
@@ -23,19 +24,33 @@ pub struct Session {
     pub secret_key: StackString,
 }
 
+impl PartialEq for Session {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id && self.email == other.email && self.secret_key == other.secret_key
+    }
+}
+
 impl Default for Session {
     fn default() -> Self {
         Self::new("")
     }
 }
 
-#[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug, Eq, Clone)]
+#[derive(FromSqlRow, Serialize, Deserialize, Debug, Eq, Clone)]
 pub struct SessionSummary {
     pub session_id: Uuid,
     pub email_address: StackString,
     pub created_at: DateTimeWrapper,
     pub last_accessed: DateTimeWrapper,
     pub number_of_data_objects: i64,
+}
+
+impl PartialEq for SessionSummary {
+    fn eq(&self, other: &Self) -> bool {
+        self.session_id == other.session_id
+            && self.email_address == other.email_address
+            && self.number_of_data_objects == other.number_of_data_objects
+    }
 }
 
 impl Default for SessionSummary {

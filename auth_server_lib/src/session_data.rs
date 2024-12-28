@@ -3,7 +3,7 @@ use postgres_query::{client::GenericClient, query, Error as PqError, FromSqlRow,
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use stack_string::StackString;
-use std::str;
+use std::{cmp::PartialEq, hash::Hash, str};
 use uuid::Uuid;
 
 use crate::{
@@ -13,7 +13,7 @@ use crate::{
     session::Session,
 };
 
-#[derive(FromSqlRow, Serialize, Deserialize, PartialEq, Debug, Eq, Clone)]
+#[derive(FromSqlRow, Serialize, Deserialize, Debug, Eq, Clone)]
 pub struct SessionData {
     pub id: Uuid,
     pub session_id: Uuid,
@@ -21,6 +21,24 @@ pub struct SessionData {
     pub session_value: Value,
     pub created_at: DateTimeWrapper,
     pub modified_at: DateTimeWrapper,
+}
+
+impl PartialEq for SessionData {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+            && self.session_id == other.session_id
+            && self.session_key == other.session_key
+            && self.session_value == other.session_value
+    }
+}
+
+impl Hash for SessionData {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.session_id.hash(state);
+        self.session_key.hash(state);
+        self.session_value.hash(state);
+    }
 }
 
 impl SessionData {

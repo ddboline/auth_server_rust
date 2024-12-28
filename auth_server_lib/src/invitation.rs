@@ -2,6 +2,7 @@ use futures::Stream;
 use postgres_query::{client::GenericClient, query, Error as PqError, FromSqlRow, Query};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
+use std::{cmp::PartialEq, hash::Hash};
 use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
@@ -11,11 +12,24 @@ use crate::{
     pgpool::{PgPool, PgTransaction},
 };
 
-#[derive(FromSqlRow, Serialize, Deserialize, Debug, PartialEq, Eq, Hash)]
+#[derive(FromSqlRow, Serialize, Deserialize, Debug, Eq)]
 pub struct Invitation {
     pub id: Uuid,
     pub email: StackString,
     pub expires_at: DateTimeWrapper,
+}
+
+impl PartialEq for Invitation {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id && self.email == other.email
+    }
+}
+
+impl Hash for Invitation {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.email.hash(state);
+    }
 }
 
 impl Invitation {

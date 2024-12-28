@@ -19,16 +19,7 @@ use rand::{
     thread_rng,
 };
 use stack_string::StackString;
-use std::{
-    cell::Cell,
-    collections::HashMap,
-    path::Path,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    thread::LocalKey,
-};
+use std::{cell::Cell, collections::HashMap, path::Path, sync::Arc, thread::LocalKey};
 use time::OffsetDateTime;
 use tokio::{
     fs::{self, File},
@@ -45,7 +36,6 @@ thread_local! {
 }
 
 pub static AUTHORIZED_USERS: Lazy<AuthorizedUsers> = Lazy::new(AuthorizedUsers::new);
-pub static TRIGGER_DB_UPDATE: Lazy<AuthTrigger> = Lazy::new(AuthTrigger::new);
 pub static SECRET_KEY: Lazy<AuthSecret> = Lazy::new(|| AuthSecret::new(SECRET_KEY_CACHE));
 pub static JWT_SECRET: Lazy<AuthSecret> = Lazy::new(|| AuthSecret::new(JWT_SECRET_CACHE));
 
@@ -137,29 +127,6 @@ impl AuthorizedUsers {
 
     pub fn get_users(&self) -> Arc<HashMap<StackString, AuthInfo>> {
         self.0.load_full().clone()
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct AuthTrigger(AtomicBool);
-
-impl AuthTrigger {
-    #[must_use]
-    pub fn new() -> Self {
-        Self(AtomicBool::new(true))
-    }
-
-    pub fn check(&self) -> bool {
-        match self
-            .0
-            .compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst)
-        {
-            Ok(x) | Err(x) => x,
-        }
-    }
-
-    pub fn set(&self) {
-        self.0.store(true, Ordering::SeqCst);
     }
 }
 
