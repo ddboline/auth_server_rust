@@ -51,8 +51,8 @@ impl Hash for LoggedUser {
 }
 
 pub struct UserCookies<'a> {
-    pub session: Cookie<'a>,
-    pub jwt: Cookie<'a>,
+    session: Cookie<'a>,
+    jwt: Cookie<'a>,
 }
 
 impl UserCookies<'_> {
@@ -73,7 +73,7 @@ impl LoggedUser {
     pub fn get_jwt_cookie(
         &self,
         domain: impl AsRef<str>,
-        expiration_seconds: i64,
+        expiration_seconds: u32,
         secure: bool,
     ) -> Result<UserCookies<'static>, Error> {
         let domain: String = domain.as_ref().into();
@@ -82,7 +82,7 @@ impl LoggedUser {
             .path("/")
             .http_only(true)
             .domain(domain.clone())
-            .max_age(Duration::seconds(expiration_seconds))
+            .max_age(Duration::seconds(expiration_seconds.into()))
             .secure(secure)
             .build();
         let token = Token::create_token(
@@ -96,7 +96,7 @@ impl LoggedUser {
             .path("/")
             .http_only(true)
             .domain(domain)
-            .max_age(Duration::seconds(expiration_seconds))
+            .max_age(Duration::seconds(expiration_seconds.into()))
             .secure(secure)
             .build();
         Ok(UserCookies { session, jwt })
@@ -105,7 +105,7 @@ impl LoggedUser {
     pub fn clear_jwt_cookie(
         &self,
         domain: impl AsRef<str>,
-        expiration_seconds: i64,
+        expiration_seconds: u32,
         secure: bool,
     ) -> UserCookies<'static> {
         let domain = domain.as_ref();
@@ -114,14 +114,14 @@ impl LoggedUser {
             .path("/")
             .http_only(true)
             .domain(domain.to_string())
-            .max_age(Duration::seconds(expiration_seconds))
+            .max_age(Duration::seconds(expiration_seconds.into()))
             .secure(secure)
             .build();
         let jwt = Cookie::build(("jwt", String::new()))
             .path("/")
             .http_only(true)
             .domain(domain.to_string())
-            .max_age(Duration::seconds(expiration_seconds))
+            .max_age(Duration::seconds(expiration_seconds.into()))
             .secure(secure)
             .build();
         UserCookies { session, jwt }

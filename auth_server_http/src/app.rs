@@ -111,7 +111,7 @@ fn get_api_scope(app: &AppState) -> BoxedFilter<(impl Reply,)> {
 }
 
 async fn run_app(config: Config) -> Result<(), Error> {
-    async fn update_db(pool: PgPool, client: GoogleClient, expiration_seconds: i64) {
+    async fn update_db(pool: PgPool, client: GoogleClient, expiration_seconds: u32) {
         let mut i = interval(Duration::from_secs(60));
         loop {
             fill_auth_from_db(&pool, expiration_seconds)
@@ -233,12 +233,11 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
 ///     * `Session::cleanup` fails
 ///     * `User::get_authorized_users` fails
 ///     * `AUTHORIZED_USERS.merge_users` fails
-pub async fn fill_auth_from_db(pool: &PgPool, expiration_seconds: i64) -> Result<(), Error> {
-    let (cleanup_result, (most_recent_created, most_recent_deleted)) = try_join!(
+pub async fn fill_auth_from_db(pool: &PgPool, expiration_seconds: u32) -> Result<(), Error> {
+    let (cleanup_result, most_recent_user_db) = try_join!(
         Session::cleanup(pool, expiration_seconds),
         User::get_most_recent(pool),
     )?;
-    let most_recent_user_db = most_recent_created.max(most_recent_deleted);
     let existing_users = AUTHORIZED_USERS.get_users();
     let most_recent_user = existing_users.values().map(|i| i.created_at).max();
     debug!("most_recent_user_db {most_recent_user_db:?} most_recent_user {most_recent_user:?}");

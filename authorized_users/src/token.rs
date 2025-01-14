@@ -32,7 +32,7 @@ impl Token {
     pub fn create_token(
         email: impl Into<StackString>,
         domain: impl Into<StackString>,
-        expiration_seconds: i64,
+        expiration_seconds: u32,
         session: Uuid,
         secret_key: impl Into<StackString>,
     ) -> Result<Self, Error> {

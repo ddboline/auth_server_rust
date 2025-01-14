@@ -601,10 +601,10 @@ pub async fn change_password_user(
 #[derive(Serialize, Deserialize, Schema)]
 #[schema(component = "AuthUrl")]
 pub struct AuthUrlOutput {
-    #[schema(description = "CSRF State")]
-    pub csrf_state: StackString,
     #[schema(description = "Auth URL")]
     pub auth_url: StackString,
+    #[schema(description = "CSRF State")]
+    pub csrf_state: StackString,
 }
 
 #[derive(RwebResponse)]
@@ -618,15 +618,15 @@ pub async fn auth_url(
     query: Json<FinalUrlData>,
 ) -> WarpResult<ApiAuthUrlResponse> {
     let query = query.into_inner();
-    let (csrf_state, authorize_url) = data
+    let (auth_url, csrf_state) = data
         .google_client
-        .get_auth_url(query.final_url.as_ref().map(StackString::as_str))
+        .get_auth_url_csrf(query.final_url.as_ref().map(StackString::as_str))
         .await
         .map_err(Into::<Error>::into)?;
-    let authorize_url: String = authorize_url.into();
+    let auth_url: String = auth_url.into();
     let resp = JsonBase::new(AuthUrlOutput {
+        auth_url: auth_url.into(),
         csrf_state,
-        auth_url: authorize_url.into(),
     });
     Ok(resp.into())
 }
@@ -732,13 +732,13 @@ async fn callback_body(
 #[schema(component = "Status")]
 pub struct StatusOutput {
     #[schema(description = "Number of Users")]
-    number_of_users: i64,
+    number_of_users: u64,
     #[schema(description = "Number of Invitations")]
-    number_of_invitations: i64,
+    number_of_invitations: u64,
     #[schema(description = "Number of Sessions")]
-    number_of_sessions: i64,
+    number_of_sessions: u64,
     #[schema(description = "Number of Data Entries")]
-    number_of_entries: i64,
+    number_of_entries: u64,
     quota: SesQuotasWrapper,
     stats: EmailStatsWrapper,
 }

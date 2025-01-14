@@ -134,9 +134,7 @@ impl User {
 
     /// # Errors
     /// Returns error if db query fails
-    pub async fn get_most_recent(
-        pool: &PgPool,
-    ) -> Result<(Option<OffsetDateTime>, Option<OffsetDateTime>), Error> {
+    pub async fn get_most_recent(pool: &PgPool) -> Result<Option<OffsetDateTime>, Error> {
         #[derive(FromSqlRow)]
         struct CreatedDeleted {
             created_at: Option<OffsetDateTime>,
@@ -149,18 +147,18 @@ impl User {
         let conn = pool.get().await?;
         let result: Option<CreatedDeleted> = query.fetch_opt(&conn).await?;
         match result {
-            Some(result) => Ok((result.created_at, result.deleted_at)),
-            None => Ok((None, None)),
+            Some(result) => Ok(result.created_at.max(result.deleted_at)),
+            None => Ok(None),
         }
     }
 
     /// # Errors
     /// Returns error if db query fails
-    pub async fn get_number_users(pool: &PgPool) -> Result<i64, Error> {
+    pub async fn get_number_users(pool: &PgPool) -> Result<u64, Error> {
         let query = query!("SELECT count(*) FROM users WHERE deleted_at IS NULL");
         let conn = pool.get().await?;
-        let (count,) = query.fetch_one(&conn).await?;
-        Ok(count)
+        let (count,) = query.fetch_one::<(i64,), _>(&conn).await?;
+        Ok(count as u64)
     }
 
     /// # Errors
@@ -380,7 +378,7 @@ mod tests {
         let _lock = AUTH_APP_MUTEX.lock().await;
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url)?;
-        let (max_created, _) = User::get_most_recent(&pool).await?;
+        let max_created = User::get_most_recent(&pool).await?;
         assert!(max_created.is_some());
         Ok(())
     }

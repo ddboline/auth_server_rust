@@ -9,7 +9,7 @@ pub mod google_openid;
 pub mod ses_client;
 
 use log::debug;
-use stack_string::format_sstr;
+use stack_string::{format_sstr, StackString};
 use time::macros::format_description;
 use url::Url;
 
@@ -24,7 +24,7 @@ pub async fn send_invitation(
     invite: &Invitation,
     sending_email: impl AsRef<str>,
     callback_url: &Url,
-) -> Result<(), Error> {
+) -> Result<StackString, Error> {
     let dt_str = invite.expires_at.format(format_description!(
         "[hour repr:12]:[minute] [period] [weekday], [day padding:none] [month repr:short], [year]"
     ))?;
@@ -39,15 +39,16 @@ pub async fn send_invitation(
         exp = dt_str,
     );
 
-    ses.send_email(
-        sending_email.as_ref(),
-        invite.email.as_str(),
-        "You have been invited to join Simple-Auth-Server Rust",
-        &email_body,
-    )
-    .await?;
+    let message_id = ses
+        .send_email(
+            sending_email.as_ref(),
+            invite.email.as_str(),
+            "You have been invited to join Simple-Auth-Server Rust",
+            &email_body,
+        )
+        .await?;
     debug!("Success");
-    Ok(())
+    Ok(message_id)
 }
 
 #[cfg(test)]
@@ -67,13 +68,14 @@ mod tests {
         let email = format_sstr!("ddboline+{}@ddboline.net", get_random_string(32));
         let new_invitation = Invitation::from_email(&email);
         let callback_url = "https://localhost".parse()?;
-        send_invitation(
+        let message_id = send_invitation(
             &ses,
             &new_invitation,
             &config.sending_email_address,
             &callback_url,
         )
         .await?;
+        assert!(message_id.len() > 0);
         Ok(())
     }
 

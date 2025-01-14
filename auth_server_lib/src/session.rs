@@ -140,11 +140,11 @@ impl Session {
 
     /// # Errors
     /// Returns error if db query fails
-    pub async fn get_number_sessions(pool: &PgPool) -> Result<i64, Error> {
+    pub async fn get_number_sessions(pool: &PgPool) -> Result<u64, Error> {
         let query = query!("SELECT count(*) FROM sessions");
         let conn = pool.get().await?;
-        let (count,) = query.fetch_one(&conn).await?;
-        Ok(count)
+        let (count,) = query.fetch_one::<(i64,), _>(&conn).await?;
+        Ok(count as u64)
     }
 
     /// # Errors
@@ -213,7 +213,7 @@ impl Session {
 
     /// # Errors
     /// Returns error if db query fails
-    pub async fn cleanup(pool: &PgPool, expiration_seconds: i64) -> Result<u64, Error> {
+    pub async fn cleanup(pool: &PgPool, expiration_seconds: u32) -> Result<u64, Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
         let conn: &PgTransaction = &tran;
@@ -222,12 +222,12 @@ impl Session {
         Ok(result)
     }
 
-    async fn cleanup_conn<C>(conn: &C, expiration_seconds: i64) -> Result<u64, Error>
+    async fn cleanup_conn<C>(conn: &C, expiration_seconds: u32) -> Result<u64, Error>
     where
         C: GenericClient + Sync,
     {
         let mut result = 0;
-        let time = OffsetDateTime::now_utc() - Duration::seconds(expiration_seconds);
+        let time = OffsetDateTime::now_utc() - Duration::seconds(expiration_seconds.into());
         let query = query!(
             "
                 DELETE FROM session_values d

@@ -153,11 +153,11 @@ impl SessionData {
 
     /// # Errors
     /// Returns error if db query fails
-    pub async fn get_number_entries(pool: &PgPool) -> Result<i64, Error> {
+    pub async fn get_number_entries(pool: &PgPool) -> Result<u64, Error> {
         let query = query!("SELECT count(*) FROM session_values");
         let conn = pool.get().await?;
-        let (count,) = query.fetch_one(&conn).await?;
-        Ok(count)
+        let (count,) = query.fetch_one::<(i64,), _>(&conn).await?;
+        Ok(count as u64)
     }
 
     fn insert_query(&self) -> Query {

@@ -6,7 +6,7 @@ use aws_sdk_ses::{
     Client as SesClient,
 };
 use serde::Serialize;
-use stack_string::format_sstr;
+use stack_string::{format_sstr, StackString};
 use std::fmt;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
@@ -45,7 +45,7 @@ impl SesInstance {
         dest: impl Into<String>,
         sub: impl Into<String>,
         msg: impl Into<String>,
-    ) -> Result<(), Error> {
+    ) -> Result<StackString, Error> {
         let destination = Destination::builder()
             .set_to_addresses(Some(vec![dest.into()]))
             .build();
@@ -59,14 +59,17 @@ impl SesInstance {
             .build()?;
         let body = Body::builder().text(html.clone()).html(html).build();
         let message = Message::builder().subject(subject).body(body).build();
-        self.ses_client
+        let message_id = self
+            .ses_client
             .send_email()
             .destination(destination)
             .source(src)
             .message(message)
             .send()
-            .await?;
-        Ok(())
+            .await?
+            .message_id
+            .into();
+        Ok(message_id)
     }
 
     /// # Errors

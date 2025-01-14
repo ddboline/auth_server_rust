@@ -77,6 +77,9 @@ impl GoogleClient {
                     sleep(Duration::from_secs(1)).await;
                 }
                 Err(e) => {
+                    if delay > 256 {
+                        return Err(e.into());
+                    }
                     error!("Encountered error {:?}, sleep and try again", e);
                     sleep(Duration::from_secs(delay)).await;
                     delay *= 2;
@@ -87,7 +90,10 @@ impl GoogleClient {
 
     /// # Errors
     /// Returns error if missing CSRF state or Nonce
-    pub async fn get_auth_url(&self, state: Option<&str>) -> Result<(StackString, Url), Error> {
+    pub async fn get_auth_url_csrf(
+        &self,
+        state: Option<&str>,
+    ) -> Result<(Url, StackString), Error> {
         let state: String = state
             .map_or_else(get_token_string, |s| self.encode(s))
             .into();
@@ -106,7 +112,7 @@ impl GoogleClient {
             .lock()
             .await
             .insert(csrf_state.clone(), CsrfTokenCache::new(&nonce));
-        Ok((csrf_state, authorize_url))
+        Ok((authorize_url, csrf_state))
     }
 
     #[must_use]
@@ -264,7 +270,7 @@ mod tests {
 
         let mut client = GoogleClient::new(&config).await?;
         client.mock_email = Some("test+openid@example.com".into());
-        let (state, url) = client.get_auth_url(Some("test-redirect-url")).await?;
+        let (url, state) = client.get_auth_url_csrf(Some("test-redirect-url")).await?;
         let redirect_uri = format_sstr!(
             "redirect_uri=https%3A%2F%2F{}%2Fapi%2Fcallback",
             config.domain

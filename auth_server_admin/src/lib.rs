@@ -146,17 +146,16 @@ impl AuthServerOptions {
                 let ses = SesInstance::new(&sdk_config);
                 let invitation = Invitation::from_email(email.clone());
                 invitation.insert(pool).await?;
-                send_invitation(
+                let message_id = send_invitation(
                     &ses,
                     &invitation,
                     &config.sending_email_address,
                     &config.callback_url,
                 )
                 .await?;
+                let invitation_id = invitation.id;
                 stdout.send(format_sstr!(
-                    "Invitation {} sent to {}",
-                    invitation.id,
-                    email
+                    "Invitation {invitation_id} sent to {email} message_id {message_id}",
                 ));
             }
             AuthServerOptions::RmInvites { ids } => {

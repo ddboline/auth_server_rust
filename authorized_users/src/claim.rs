@@ -32,13 +32,13 @@ impl Claim {
     pub fn with_email(
         email: impl Into<StackString>,
         domain: impl Into<StackString>,
-        expiration_seconds: i64,
+        expiration_seconds: u32,
         session: Uuid,
         secret_key: impl Into<StackString>,
     ) -> Self {
         let issued_at = OffsetDateTime::now_utc().unix_timestamp();
-        let expiry =
-            (OffsetDateTime::now_utc() + Duration::seconds(expiration_seconds)).unix_timestamp();
+        let expiry = (OffsetDateTime::now_utc() + Duration::seconds(expiration_seconds.into()))
+            .unix_timestamp();
         Self {
             domain: domain.into(),
             email: email.into(),
