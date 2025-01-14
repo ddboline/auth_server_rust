@@ -25,7 +25,7 @@ pub struct ConfigInner {
     #[serde(default = "default_port")]
     pub port: u32,
     #[serde(default = "default_expiration_seconds")]
-    pub expiration_seconds: i64,
+    pub expiration_seconds: u32,
     #[serde(default = "default_key")]
     pub google_client_id: StackString,
     #[serde(default = "default_key")]
@@ -63,7 +63,7 @@ fn default_callback() -> Url {
         .parse()
         .expect("Failed to parse")
 }
-fn default_expiration_seconds() -> i64 {
+fn default_expiration_seconds() -> u32 {
     24 * 3600
 }
 fn default_key() -> StackString {
