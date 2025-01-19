@@ -71,13 +71,13 @@ fn default_key() -> StackString {
 }
 fn default_secret_path() -> PathBuf {
     dirs::config_dir()
-        .unwrap()
+        .unwrap_or_else(|| "/home/ubuntu/.config".into())
         .join("auth_server_rust")
         .join("secret.bin")
 }
 fn default_auth_user_config_path() -> PathBuf {
     dirs::config_dir()
-        .unwrap()
+        .unwrap_or_else(|| "/home/ubuntu/.config".into())
         .join("auth_server_rust")
         .join("auth_user_config.toml")
 }
