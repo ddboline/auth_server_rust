@@ -1,8 +1,8 @@
-openapi: 3.0.1
+openapi: '3.0.1'
 info:
   title: Rust Auth Server
   description: Authorization Server written in rust using jwt/jws/jwe and featuring integration with Google OAuth
-  version: 0.11.9
+  version: '0.12.3'
 paths:
   /api/auth:
     get:
@@ -87,7 +87,7 @@ paths:
         required: true
         schema:
           format: uuid
-          example: 334518f4-1bfd-4f20-9978-bfad0dc033e1
+          example: '334518f4-1bfd-4f20-9978-bfad0dc033e1'
           type: string
       requestBody:
         content:
@@ -341,7 +341,7 @@ paths:
           description: Session
           format: uuid
           nullable: true
-          example: 334518f4-1bfd-4f20-9978-bfad0dc033e1
+          example: '334518f4-1bfd-4f20-9978-bfad0dc033e1'
           type: string
       responses:
         '204':
@@ -440,7 +440,7 @@ paths:
         required: true
         schema:
           format: uuid
-          example: 334518f4-1bfd-4f20-9978-bfad0dc033e1
+          example: '334518f4-1bfd-4f20-9978-bfad0dc033e1'
           type: string
       - name: email
         in: query
@@ -525,16 +525,21 @@ components:
         session:
           description: Session ID
           format: uuid
-          example: 334518f4-1bfd-4f20-9978-bfad0dc033e1
+          example: '334518f4-1bfd-4f20-9978-bfad0dc033e1'
           type: string
         secret_key:
           description: Secret Key
+          type: string
+        created_at:
+          description: User Created At
+          format: date-time
           type: string
       type: object
       required:
       - email
       - session
       - secret_key
+      - created_at
     CreateInvitation:
       properties:
         email:
@@ -585,30 +590,34 @@ components:
       type: object
     AuthUrl:
       properties:
-        csrf_state:
-          description: CSRF State
-          type: string
         auth_url:
           description: Auth URL
           type: string
+        csrf_state:
+          description: CSRF State
+          type: string
       type: object
       required:
-      - csrf_state
       - auth_url
+      - csrf_state
     Status:
       properties:
         number_of_users:
           description: Number of Users
           type: integer
+          minimum: 0
         number_of_invitations:
           description: Number of Invitations
           type: integer
+          minimum: 0
         number_of_sessions:
           description: Number of Sessions
           type: integer
+          minimum: 0
         number_of_entries:
           description: Number of Data Entries
           type: integer
+          minimum: 0
         quota:
           $ref: '#/components/schemas/SesQuotas'
         stats:
@@ -672,7 +681,7 @@ components:
         session_id:
           description: Session ID
           format: uuid
-          example: 334518f4-1bfd-4f20-9978-bfad0dc033e1
+          example: '334518f4-1bfd-4f20-9978-bfad0dc033e1'
           type: string
         session_key:
           description: Session Key
@@ -695,7 +704,7 @@ components:
         session_id:
           description: Session ID
           format: uuid
-          example: 334518f4-1bfd-4f20-9978-bfad0dc033e1
+          example: '334518f4-1bfd-4f20-9978-bfad0dc033e1'
           type: string
         email_address:
           description: Email Address
