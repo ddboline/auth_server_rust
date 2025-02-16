@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_http"
-version = "0.12.3"
+version = "0.12.4"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -13,7 +13,7 @@ authorized_users = {path = "../authorized_users"}
 arc-swap = "1.5"
 aws-config = {version="1.1", features=["behavior-version-latest"]}
 cookie = {version="0.18", features=["percent-encode"]}
-derive_more = {version="1.0", features=["full"]}
+derive_more = {version="2.0", features=["full"]}
 dioxus-core = "0.6"
 dioxus-ssr = "0.6"
 dioxus = "0.6"
@@ -21,7 +21,7 @@ futures = "0.3"
 log = "0.4"
 maplit = "1.0"
 parking_lot = "0.12"
-rand = "0.8"
+rand = "0.9"
 rweb = {git = "https://github.com/ddboline/rweb.git", features=["openapi"], default-features=false, tag="0.15.2"}
 rweb-helper = {git = "https://github.com/ddboline/rweb_helper.git", tag="0.5.3"}
 serde = { version="1.0", features=["derive"] }

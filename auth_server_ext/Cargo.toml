@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_ext"
-version = "0.12.3"
+version = "0.12.4"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -16,14 +16,14 @@ aws-smithy-types = "1.1"
 base64 = "0.22"
 bytes = "1.8"
 crossbeam = "0.8"
-derive_more = {version="1.0", features=["full"]}
-dirs = "5.0"
+derive_more = {version="2.0", features=["full"]}
+dirs = "6.0"
 envy = "0.4"
 futures = "0.3"
 log = "0.4"
-openid = {version="0.15", default-features=false}
+openid = {version="0.16", default-features=false}
 parking_lot = "0.12"
-rand = "0.8"
+rand = "0.9"
 refinery = {version="0.8", features=["tokio-postgres"]}
 serde = { version="1.0", features=["derive"] }
 serde_json="1.0"

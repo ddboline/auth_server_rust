@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_rust"
-version = "0.12.3"
+version = "0.12.4"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -16,9 +16,10 @@ Authentication service using warp."""
 
 [workspace]
 members = [
+    "auth_server_admin",
+    "auth_server_ext",
     "auth_server_http",
     "auth_server_lib",
-    "auth_server_ext",
     "authorized_users",
 ]
 

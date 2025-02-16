@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_lib"
-version = "0.12.3"
+version = "0.12.4"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -14,8 +14,8 @@ bytes = "1.8"
 crossbeam = "0.8"
 deadpool = { version = "0.12", features=["serde", "rt_tokio_1"] }
 deadpool-postgres = { version = "0.14", features=["serde"] }
-derive_more = {version="1.0", features=["full"]}
-dirs = "5.0"
+derive_more = {version="2.0", features=["full"]}
+dirs = "6.0"
 dotenvy = "0.15"
 envy = "0.4"
 futures = "0.3"
@@ -24,7 +24,7 @@ once_cell = "1.0"
 parking_lot = "0.12"
 postgres_query = {git = "https://github.com/ddboline/rust-postgres-query", tag = "0.3.8", features=["deadpool"]}
 postgres-types = {version="0.2", features=["with-time-0_3", "with-uuid-1", "with-serde_json-1", "derive"]}
-rand = "0.8"
+rand = "0.9"
 serde = { version="1.0", features=["derive"] }
 serde_json="1.0"
 serde_yml = "0.0.12"
