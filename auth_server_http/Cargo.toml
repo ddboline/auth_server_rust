@@ -10,8 +10,8 @@ edition = "2018"
 auth_server_ext = {path = "../auth_server_ext"}
 auth_server_lib = {path="../auth_server_lib"}
 authorized_users = {path = "../authorized_users"}
-arc-swap = "1.5"
-aws-config = {version="1.1", features=["behavior-version-latest"]}
+arc-swap = "1.7"
+aws-config = {version="1.5", features=["behavior-version-latest"]}
 cookie = {version="0.18", features=["percent-encode"]}
 derive_more = {version="2.0", features=["full"]}
 dioxus-core = "0.6"
@@ -32,8 +32,8 @@ thiserror = "2.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting", "parsing"]}
 tokio = {version="1.43", features=["rt", "macros", "rt-multi-thread"]}
 toml = "0.8"
-url = "2.3"
-uuid = { version = "1.0", features = ["serde", "v4"] }
+url = "2.5"
+uuid = { version = "1.13", features = ["serde", "v4"] }
 warp = "0.3"
 
 [dev-dependencies]
