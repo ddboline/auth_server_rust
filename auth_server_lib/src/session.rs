@@ -386,9 +386,11 @@ impl Session {
 
 #[cfg(test)]
 mod tests {
+    use stack_string::format_sstr;
     use std::collections::{HashMap, HashSet};
 
     use crate::{
+        get_random_string,
         config::Config, errors::AuthServerError as Error, pgpool::PgPool, session::Session,
         user::User, AUTH_APP_MUTEX,
     };
@@ -399,10 +401,11 @@ mod tests {
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url)?;
 
-        let user = User::from_details("test+session@example.com", "abc123")?;
+        let email = format_sstr!("test+session{}@example.com", get_random_string(32));
+        let user = User::from_details(&email, "abc123")?;
         user.insert(&pool).await?;
 
-        let session = Session::new("test+session@example.com");
+        let session = Session::new(email.clone());
 
         session.insert(&pool).await?;
 

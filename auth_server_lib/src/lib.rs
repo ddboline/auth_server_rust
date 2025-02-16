@@ -17,8 +17,8 @@ pub mod user;
 
 use once_cell::sync::Lazy;
 use rand::{
-    distributions::{Alphanumeric, DistString, Distribution},
-    thread_rng,
+    distr::{Alphanumeric, Distribution, SampleString},
+    rng as thread_rng,
 };
 use smallvec::SmallVec;
 use stack_string::{StackString, MAX_INLINE};

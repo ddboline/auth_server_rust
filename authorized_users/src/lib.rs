@@ -15,8 +15,8 @@ use biscuit::{jwk, jws, Empty};
 use crossbeam::atomic::AtomicCell;
 use once_cell::sync::Lazy;
 use rand::{
-    distributions::{Distribution, Standard},
-    thread_rng,
+    distr::{Distribution, StandardUniform},
+    rng as thread_rng,
 };
 use stack_string::StackString;
 use std::{cell::Cell, collections::HashMap, path::Path, sync::Arc, thread::LocalKey};
@@ -202,13 +202,13 @@ pub async fn create_secret(p: impl AsRef<Path>) -> Result<(), AuthUsersError> {
 #[must_use]
 pub fn get_random_key() -> SecretKey {
     let mut rng = thread_rng();
-    Standard.sample(&mut rng)
+    StandardUniform.sample(&mut rng)
 }
 
 #[must_use]
 pub fn get_random_nonce() -> [u8; 12] {
     let mut rng = thread_rng();
-    Standard.sample(&mut rng)
+    StandardUniform.sample(&mut rng)
 }
 
 /// # Errors

@@ -4,8 +4,8 @@ use log::{debug, error};
 pub use openid::error::{ClientError, Error as OpenidError};
 use openid::{DiscoveredClient, Options, Userinfo};
 use rand::{
-    distributions::{Distribution, Standard},
-    thread_rng,
+    distr::{Distribution, StandardUniform},
+    rng as thread_rng,
 };
 use stack_string::StackString;
 use std::{collections::HashMap, str, sync::Arc, time::Duration};
@@ -219,12 +219,12 @@ impl GoogleClient {
 
 fn get_token_string() -> StackString {
     let mut rng = thread_rng();
-    let random_bytes: [u8; 16] = Standard.sample(&mut rng);
+    let random_bytes: [u8; 16] = StandardUniform.sample(&mut rng);
     let mut buf = [0u8; 22];
     let encoded_size = URL_SAFE_NO_PAD
         .encode_slice(random_bytes, &mut buf)
         .expect("Buffer too small");
-    assert!(encoded_size == 22);
+    debug_assert!(encoded_size == 22);
     let buf = str::from_utf8(&buf).expect("Invalid buffer");
     let mut output = StackString::new();
     output.push_str(buf);

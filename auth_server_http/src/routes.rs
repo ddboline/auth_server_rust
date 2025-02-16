@@ -821,12 +821,7 @@ async fn test_login_user_jwt(
     if let Ok(s) = std::env::var("TESTENV") {
         if &s == "true" {
             let email = auth_data.email;
-            let user = AuthorizedUser {
-                email,
-                session: session.id,
-                secret_key: session.secret_key.clone(),
-                created_at: OffsetDateTime::now_utc(),
-            };
+            let user = AuthorizedUser::new(&email, session.id, &session.secret_key);
             AUTHORIZED_USERS.update_users(hashmap! {user.email.clone() => user.clone()});
             let mut user: LoggedUser = user.into();
             user.session = session.id.into();

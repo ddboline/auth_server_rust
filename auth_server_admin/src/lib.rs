@@ -368,10 +368,6 @@ pub async fn run_cli() -> Result<(), Error> {
 mod test {
     use futures::TryStreamExt;
     use log::debug;
-    use rand::{
-        distributions::{Alphanumeric, DistString},
-        thread_rng,
-    };
     use stack_string::format_sstr;
     use std::collections::HashSet;
     use stdout_channel::{MockStdout, StdoutChannel};
@@ -379,16 +375,12 @@ mod test {
 
     use auth_server_ext::errors::AuthServerExtError as Error;
     use auth_server_lib::{
+        get_random_string,
         config::Config, errors::AuthServerError, invitation::Invitation, pgpool::PgPool,
         session::Session, user::User, AUTH_APP_MUTEX,
     };
 
     use crate::AuthServerOptions;
-
-    pub fn get_random_string(n: usize) -> String {
-        let mut rng = thread_rng();
-        Alphanumeric.sample_string(&mut rng, n)
-    }
 
     #[tokio::test]
     async fn test_process_args() -> Result<(), Error> {
@@ -668,9 +660,11 @@ mod test {
             .await?
             .is_none());
 
-        let user = User::from_details("test+process@example.com", "abc123")?;
+        let email = format_sstr!("test+process{}@example.com", get_random_string(32));
+
+        let user = User::from_details(&email, "abc123")?;
         user.insert(&pool).await?;
-        let session = Session::new("test+process@example.com");
+        let session = Session::new(&email);
         session.insert(&pool).await?;
         let session_data = session
             .set_session_data(&pool, "test", "TEST DATA".into())
@@ -681,7 +675,7 @@ mod test {
         let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
 
         AuthServerOptions::ListSessions {
-            email: Some("test+process@example.com".into()),
+            email: Some(email.as_str().into()),
         }
         .process_args(&pool, &stdout)
         .await?;
@@ -690,7 +684,7 @@ mod test {
             .await
             .map_err(Into::<AuthServerError>::into)?;
         for line in mock_stdout.lock().await.iter() {
-            assert!(line.contains("test+process@example.com"));
+            assert!(line.contains(email.as_str()));
         }
 
         let mock_stdout = MockStdout::new();

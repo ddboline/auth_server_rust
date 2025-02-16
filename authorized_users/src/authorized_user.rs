@@ -52,6 +52,16 @@ impl TryFrom<Token> for AuthorizedUser {
 }
 
 impl AuthorizedUser {
+    #[must_use]
+    pub fn new(email: &str, session: Uuid, secret_key: &str) -> Self {
+        Self {
+            email: email.into(),
+            session,
+            secret_key: secret_key.into(),
+            ..Self::default()
+        }
+    }
+
     /// # Errors
     /// Returns error if api call fails
     pub async fn get_session_data<T: DeserializeOwned>(

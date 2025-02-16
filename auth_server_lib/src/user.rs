@@ -1,11 +1,11 @@
 use argon2::{
-    password_hash::{Error as ArgonError, SaltString},
+    password_hash::{Error as ArgonError, Salt, SaltString},
     Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version,
 };
 use futures::Stream;
 use once_cell::sync::Lazy;
 use postgres_query::{client::GenericClient, query, Error as PqError, FromSqlRow};
-use rand::thread_rng;
+use rand::{rng as thread_rng, RngCore};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::cmp::PartialEq;
@@ -44,8 +44,14 @@ impl Argon {
         )))
     }
 
+    fn generate_salt() -> SaltString {
+        let mut bytes = [0u8; Salt::RECOMMENDED_LENGTH];
+        thread_rng().fill_bytes(&mut bytes);
+        SaltString::encode_b64(&bytes).expect("Faled to generate salt")
+    }
+
     fn hash_password(&self, plain: impl AsRef<[u8]>) -> Result<StackString, Error> {
-        let salt = SaltString::generate(thread_rng());
+        let salt = Self::generate_salt();
         self.0
             .hash_password(plain.as_ref(), &salt)
             .map(StackString::from_display)
