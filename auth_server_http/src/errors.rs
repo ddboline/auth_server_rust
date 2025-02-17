@@ -174,17 +174,19 @@ impl ResponseEntity for ServiceError {
 
 #[cfg(test)]
 mod test {
-    use rweb::Reply;
-    use rweb::http::{uri::InvalidUri, Error as HTTPError};
+    use rweb::{
+        http::{uri::InvalidUri, Error as HTTPError},
+        Reply,
+    };
     use serde_json::Error as SerdeJsonError;
     use std::fmt::Error as FmtError;
     use tokio::{task::JoinError, time::error::Elapsed};
     use url::ParseError as UrlParseError;
-    
+
     use auth_server_ext::errors::AuthServerExtError;
     use auth_server_lib::errors::AuthServerError;
     use authorized_users::errors::AuthUsersError;
-    
+
     use crate::errors::{error_response, ServiceError as Error};
 
     #[tokio::test]
@@ -203,7 +205,10 @@ mod test {
     fn test_error_size() {
         println!("JoinError {}", std::mem::size_of::<JoinError>());
         println!("AuthServerError {}", std::mem::size_of::<AuthServerError>());
-        println!("AuthServerExtError {}", std::mem::size_of::<AuthServerExtError>());
+        println!(
+            "AuthServerExtError {}",
+            std::mem::size_of::<AuthServerExtError>()
+        );
         println!("UrlParseError {}", std::mem::size_of::<UrlParseError>());
         println!("HTTPError {}", std::mem::size_of::<HTTPError>());
         println!("SerdeJsonError {}", std::mem::size_of::<SerdeJsonError>());

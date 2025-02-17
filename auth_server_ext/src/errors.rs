@@ -65,7 +65,6 @@ impl From<BuildError> for AuthServerExtError {
     }
 }
 
-
 impl From<OpenidError> for AuthServerExtError {
     fn from(value: OpenidError) -> Self {
         Self::OpenidError(Box::new(value))
@@ -107,9 +106,9 @@ mod tests {
     use time::error::Format as TimeFormatError;
     use tokio::task::JoinError;
     use url::ParseError as UrlParseError;
-    
+
     use auth_server_lib::errors::AuthServerError;
-    
+
     use crate::errors::AuthServerExtError;
 
     #[test]
@@ -121,9 +120,18 @@ mod tests {
         println!("SystemTimeError {}", std::mem::size_of::<SystemTimeError>());
         println!("JoinError {}", std::mem::size_of::<JoinError>());
         println!("RefineryError {}", std::mem::size_of::<RefineryError>());
-        println!("SdkError<SendEmailError> {}", std::mem::size_of::<SdkError<SendEmailError>>());
-        println!("SdkError<GetSendQuotaError> {}", std::mem::size_of::<SdkError<GetSendQuotaError>>());
-        println!("SdkError<GetSendStatisticsError> {}", std::mem::size_of::<SdkError<GetSendStatisticsError>>());
+        println!(
+            "SdkError<SendEmailError> {}",
+            std::mem::size_of::<SdkError<SendEmailError>>()
+        );
+        println!(
+            "SdkError<GetSendQuotaError> {}",
+            std::mem::size_of::<SdkError<GetSendQuotaError>>()
+        );
+        println!(
+            "SdkError<GetSendStatisticsError> {}",
+            std::mem::size_of::<SdkError<GetSendStatisticsError>>()
+        );
         println!("DecodeError {}", std::mem::size_of::<DecodeError>());
         println!("BuildError {}", std::mem::size_of::<BuildError>());
 

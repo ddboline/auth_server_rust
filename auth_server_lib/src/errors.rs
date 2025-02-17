@@ -119,13 +119,19 @@ mod tests {
         println!("BuildError {}", std::mem::size_of::<BuildError>());
         println!("ConfigError {}", std::mem::size_of::<ConfigError>());
         println!("EnvyError {}", std::mem::size_of::<EnvyError>());
-        println!("QueryExtractError {}", std::mem::size_of::<QueryExtractError>());
+        println!(
+            "QueryExtractError {}",
+            std::mem::size_of::<QueryExtractError>()
+        );
         println!("QueryError {}", std::mem::size_of::<QueryError>());
         println!("SerdeJsonError {}", std::mem::size_of::<SerdeJsonError>());
         println!("YamlError {}", std::mem::size_of::<YamlError>());
         println!("AddrParseError {}", std::mem::size_of::<AddrParseError>());
         println!("IoError {}", std::mem::size_of::<IoError>());
-        println!("StdoutChannelError {}", std::mem::size_of::<StdoutChannelError>());
+        println!(
+            "StdoutChannelError {}",
+            std::mem::size_of::<StdoutChannelError>()
+        );
         println!("TimeFormatError {}", std::mem::size_of::<TimeFormatError>());
         println!("TimeParseError {}", std::mem::size_of::<TimeParseError>());
         println!("JoinError {}", std::mem::size_of::<JoinError>());

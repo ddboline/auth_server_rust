@@ -375,9 +375,8 @@ mod test {
 
     use auth_server_ext::errors::AuthServerExtError as Error;
     use auth_server_lib::{
-        get_random_string,
-        config::Config, errors::AuthServerError, invitation::Invitation, pgpool::PgPool,
-        session::Session, user::User, AUTH_APP_MUTEX,
+        config::Config, errors::AuthServerError, get_random_string, invitation::Invitation,
+        pgpool::PgPool, session::Session, user::User, AUTH_APP_MUTEX,
     };
 
     use crate::AuthServerOptions;

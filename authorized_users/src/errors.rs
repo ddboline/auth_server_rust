@@ -55,17 +55,20 @@ impl From<BiscuitError> for AuthUsersError {
 mod tests {
     use biscuit::errors::Error as BiscuitError;
     use reqwest::{header::InvalidHeaderValue, Error as ReqwestError};
+    use stack_string::StackString;
     use std::io::Error as IoError;
     use url::ParseError as UrlParseError;
     use uuid::Error as UuidError;
-    use stack_string::StackString;
-    
+
     use crate::errors::AuthUsersError;
 
     #[test]
     fn test_error_size() {
         println!("BiscuitError {}", std::mem::size_of::<BiscuitError>());
-        println!("InvalidHeaderValue {}", std::mem::size_of::<InvalidHeaderValue>());
+        println!(
+            "InvalidHeaderValue {}",
+            std::mem::size_of::<InvalidHeaderValue>()
+        );
         println!("ReqwestError {}", std::mem::size_of::<ReqwestError>());
         println!("IoError {}", std::mem::size_of::<IoError>());
         println!("UrlParseError {}", std::mem::size_of::<UrlParseError>());

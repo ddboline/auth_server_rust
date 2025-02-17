@@ -390,9 +390,8 @@ mod tests {
     use std::collections::{HashMap, HashSet};
 
     use crate::{
-        get_random_string,
-        config::Config, errors::AuthServerError as Error, pgpool::PgPool, session::Session,
-        user::User, AUTH_APP_MUTEX,
+        config::Config, errors::AuthServerError as Error, get_random_string, pgpool::PgPool,
+        session::Session, user::User, AUTH_APP_MUTEX,
     };
 
     #[tokio::test]
