@@ -121,14 +121,14 @@ impl SesInstance {
     }
 }
 
-#[derive(Default, Debug, Serialize)]
+#[derive(Default, Debug, Serialize, Copy, Clone)]
 pub struct SesQuotas {
     pub max_24_hour_send: f64,
     pub max_send_rate: f64,
     pub sent_last_24_hours: f64,
 }
 
-#[derive(Default, Debug, Serialize)]
+#[derive(Default, Debug, Serialize, Copy, Clone)]
 pub struct EmailStats {
     pub bounces: i64,
     pub complaints: i64,
@@ -166,7 +166,7 @@ impl fmt::Display for EmailStats {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct Statistics {
     pub quotas: SesQuotas,
     pub stats: EmailStats,

@@ -288,9 +288,7 @@ impl Session {
     /// # Errors
     /// Returns error if db query fails
     pub async fn get_all_session_data(&self, pool: &PgPool) -> Result<Vec<SessionData>, Error> {
-        SessionData::get_by_session_id(pool, self.id)
-            .await
-            .map_err(Into::into)
+        SessionData::get_by_session_id(pool, self.id).await
     }
 
     /// # Errors

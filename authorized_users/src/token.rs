@@ -2,9 +2,7 @@ use biscuit::{
     jwa::{
         ContentEncryptionAlgorithm, EncryptionOptions, KeyManagementAlgorithm, SignatureAlgorithm,
     },
-    jwe,
-    jws::{self, Compact},
-    ClaimsSet, Empty, JWE, JWT,
+    jwe, jws, ClaimsSet, Empty, JWE, JWT,
 };
 use derive_more::{Display, From, Into};
 use log::debug;
@@ -75,16 +73,16 @@ impl Token {
     pub fn decode_token(&self) -> Result<Claim, Error> {
         let token: JWE<PrivateClaim, Empty, Empty> = JWE::new_encrypted(&self.0);
 
-        let decrypted_jwe =
-            token.into_decrypted(&SECRET_KEY.get_jwk_secret(), KM_ALGORITHM, CE_ALGORITHM)?;
-        let decrypted_jws = decrypted_jwe.payload()?.clone();
-
-        let token = decrypted_jws.into_decoded(&JWT_SECRET.get_jws_secret(), SG_ALGORITHM)?;
-        if let Compact::Decoded { payload, .. } = token {
-            payload.try_into()
-        } else {
-            Err(TokenError::DecodeFailure.into())
+        if let jwe::Compact::Decrypted { payload, .. } =
+            token.into_decrypted(&SECRET_KEY.get_jwk_secret(), KM_ALGORITHM, CE_ALGORITHM)?
+        {
+            if let jws::Compact::Decoded { payload, .. } =
+                payload.into_decoded(&JWT_SECRET.get_jws_secret(), SG_ALGORITHM)?
+            {
+                return payload.try_into();
+            }
         }
+        Err(TokenError::DecodeFailure.into())
     }
 }
 

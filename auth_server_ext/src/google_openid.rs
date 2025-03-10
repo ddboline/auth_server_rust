@@ -111,7 +111,7 @@ impl GoogleClient {
         self.csrf_tokens
             .lock()
             .await
-            .insert(csrf_state.clone(), CsrfTokenCache::new(&nonce));
+            .insert(csrf_state.clone(), CsrfTokenCache::new(nonce));
         Ok((authorize_url, csrf_state))
     }
 

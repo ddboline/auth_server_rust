@@ -67,7 +67,7 @@ impl SessionData {
     /// Returns error if db query fails
     pub async fn get_by_id(pool: &PgPool, id: Uuid) -> Result<Option<Self>, Error> {
         let conn = pool.get().await?;
-        Self::get_by_id_conn(&conn, id).await.map_err(Into::into)
+        Self::get_by_id_conn(&conn, id).await
     }
 
     async fn get_by_id_conn<C>(conn: &C, id: Uuid) -> Result<Option<Self>, Error>
