@@ -1,5 +1,5 @@
-use auth_server_ext::errors::AuthServerExtError as Error;
 use auth_server_http::app::start_app;
+use auth_server_http::errors::ServiceError as Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {

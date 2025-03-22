@@ -1,17 +1,22 @@
 use futures::{try_join, TryStreamExt};
 use log::debug;
-use rweb::{
-    filters::BoxedFilter,
-    http::header::CONTENT_TYPE,
-    openapi::{self, Info},
-    Filter, Reply,
-};
 use stack_string::{format_sstr, StackString};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
-use tokio::{task::spawn, time::interval};
+use tokio::{task::spawn, time::interval, net::TcpListener};
+use utoipa_axum::{routes, PathItemExt, router::OpenApiRouter};
+use utoipa_swagger_ui::SwaggerUi;
+use utoipa_redoc::{Redoc, Servable};
+use utoipa_rapidoc::RapiDoc;
+use tower_http::cors::{Any, CorsLayer};
+use tower::{ServiceBuilder, ServiceExt, Service};
+use http::{Request, Response, Method, header};
+use http_body_util::Full;
+use bytes::Bytes;
+use std::convert::TryInto;
+use utoipa::OpenApi;
 
 use auth_server_ext::{
-    errors::AuthServerExtError as Error, google_openid::GoogleClient, ses_client::SesInstance,
+    google_openid::GoogleClient, ses_client::SesInstance,
 };
 use auth_server_lib::{
     config::Config, errors::AuthServerError, pgpool::PgPool, session::Session, user::User,
@@ -21,13 +26,14 @@ use authorized_users::{
 };
 
 use crate::{
-    errors::error_response,
+    errors::ServiceError as Error,
+    // errors::error_response,
     routes::{
-        auth_await, auth_url, callback, change_password, change_password_user, delete_session,
-        delete_sessions, get_session, get_sessions, get_user, index_html, list_session_data,
-        list_session_obj, list_sessions, login, login_html, logout, main_css, main_js,
-        post_session, register_email, register_html, register_user, status, test_get_user,
-        test_login,
+    //     auth_await, auth_url, callback, change_password, change_password_user, delete_session,
+    //     delete_sessions, get_session, get_sessions, get_user, index_html, list_session_data,
+    //     list_session_obj, list_sessions, login, login_html, logout, main_css, main_js,
+    //     post_session, register_email, register_html, register_user, status, test_get_user,
+        test_login, __path_test_login, test_get_user, __path_test_get_user,
     },
     session_data_cache::SessionDataCache,
 };
@@ -59,56 +65,56 @@ pub async fn start_app() -> Result<(), Error> {
     run_app(config).await
 }
 
-fn get_api_scope(app: &AppState) -> BoxedFilter<(impl Reply,)> {
-    let auth_path = login(app.clone())
-        .or(logout(app.clone()))
-        .or(get_user(app.clone()));
+// fn get_api_scope(app: &AppState) -> BoxedFilter<(impl Reply,)> {
+//     let auth_path = login(app.clone())
+//         .or(logout(app.clone()))
+//         .or(get_user(app.clone()));
 
-    let invitation_path = register_email(app.clone());
-    let register_path = register_user(app.clone());
-    let password_change_path = change_password_user(app.clone());
-    let auth_url_path = auth_url(app.clone());
-    let auth_await_path = auth_await(app.clone());
-    let callback_path = callback(app.clone());
-    let status_path = status(app.clone());
-    let session_path = get_session(app.clone())
-        .or(post_session(app.clone()))
-        .or(delete_session(app.clone()))
-        .boxed();
-    let list_session_obj_path = list_session_obj(app.clone()).boxed();
-    let get_sessions_path = get_sessions(app.clone())
-        .or(delete_sessions(app.clone()))
-        .boxed();
-    let list_sessions_path = list_sessions(app.clone()).boxed();
-    let list_session_data_path = list_session_data(app.clone()).boxed();
-    let index_html_path = index_html(app.clone());
-    let main_css_path = main_css();
-    let main_js_path = main_js();
-    let register_html_path = register_html(app.clone());
-    let login_html_path = login_html();
-    let change_password_path = change_password();
+//     let invitation_path = register_email(app.clone());
+//     let register_path = register_user(app.clone());
+//     let password_change_path = change_password_user(app.clone());
+//     let auth_url_path = auth_url(app.clone());
+//     let auth_await_path = auth_await(app.clone());
+//     let callback_path = callback(app.clone());
+//     let status_path = status(app.clone());
+//     let session_path = get_session(app.clone())
+//         .or(post_session(app.clone()))
+//         .or(delete_session(app.clone()))
+//         .boxed();
+//     let list_session_obj_path = list_session_obj(app.clone()).boxed();
+//     let get_sessions_path = get_sessions(app.clone())
+//         .or(delete_sessions(app.clone()))
+//         .boxed();
+//     let list_sessions_path = list_sessions(app.clone()).boxed();
+//     let list_session_data_path = list_session_data(app.clone()).boxed();
+//     let index_html_path = index_html(app.clone());
+//     let main_css_path = main_css();
+//     let main_js_path = main_js();
+//     let register_html_path = register_html(app.clone());
+//     let login_html_path = login_html();
+//     let change_password_path = change_password();
 
-    auth_path
-        .or(invitation_path)
-        .or(register_path)
-        .or(password_change_path)
-        .or(auth_url_path)
-        .or(auth_await_path)
-        .or(callback_path)
-        .or(status_path)
-        .or(session_path)
-        .or(list_session_obj_path)
-        .or(get_sessions_path)
-        .or(list_session_data_path)
-        .or(list_sessions_path)
-        .or(index_html_path)
-        .or(main_css_path)
-        .or(main_js_path)
-        .or(register_html_path)
-        .or(login_html_path)
-        .or(change_password_path)
-        .boxed()
-}
+//     auth_path
+//         .or(invitation_path)
+//         .or(register_path)
+//         .or(password_change_path)
+//         .or(auth_url_path)
+//         .or(auth_await_path)
+//         .or(callback_path)
+//         .or(status_path)
+//         .or(session_path)
+//         .or(list_session_obj_path)
+//         .or(get_sessions_path)
+//         .or(list_session_data_path)
+//         .or(list_sessions_path)
+//         .or(index_html_path)
+//         .or(main_css_path)
+//         .or(main_js_path)
+//         .or(register_html_path)
+//         .or(login_html_path)
+//         .or(change_password_path)
+//         .boxed()
+// }
 
 async fn run_app(config: Config) -> Result<(), Error> {
     async fn update_db(pool: PgPool, client: GoogleClient, expiration_seconds: u32) {
@@ -127,12 +133,6 @@ async fn run_app(config: Config) -> Result<(), Error> {
     let ses = SesInstance::new(&sdk_config);
     let pool = PgPool::new(&config.database_url)?;
 
-    let update_handle = spawn(update_db(
-        pool.clone(),
-        google_client.clone(),
-        config.expiration_seconds,
-    ));
-
     let app = AppState {
         config: config.clone(),
         pool,
@@ -140,51 +140,26 @@ async fn run_app(config: Config) -> Result<(), Error> {
         ses,
         session_cache: SessionDataCache::new(),
     };
+    let app = Arc::new(app);
 
-    let (spec, api_scope) = openapi::spec()
-        .info(Info {
-            title: "Rust Auth Server".into(),
-            description: "Authorization Server written in rust using jwt/jws/jwe and featuring \
-                          integration with Google OAuth"
-                .into(),
-            version: env!("CARGO_PKG_VERSION").into(),
-            ..Info::default()
-        })
-        .build(|| get_api_scope(&app));
-    let spec = Arc::new(spec);
-    let spec_json_path = rweb::path!("api" / "openapi" / "json")
-        .and(rweb::path::end())
-        .map({
-            let spec = spec.clone();
-            move || warp::reply::json(spec.as_ref())
-        });
+    let cors = CorsLayer::new().allow_methods([Method::GET, Method::POST]).allow_headers(["content-type".try_into()?, "jwt".try_into()?]).allow_origin(Any);
 
-    let spec_yaml = serde_yml::to_string(spec.as_ref()).map_err(Into::<AuthServerError>::into)?;
-    let spec_yaml_path = rweb::path!("api" / "openapi" / "yaml")
-        .and(rweb::path::end())
-        .map(move || {
-            let reply = rweb::reply::html(spec_yaml.clone());
-            rweb::reply::with_header(reply, CONTENT_TYPE, "text/yaml")
-        });
+    Ok(())
 
-    let cors = rweb::cors()
-        .allow_methods(vec!["GET", "POST", "DELETE"])
-        .allow_header("content-type")
-        .allow_header("jwt")
-        .allow_any_origin()
-        .build();
+    // let (router, api) = OpenApiRouter::new().layer(cors);
 
-    let routes = api_scope
-        .or(spec_json_path)
-        .or(spec_yaml_path)
-        .recover(error_response)
-        .with(cors);
-    let addr: SocketAddr = format_sstr!("{host}:{port}", host = config.host, port = config.port)
-        .parse()
-        .map_err(Into::<AuthServerError>::into)?;
-    debug!("{:?}", addr);
-    rweb::serve(routes).bind(addr).await;
-    update_handle.await.map_err(Into::into)
+
+    // let routes = api_scope
+    //     .or(spec_json_path)
+    //     .or(spec_yaml_path)
+    //     .recover(error_response)
+    //     .with(cors);
+    // let addr: SocketAddr = format_sstr!("{host}:{port}", host = config.host, port = config.port)
+    //     .parse()
+    //     .map_err(Into::<AuthServerError>::into)?;
+    // println!("{:?}", addr);
+    // rweb::serve(routes).bind(addr).await;
+    // update_handle.await.map_err(Into::into)
 }
 
 /// # Errors
@@ -206,26 +181,32 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
         ses,
         session_cache: SessionDataCache::new(),
     };
+    let app = Arc::new(app);
 
+    #[derive(OpenApi)]
+    struct ApiDoc;
+
+    let cors = CorsLayer::new().allow_methods([Method::GET, Method::POST]).allow_headers(["content-type".try_into()?, "jwt".try_into()?]).allow_origin(Any);
+
+    let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
+        .routes(routes!(test_get_user))
+        .routes(routes!(test_login))
+        .layer(cors)
+        .with_state(app)
+        .split_for_parts();
+
+    let router = router
+        .merge(SwaggerUi::new("/swaggerui").url("/api/openapi.json", api.clone()))
+        .merge(Redoc::with_url("/api/redoc", api.clone()))
+        .merge(RapiDoc::new("/api/openapi.json").path("/rapidoc"));
+
+    let host = &config.host;
     let port = config.port;
 
-    let auth_path = test_login(app.clone())
-        .or(logout(app.clone()))
-        .or(test_get_user());
-
-    let cors = rweb::cors()
-        .allow_methods(vec!["GET", "POST", "DELETE"])
-        .allow_header("content-type")
-        .allow_header("authorization")
-        .allow_any_origin()
-        .build();
-
-    let routes = auth_path.recover(error_response).with(cors);
-    let addr: SocketAddr = format_sstr!("{host}:{port}", host = config.host)
-        .parse()
-        .map_err(Into::<AuthServerError>::into)?;
-    rweb::serve(routes).bind(addr).await;
-    Ok(())
+    let addr: SocketAddr = format_sstr!("{host}:{port}").parse()?;
+    println!("{:?}", addr);
+    let listener = TcpListener::bind(&addr).await?;
+    axum::serve(listener, router.into_make_service()).await.map_err(Into::into)
 }
 
 /// # Errors
@@ -240,7 +221,7 @@ pub async fn fill_auth_from_db(pool: &PgPool, expiration_seconds: u32) -> Result
     )?;
     let existing_users = AUTHORIZED_USERS.get_users();
     let most_recent_user = existing_users.values().map(|i| i.created_at).max();
-    debug!("most_recent_user_db {most_recent_user_db:?} most_recent_user {most_recent_user:?}");
+    println!("most_recent_user_db {most_recent_user_db:?} most_recent_user {most_recent_user:?}");
     if cleanup_result == 0
         && most_recent_user_db.is_some()
         && most_recent_user.is_some()
@@ -255,7 +236,7 @@ pub async fn fill_auth_from_db(pool: &PgPool, expiration_seconds: u32) -> Result
         .await;
     let users = result.map_err(Into::<AuthServerError>::into)?;
     AUTHORIZED_USERS.update_users(users);
-    debug!("AUTHORIZED_USERS {:?}", *AUTHORIZED_USERS);
+    println!("AUTHORIZED_USERS {:?}", *AUTHORIZED_USERS);
     Ok(())
 }
 
@@ -264,7 +245,6 @@ mod tests {
     use anyhow::Error;
     use log::debug;
     use maplit::hashmap;
-    use rweb::{http::StatusCode, openapi};
     use stack_string::format_sstr;
     use std::{collections::HashMap, env};
     use tokio::{
@@ -272,6 +252,7 @@ mod tests {
         time::{sleep, Duration},
     };
     use url::Url;
+    use http::StatusCode;
 
     use auth_server_ext::{google_openid::GoogleClient, ses_client::SesInstance};
     use auth_server_lib::{
@@ -281,7 +262,9 @@ mod tests {
     use authorized_users::{get_random_key, AuthorizedUser, JWT_SECRET, KEY_LENGTH, SECRET_KEY};
 
     use crate::{
-        app::{get_api_scope, run_app, run_test_app, AppState},
+        app::{
+            // get_api_scope,
+            run_app, run_test_app, AppState},
         logged_user::LoggedUser,
         routes::PasswordChangeOutput,
         session_data_cache::SessionDataCache,
@@ -290,7 +273,7 @@ mod tests {
     #[test]
     fn test_get_random_string() -> Result<(), Error> {
         let rs = get_random_string(32);
-        debug!("{}", rs);
+        println!("{}", rs);
         assert_eq!(rs.len(), 32);
         Ok(())
     }
@@ -315,7 +298,7 @@ mod tests {
         env::set_var("DOMAIN", "localhost");
         let config = Config::init_config()?;
 
-        debug!("{} {}", config.port, config.domain);
+        println!("{} {}", config.port, config.domain);
         let test_handle = spawn({
             env_logger::init();
             let config = config.clone();
@@ -330,7 +313,7 @@ mod tests {
             "email" => &email,
             "password" => &password,
         };
-        debug!("login");
+        println!("login");
         let resp: LoggedUser = client
             .post(url.as_str())
             .json(&data)
@@ -339,10 +322,10 @@ mod tests {
             .error_for_status()?
             .json()
             .await?;
-        debug!("logged in {:?}", resp);
+        println!("logged in {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
-        debug!("get me");
+        println!("get me");
         let resp = client
             .get(url.as_str())
             .send()
@@ -350,7 +333,7 @@ mod tests {
             .error_for_status()?
             .text()
             .await?;
-        debug!("resp {resp}");
+        println!("resp {resp}");
         let resp: LoggedUser = client
             .get(url.as_str())
             .send()
@@ -358,8 +341,12 @@ mod tests {
             .error_for_status()?
             .json()
             .await?;
-        debug!("I am: {:?}", resp);
+        println!("I am: {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
+
+        let url = format_sstr!("http://localhost:{test_port}/api/openapi.json");
+        let result = client.get(url.as_str()).send().await?.error_for_status()?.text().await?;
+        println!("{result}");
 
         std::env::remove_var("TESTENV");
 
@@ -405,7 +392,7 @@ mod tests {
         };
 
         let client = reqwest::Client::builder().cookie_store(true).build()?;
-        debug!("register");
+        println!("register");
         let resp: LoggedUser = client
             .post(url.as_str())
             .json(&data)
@@ -414,7 +401,7 @@ mod tests {
             .error_for_status()?
             .json()
             .await?;
-        debug!("registered {:?}", resp);
+        println!("registered {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
         assert!(Invitation::get_by_uuid(invitation.id, &pool)
@@ -426,7 +413,7 @@ mod tests {
             "email" => &email,
             "password" => &password,
         };
-        debug!("login");
+        println!("login");
         let resp: LoggedUser = client
             .post(url.as_str())
             .json(&data)
@@ -435,10 +422,10 @@ mod tests {
             .error_for_status()?
             .json()
             .await?;
-        debug!("logged in {:?}", resp);
+        println!("logged in {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
-        debug!("get me");
+        println!("get me");
 
         let resp: LoggedUser = client
             .get(url.as_str())
@@ -447,7 +434,7 @@ mod tests {
             .error_for_status()?
             .json()
             .await?;
-        debug!("I am: {:?}", resp);
+        println!("I am: {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
         let url = format_sstr!("http://localhost:{test_port}/api/password_change");
@@ -456,7 +443,7 @@ mod tests {
             "email" => &email,
             "password" => &new_password,
         };
-        debug!("change password");
+        println!("change password");
         let output: PasswordChangeOutput = client
             .post(url.as_str())
             .json(&data)
@@ -465,14 +452,14 @@ mod tests {
             .error_for_status()?
             .json()
             .await?;
-        debug!("password changed {:?}", output);
+        println!("password changed {:?}", output);
         assert_eq!(output.message.as_str(), "password updated");
 
         let base_url: Url = format_sstr!("http://localhost:{test_port}").parse()?;
         let data = hashmap! {
             "key" => "value",
         };
-        debug!("POST session");
+        println!("POST session");
         AuthorizedUser::set_session_data(
             &base_url,
             resp.session.into(),
@@ -483,7 +470,7 @@ mod tests {
         )
         .await
         .map_err(Into::<AuthServerError>::into)?;
-        debug!("GET session");
+        println!("GET session");
         let resp: HashMap<String, String> = AuthorizedUser::get_session_data(
             &base_url,
             resp.session.into(),
@@ -493,7 +480,7 @@ mod tests {
         )
         .await
         .map_err(Into::<AuthServerError>::into)?;
-        debug!("{resp:?}");
+        println!("{resp:?}");
         assert_eq!(resp.len(), 1);
         let url = format_sstr!("http://localhost:{test_port}/api/auth");
         let status = client
@@ -534,10 +521,10 @@ mod tests {
             session_cache: SessionDataCache::new(),
         };
 
-        let (spec, _) = openapi::spec().build(|| get_api_scope(&app));
-        let spec_yaml = serde_yml::to_string(&spec).map_err(Into::<AuthServerError>::into)?;
+        // let (spec, _) = openapi::spec().build(|| get_api_scope(&app));
+        // let spec_yaml = serde_yml::to_string(&spec).map_err(Into::<AuthServerError>::into)?;
 
-        debug!("{}", spec_yaml);
+        // println!("{}", spec_yaml);
         Ok(())
     }
 }

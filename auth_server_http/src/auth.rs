@@ -1,8 +1,8 @@
 use log::error;
-use rweb::Schema;
 use serde::Deserialize;
 use stack_string::StackString;
 use tokio::task::spawn_blocking;
+use utoipa::ToSchema;
 
 use auth_server_lib::{config::Config, pgpool::PgPool, session::Session, user::User};
 use authorized_users::AuthorizedUser;
@@ -12,12 +12,13 @@ use crate::{
     logged_user::{LoggedUser, UserCookies},
 };
 
-#[derive(Debug, Deserialize, Schema)]
-#[schema(component = "AuthRequest")]
+#[derive(Debug, Deserialize, ToSchema)]
+// #[schema(component = "AuthRequest")]
 pub struct AuthRequest {
-    #[schema(description = "Email Address", example = r#""test@example.com""#)]
+    /// Email Address
+    #[schema(example = r#""test@example.com""#)]
     pub email: StackString,
-    #[schema(description = "Password")]
+    /// Password
     pub password: StackString,
 }
 

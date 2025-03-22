@@ -19,9 +19,9 @@ rand = "0.9"
 reqwest = {version="0.12", features=["cookies", "json", "rustls-tls", "stream"], default-features=false}
 serde = { version="1.0", features=["derive"] }
 smallvec = "1.14"
-stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types"], tag="1.0.2" }
+stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types"], tag="1.1.1" }
 thiserror = "2.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}
-tokio = {version="1.43", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.44", features=["rt", "macros", "rt-multi-thread"]}
 url = "2.5"
 uuid = { version = "1.13", features = ["serde", "v4"] }
