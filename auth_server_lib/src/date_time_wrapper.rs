@@ -42,7 +42,7 @@ impl DateTimeWrapper {
     }
 }
 
-mod iso8601 {
+pub mod iso8601 {
     use serde::{de, Deserialize, Deserializer, Serializer};
     use stack_string::StackString;
     use std::borrow::Cow;

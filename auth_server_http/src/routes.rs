@@ -29,6 +29,7 @@ use auth_server_lib::{
     session::{Session, SessionSummary},
     session_data::SessionData,
     user::User,
+    date_time_wrapper::iso8601,
 };
 use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
 
@@ -40,7 +41,6 @@ use crate::{
         session_data_body,
     },
     errors::ServiceError as Error,
-    iso8601,
     logged_user::{LoggedUser, UserCookies},
     SesQuotasWrapper, EmailStatsWrapper
 };
