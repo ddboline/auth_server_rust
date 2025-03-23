@@ -1,4 +1,4 @@
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use crossbeam::atomic::AtomicCell;
 use log::{debug, error};
 pub use openid::error::{ClientError, Error as OpenidError};
@@ -251,15 +251,15 @@ mod tests {
     use stack_string::format_sstr;
     use std::time::SystemTime;
     use tokio::{
-        task::{spawn, JoinHandle},
-        time::{sleep, Duration},
+        task::{JoinHandle, spawn},
+        time::{Duration, sleep},
     };
 
-    use auth_server_lib::{config::Config, pgpool::PgPool, AUTH_APP_MUTEX};
+    use auth_server_lib::{AUTH_APP_MUTEX, config::Config, pgpool::PgPool};
 
     use crate::{
         errors::AuthServerExtError as Error,
-        google_openid::{get_token_string, GoogleClient},
+        google_openid::{GoogleClient, get_token_string},
     };
 
     #[tokio::test]

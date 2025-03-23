@@ -1,6 +1,6 @@
-use reqwest::{header::HeaderValue, Client};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use stack_string::{format_sstr, StackString};
+use reqwest::{Client, header::HeaderValue};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use stack_string::{StackString, format_sstr};
 use std::{cmp::PartialEq, convert::TryFrom, hash::Hash};
 use time::OffsetDateTime;
 use url::Url;
@@ -142,8 +142,8 @@ mod tests {
     use uuid::Uuid;
 
     use crate::{
-        errors::AuthUsersError, get_random_key, token::Token, AuthorizedUser, JWT_SECRET,
-        KEY_LENGTH, SECRET_KEY,
+        AuthorizedUser, JWT_SECRET, KEY_LENGTH, SECRET_KEY, errors::AuthUsersError, get_random_key,
+        token::Token,
     };
 
     #[test]

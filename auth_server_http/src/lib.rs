@@ -18,44 +18,22 @@ use derive_more::{From, Into};
 use serde::Serialize;
 use stack_string::StackString;
 use time::OffsetDateTime;
-use utoipa::{ToSchema, PartialSchema};
+use utoipa::ToSchema;
+use utoipa_helper::derive_utoipa_schema;
+use uuid::Uuid;
 
 use auth_server_ext::ses_client::{EmailStats, SesQuotas};
 use auth_server_lib::session::SessionSummary;
-
-macro_rules! derive_utoipa_schema {
-    ($T0:ty, $T1:ty) => {
-        impl utoipa::PartialSchema for $T0 {
-            fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
-                <$T1>::schema()
-            }
-        }
-
-        impl utoipa::ToSchema for $T0 {
-            fn name() -> std::borrow::Cow<'static, str> {
-                assert_eq!(std::mem::size_of::<$T0>(), std::mem::size_of::<$T1>());
-                <$T1>::name()
-            }
-            fn schemas(
-                schemas: &mut Vec<(
-                    String,
-                    utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
-                )>,
-            ) {
-                    <$T1>::schemas(schemas)
-            }
-        }
-    };
-}
 
 #[derive(Into, From, Default, Debug, Serialize, Clone, Copy)]
 pub struct SesQuotasWrapper(SesQuotas);
 
 derive_utoipa_schema!(SesQuotasWrapper, _SesQuotasWrapper);
 
-// #[allow(dead_code)]
+#[allow(dead_code)]
 #[derive(ToSchema)]
-// #[schema(component = "SesQuotas")]
+/// SesQuotas
+#[schema(as = SesQuotas)]
 struct _SesQuotasWrapper {
     /// Maximum Emails per Day
     max_24_hour_send: f64,
@@ -73,6 +51,7 @@ derive_utoipa_schema!(EmailStatsWrapper, _EmailStatsWrapper);
 #[allow(dead_code)]
 #[derive(ToSchema)]
 // #[schema(component = "EmailStats")]
+#[schema(as = EmailStats)]
 struct _EmailStatsWrapper {
     /// Number of Bounced Emails
     bounces: i64,
@@ -88,40 +67,41 @@ struct _EmailStatsWrapper {
     max_timestamp: Option<OffsetDateTime>,
 }
 
-// #[derive(Into, From, Default, Debug, Serialize)]
-// pub struct SessionSummaryWrapper(SessionSummary);
+#[derive(Into, From, Default, Debug, Serialize)]
+pub struct SessionSummaryWrapper(SessionSummary);
 
-// derive_rweb_schema!(SessionSummaryWrapper, _SessionSummaryWrapper);
+derive_utoipa_schema!(SessionSummaryWrapper, _SessionSummaryWrapper);
 
-// #[allow(dead_code)]
-// #[derive(Schema)]
-// #[schema(component = "SessionSummary")]
-// struct _SessionSummaryWrapper {
-//     #[schema(description = "Session ID")]
-//     session_id: UuidWrapper,
-//     #[schema(description = "Email Address")]
-//     email_address: StackString,
-//     #[schema(description = "Last Accessed")]
-//     last_accessed: DateTimeType,
-//     #[schema(description = "Create At")]
-//     created_at: DateTimeType,
-//     #[schema(description = "Number of Data Objects")]
-//     number_of_data_objects: i64,
-// }
+#[allow(dead_code)]
+#[derive(ToSchema)]
+/// SessionSummary
+#[schema(as = SessionSummary)]
+struct _SessionSummaryWrapper {
+    /// Session ID
+    session_id: Uuid,
+    /// Email Address
+    email_address: StackString,
+    /// Last Accessed
+    last_accessed: OffsetDateTime,
+    /// Create At
+    created_at: OffsetDateTime,
+    /// Number of Data Objects
+    number_of_data_objects: i64,
+}
 
-// #[cfg(test)]
-// mod test {
-//     use rweb_helper::derive_rweb_test;
+#[cfg(test)]
+mod test {
+    use utoipa_helper::derive_utoipa_test;
 
-//     use crate::{
-//         EmailStatsWrapper, SesQuotasWrapper, SessionSummaryWrapper, _EmailStatsWrapper,
-//         _SesQuotasWrapper, _SessionSummaryWrapper,
-//     };
+    use crate::{
+        _EmailStatsWrapper, _SesQuotasWrapper, _SessionSummaryWrapper, EmailStatsWrapper,
+        SesQuotasWrapper, SessionSummaryWrapper,
+    };
 
-//     #[test]
-//     fn test_types() {
-//         derive_rweb_test!(SesQuotasWrapper, _SesQuotasWrapper);
-//         derive_rweb_test!(EmailStatsWrapper, _EmailStatsWrapper);
-//         derive_rweb_test!(SessionSummaryWrapper, _SessionSummaryWrapper);
-//     }
-// }
+    #[test]
+    fn test_types() {
+        derive_utoipa_test!(SesQuotasWrapper, _SesQuotasWrapper);
+        derive_utoipa_test!(EmailStatsWrapper, _EmailStatsWrapper);
+        derive_utoipa_test!(SessionSummaryWrapper, _SessionSummaryWrapper);
+    }
+}

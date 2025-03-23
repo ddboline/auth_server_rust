@@ -1,27 +1,83 @@
-openapi: '3.0.1'
+openapi: '3.1.0'
 info:
-  title: Rust Auth Server
+  title: Rust Autorization Server
   description: Authorization Server written in rust using jwt/jws/jwe and featuring integration with Google OAuth
-  version: '0.12.3'
+  contact:
+    name: Daniel Boline
+    email: ddboline@gmail.com
+  license:
+    name: MIT
+    identifier: MIT
+  version: '0.13.0'
 paths:
   /api/auth:
     get:
-      description: Get current username if logged in
+      summary: Get current username if logged in
+      operationId: get_user
       responses:
         '200':
           description: Current users email
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LoggedUser'
+                type: object
+                description: LoggedUser
+                required:
+                - email
+                - session
+                - secret_key
+                - created_at
+                properties:
+                  created_at:
+                    type: string
+                    format: date-time
+                    description: User Created At
+                  email:
+                    $ref: '#/components/schemas/str'
+                    description: Email Address
+                  secret_key:
+                    $ref: '#/components/schemas/str'
+                    description: Secret Key
+                  session:
+                    type: string
+                    format: uuid
+                    description: Session ID
         '400':
           description: Bad Request
-        '404':
-          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
         '500':
           description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
     post:
-      description: Login with username and password
+      summary: Login with username and password
+      operationId: login
       requestBody:
         content:
           application/json:
@@ -34,31 +90,257 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LoggedUser'
+                type: object
+                description: LoggedUser
+                required:
+                - email
+                - session
+                - secret_key
+                - created_at
+                properties:
+                  created_at:
+                    type: string
+                    format: date-time
+                    description: User Created At
+                  email:
+                    $ref: '#/components/schemas/str'
+                    description: Email Address
+                  secret_key:
+                    $ref: '#/components/schemas/str'
+                    description: Secret Key
+                  session:
+                    type: string
+                    format: uuid
+                    description: Session ID
         '400':
           description: Bad Request
-        '404':
-          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
         '500':
           description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
     delete:
-      description: Log out
+      summary: Log out
+      operationId: logout
       responses:
         '204':
           description: Status Message
           content:
-            application/json:
+            text/html:
               schema:
                 type: string
         '400':
           description: Bad Request
-        '404':
-          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
         '500':
           description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+  /api/auth_url:
+    post:
+      summary: Get Oauth Url")]
+      operationId: auth_url
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FinalUrlData'
+        required: true
+      responses:
+        '201':
+          description: Authorization Url
+          content:
+            application/json:
+              schema:
+                type: object
+                description: AuthUrl")]
+                required:
+                - auth_url
+                - csrf_state
+                properties:
+                  auth_url:
+                    $ref: '#/components/schemas/str'
+                    description: Auth URL")]
+                  csrf_state:
+                    $ref: '#/components/schemas/str'
+                    description: CSRF State")]
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+  /api/await:
+    get:
+      summary: Await completion of auth")]
+      operationId: auth_await
+      responses:
+        '200':
+          description: Finished
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+  /api/callback:
+    get:
+      summary: Callback method for use in Oauth flow")]
+      operationId: callback
+      responses:
+        '200':
+          description: Callback Response
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
   /api/invitation:
     post:
-      description: Send invitation to specified email
+      summary: Send invitation to specified email
+      operationId: register_email
       requestBody:
         content:
           application/json:
@@ -71,46 +353,148 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Invitation'
+                type: object
+                description: Invitation
+                required:
+                - id
+                - email
+                - expires_at
+                properties:
+                  email:
+                    $ref: '#/components/schemas/str'
+                    description: Email Address
+                  expires_at:
+                    type: string
+                    format: date-time
+                    description: Expiration Datetime
+                  id:
+                    $ref: '#/components/schemas/str'
+                    description: Invitation ID
         '400':
           description: Bad Request
-        '404':
-          description: Not Found
-        '500':
-          description: Internal Server Error
-  /api/register/{invitation_id}:
-    post:
-      description: Set password using link from email
-      parameters:
-      - name: invitation_id
-        in: path
-        required: true
-        schema:
-          format: uuid
-          example: '334518f4-1bfd-4f20-9978-bfad0dc033e1'
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PasswordData'
-        required: true
-      responses:
-        '201':
-          description: Registered Email
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LoggedUser'
-        '400':
-          description: Bad Request
-        '404':
-          description: Not Found
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
         '500':
           description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+  /api/list-session-data:
+    get:
+      summary: List Session Data
+      operationId: list_session_data
+      responses:
+        '200':
+          description: List Session Data
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+  /api/list-sessions:
+    get:
+      summary: List Sessions
+      operationId: list_sessions
+      responses:
+        '200':
+          description: List Sessions
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
   /api/password_change:
     post:
-      description: Change password for currently logged in user
+      summary: Change password for currently logged in user")]
+      operationId: change_password_user
       requestBody:
         content:
           application/json:
@@ -123,371 +507,492 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PasswordChange'
+                type: object
+                description: PasswordChange
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
         '400':
           description: Bad Request
-        '404':
-          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
         '500':
           description: Internal Server Error
-  /api/auth_url:
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+  /api/register/{invitation_id}:
     post:
-      description: Get Oauth Url
+      summary: Set password using link from email
+      operationId: register_user
+      parameters:
+      - name: invitation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/FinalUrl'
+              $ref: '#/components/schemas/PasswordData'
         required: true
       responses:
         '201':
-          description: Authorization Url
+          description: Registered Email
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthUrl'
-        '400':
-          description: Bad Request
-        '404':
-          description: Not Found
-        '500':
-          description: Internal Server Error
-  /api/await:
-    get:
-      description: Await completion of auth
-      parameters:
-      - name: state
-        in: query
-        required: true
-        schema:
-          description: CSRF State
-          type: string
-      responses:
-        '200':
-          description: Finished
-          content:
-            text/html:
-              schema:
-                type: string
-  /api/callback:
-    get:
-      description: Callback method for use in Oauth flow
-      parameters:
-      - name: code
-        in: query
-        required: true
-        schema:
-          description: Authorization Code
-          type: string
-      - name: state
-        in: query
-        required: true
-        schema:
-          description: CSRF State
-          type: string
-      responses:
-        '200':
-          description: Callback Response
-          content:
-            text/html:
-              schema:
-                type: string
-        '400':
-          description: Bad Request
-        '404':
-          description: Not Found
-        '500':
-          description: Internal Server Error
-  /api/status:
-    get:
-      description: Status endpoint
-      responses:
-        '200':
-          description: Status output
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Status'
-        '400':
-          description: Bad Request
-        '404':
-          description: Not Found
-        '500':
-          description: Internal Server Error
-  /api/session/{session_key}:
-    get:
-      description: Get Session
-      parameters:
-      - name: session_key
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        '200':
-          description: Session Object
-          content:
-            application/json:
-              schema:
-                nullable: true
                 type: object
+                description: LoggedUser
+                required:
+                - email
+                - session
+                - secret_key
+                - created_at
+                properties:
+                  created_at:
+                    type: string
+                    format: date-time
+                    description: User Created At
+                  email:
+                    $ref: '#/components/schemas/str'
+                    description: Email Address
+                  secret_key:
+                    $ref: '#/components/schemas/str'
+                    description: Secret Key
+                  session:
+                    type: string
+                    format: uuid
+                    description: Session ID
         '400':
           description: Bad Request
-        '404':
-          description: Not Found
-        '500':
-          description: Internal Server Error
-    post:
-      description: Set session value
-      parameters:
-      - name: session_key
-        in: path
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              nullable: true
-              type: object
-        required: true
-      responses:
-        '201':
-          description: Set Session Object
           content:
             application/json:
               schema:
-                nullable: true
                 type: object
-        '400':
-          description: Bad Request
-        '404':
-          description: Not Found
-        '500':
-          description: Internal Server Error
-    delete:
-      description: Delete session value
-      parameters:
-      - name: session_key
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        '204':
-          description: Delete Session Object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
           content:
             application/json:
               schema:
-                nullable: true
                 type: object
-        '400':
-          description: Bad Request
-        '404':
-          description: Not Found
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
         '500':
           description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
   /api/session-data:
     get:
-      description: Session Data
+      summary: Session Data
+      operationId: list_session_obj
       responses:
         '200':
           description: Session Data
           content:
             application/json:
               schema:
-                items:
-                  $ref: '#/components/schemas/SessionData'
                 type: array
+                items:
+                  type: object
+                  description: SessionData
+                  required:
+                  - session_id
+                  - session_key
+                  - session_value
+                  - created_at
+                  properties:
+                    created_at:
+                      type: string
+                      format: date-time
+                      description: Created At
+                    session_id:
+                      type: string
+                      format: uuid
+                      description: Session ID
+                    session_key:
+                      $ref: '#/components/schemas/str'
+                      description: Session Key
+                    session_value:
+                      description: Session Data
         '400':
           description: Bad Request
-        '404':
-          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
         '500':
           description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+  /api/session/{session_key}:
+    get:
+      summary: Get Session
+      operationId: get_session
+      responses:
+        '200':
+          description: Session Object
+          content:
+            application/json:
+              schema: {}
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+    post:
+      summary: Set session value
+      operationId: post_session
+      requestBody:
+        content:
+          application/json:
+            schema: {}
+        required: true
+      responses:
+        '201':
+          description: Set Session Object
+          content:
+            application/json:
+              schema: {}
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+    delete:
+      summary: Delete session value
+      operationId: delete_session
+      responses:
+        '204':
+          description: Delete Session Object
+          content:
+            application/json:
+              schema: {}
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
   /api/sessions:
     get:
-      description: Open Sessions
+      summary: Open Sessions
+      operationId: get_sessions
       responses:
         '200':
           description: Sessions
           content:
             application/json:
               schema:
+                type: array
                 items:
                   $ref: '#/components/schemas/SessionSummary'
-                type: array
         '400':
           description: Bad Request
-        '404':
-          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
         '500':
           description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
     delete:
-      description: Delete Sessions
-      parameters:
-      - name: session_key
-        in: query
-        required: false
-        schema:
-          description: Session Key
-          nullable: true
-          type: string
-      - name: session
-        in: query
-        required: false
-        schema:
-          description: Session
-          format: uuid
-          nullable: true
-          example: '334518f4-1bfd-4f20-9978-bfad0dc033e1'
-          type: string
+      summary: Delete Sessions
+      operationId: delete_sessions
       responses:
         '204':
           description: Delete Sessions
           content:
-            text/plain:
-              schema:
-                type: string
-        '400':
-          description: Bad Request
-        '404':
-          description: Not Found
-        '500':
-          description: Internal Server Error
-  /api/list-sessions:
-    get:
-      description: List Sessions
-      responses:
-        '200':
-          description: List Sessions
-          content:
-            text/plain:
-              schema:
-                type: string
-        '400':
-          description: Bad Request
-        '404':
-          description: Not Found
-        '500':
-          description: Internal Server Error
-  /api/list-session-data:
-    get:
-      description: List Session Data
-      responses:
-        '200':
-          description: List Session Data
-          content:
-            text/plain:
-              schema:
-                type: string
-        '400':
-          description: Bad Request
-        '404':
-          description: Not Found
-        '500':
-          description: Internal Server Error
-  /auth/index.html:
-    get:
-      description: Main Page
-      parameters:
-      - name: final_url
-        in: query
-        required: false
-        schema:
-          description: Url to redirect to after completion of authorization
-          nullable: true
-          example: https://example.com
-          type: string
-      responses:
-        '200':
-          description: Main Page
-          content:
             text/html:
               schema:
                 type: string
         '400':
           description: Bad Request
-        '404':
-          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
         '500':
           description: Internal Server Error
-  /auth/main.css:
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+  /api/status:
     get:
+      summary: Status endpoint")]
+      operationId: status
       responses:
         '200':
-          description: CSS
+          description: Status output
           content:
-            text/css:
+            application/json:
               schema:
-                type: string
-  /auth/main.js:
-    get:
-      responses:
-        '200':
-          description: Javascript
-          content:
-            text/javascript:
-              schema:
-                type: string
-  /auth/register.html:
-    get:
-      description: Registration Page
-      parameters:
-      - name: id
-        in: query
-        required: true
-        schema:
-          format: uuid
-          example: '334518f4-1bfd-4f20-9978-bfad0dc033e1'
-          type: string
-      - name: email
-        in: query
-        required: true
-        schema:
-          type: string
-      responses:
-        '200':
-          description: Registration
-          content:
-            text/html:
-              schema:
-                type: string
+                type: object
+                description: Status")]
+                required:
+                - number_of_users
+                - number_of_invitations
+                - number_of_sessions
+                - number_of_entries
+                - quota
+                - stats
+                properties:
+                  number_of_entries:
+                    type: integer
+                    format: int64
+                    description: Number of Data Entries")]
+                    minimum: 0
+                  number_of_invitations:
+                    type: integer
+                    format: int64
+                    description: Number of Invitations")]
+                    minimum: 0
+                  number_of_sessions:
+                    type: integer
+                    format: int64
+                    description: Number of Sessions")]
+                    minimum: 0
+                  number_of_users:
+                    type: integer
+                    format: int64
+                    description: Number of Users")]
+                    minimum: 0
+                  quota:
+                    $ref: '#/components/schemas/SesQuotas'
+                  stats:
+                    $ref: '#/components/schemas/EmailStats'
         '400':
           description: Bad Request
-        '404':
-          description: Not Found
-        '500':
-          description: Internal Server Error
-  /auth/login.html:
-    get:
-      description: Login Page
-      parameters:
-      - name: final_url
-        in: query
-        required: false
-        schema:
-          description: Url to redirect to after completion of authorization
-          nullable: true
-          example: https://example.com
-          type: string
-      responses:
-        '200':
-          description: Login Page
           content:
-            text/html:
+            application/json:
               schema:
-                type: string
-        '400':
-          description: Bad Request
-        '404':
-          description: Not Found
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
         '500':
           description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
   /auth/change_password.html:
     get:
-      description: Password Change Page
+      summary: Password Change Page
+      operationId: change_password
       responses:
         '200':
           description: Change Password
@@ -497,233 +1002,336 @@ paths:
                 type: string
         '400':
           description: Bad Request
-        '404':
-          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
         '500':
           description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+  /auth/index.html:
+    get:
+      summary: Main Page
+      operationId: index_html
+      responses:
+        '200':
+          description: Main Page
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+  /auth/login.html:
+    get:
+      summary: Login Page
+      operationId: login_html
+      responses:
+        '200':
+          description: Login Page
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+  /auth/main.css:
+    get:
+      operationId: main_css
+      responses:
+        '200':
+          description: CSS
+          content:
+            text/css:
+              schema:
+                type: string
+  /auth/main.js:
+    get:
+      operationId: main_js
+      responses:
+        '200':
+          description: Javascript
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /auth/register.html:
+    get:
+      summary: Registration Page
+      operationId: register_html
+      responses:
+        '200':
+          description: Registration
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
 components:
   schemas:
     AuthRequest:
-      properties:
-        email:
-          description: Email Address
-          example: test@example.com
-          type: string
-        password:
-          description: Password
-          type: string
       type: object
       required:
       - email
       - password
-    LoggedUser:
       properties:
         email:
+          $ref: '#/components/schemas/str'
           description: Email Address
-          example: user@example.com
-          type: string
-        session:
-          description: Session ID
-          format: uuid
-          example: '334518f4-1bfd-4f20-9978-bfad0dc033e1'
-          type: string
-        secret_key:
-          description: Secret Key
-          type: string
-        created_at:
-          description: User Created At
-          format: date-time
-          type: string
-      type: object
-      required:
-      - email
-      - session
-      - secret_key
-      - created_at
+        password:
+          $ref: '#/components/schemas/str'
+          description: Password
     CreateInvitation:
+      type: object
+      description: CreateInvitation
+      required:
+      - email
       properties:
         email:
+          $ref: '#/components/schemas/str'
           description: Email to send invitation to
-          type: string
-      type: object
-      required:
-      - email
-    Invitation:
-      properties:
-        id:
-          description: Invitation ID
-          type: string
-        email:
-          description: Email Address
-          type: string
-        expires_at:
-          description: Expiration Datetime
-          format: date-time
-          type: string
-      type: object
-      required:
-      - id
-      - email
-      - expires_at
-    PasswordData:
-      properties:
-        password:
-          description: Password
-          type: string
-      type: object
-      required:
-      - password
-    PasswordChange:
-      properties:
-        message:
-          type: string
-      type: object
-      required:
-      - message
-    FinalUrl:
-      properties:
-        final_url:
-          description: Url to redirect to after completion of authorization
-          nullable: true
-          example: https://example.com
-          type: string
-      type: object
-    AuthUrl:
-      properties:
-        auth_url:
-          description: Auth URL
-          type: string
-        csrf_state:
-          description: CSRF State
-          type: string
-      type: object
-      required:
-      - auth_url
-      - csrf_state
-    Status:
-      properties:
-        number_of_users:
-          description: Number of Users
-          type: integer
-          minimum: 0
-        number_of_invitations:
-          description: Number of Invitations
-          type: integer
-          minimum: 0
-        number_of_sessions:
-          description: Number of Sessions
-          type: integer
-          minimum: 0
-        number_of_entries:
-          description: Number of Data Entries
-          type: integer
-          minimum: 0
-        quota:
-          $ref: '#/components/schemas/SesQuotas'
-        stats:
-          $ref: '#/components/schemas/EmailStats'
-      type: object
-      required:
-      - number_of_users
-      - number_of_invitations
-      - number_of_sessions
-      - number_of_entries
-      - quota
-      - stats
-    SesQuotas:
-      properties:
-        max_24_hour_send:
-          description: Maximum Emails per Day
-          type: number
-        max_send_rate:
-          description: Maximum Emails per Second
-          type: number
-        sent_last_24_hours:
-          description: Emails Send in Last Day
-          type: number
-      type: object
-      required:
-      - max_24_hour_send
-      - max_send_rate
-      - sent_last_24_hours
     EmailStats:
-      properties:
-        bounces:
-          description: Number of Bounced Emails
-          type: integer
-        complaints:
-          description: Number of Complaints
-          type: integer
-        delivery_attempts:
-          description: Number of Delivery Attempts
-          type: integer
-        rejects:
-          description: Number of Rejected Emails
-          type: integer
-        min_timestamp:
-          description: Earliest Record
-          format: date-time
-          nullable: true
-          type: string
-        max_timestamp:
-          description: Latest Record
-          format: date-time
-          nullable: true
-          type: string
       type: object
       required:
       - bounces
       - complaints
       - delivery_attempts
       - rejects
-    SessionData:
       properties:
-        session_id:
-          description: Session ID
-          format: uuid
-          example: '334518f4-1bfd-4f20-9978-bfad0dc033e1'
-          type: string
-        session_key:
-          description: Session Key
-          type: string
-        session_value:
-          description: Session Data
-          nullable: true
-          type: object
-        created_at:
-          description: Created At
-          format: date-time
-          type: string
-      type: object
-      required:
-      - session_id
-      - session_key
-      - created_at
-    SessionSummary:
-      properties:
-        session_id:
-          description: Session ID
-          format: uuid
-          example: '334518f4-1bfd-4f20-9978-bfad0dc033e1'
-          type: string
-        email_address:
-          description: Email Address
-          type: string
-        last_accessed:
-          description: Last Accessed
-          format: date-time
-          type: string
-        created_at:
-          description: Create At
-          format: date-time
-          type: string
-        number_of_data_objects:
-          description: Number of Data Objects
+        bounces:
           type: integer
+          format: int64
+          description: Number of Bounced Emails
+        complaints:
+          type: integer
+          format: int64
+          description: Number of Complaints
+        delivery_attempts:
+          type: integer
+          format: int64
+          description: Number of Delivery Attempts
+        max_timestamp:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: Latest Record
+        min_timestamp:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          description: Earliest Record
+        rejects:
+          type: integer
+          format: int64
+          description: Number of Rejected Emails
+    FinalUrlData:
       type: object
+      properties:
+        final_url:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/str'
+            description: Url to redirect to after completion of authorization
+    LoggedUser:
+      type: object
+      description: LoggedUser
+      required:
+      - email
+      - session
+      - secret_key
+      - created_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+          description: User Created At
+        email:
+          $ref: '#/components/schemas/str'
+          description: Email Address
+        secret_key:
+          $ref: '#/components/schemas/str'
+          description: Secret Key
+        session:
+          type: string
+          format: uuid
+          description: Session ID
+    PasswordData:
+      type: object
+      description: PasswordData
+      required:
+      - password
+      properties:
+        password:
+          $ref: '#/components/schemas/str'
+          description: Password
+    SesQuotas:
+      type: object
+      description: SesQuotas
+      required:
+      - max_24_hour_send
+      - max_send_rate
+      - sent_last_24_hours
+      properties:
+        max_24_hour_send:
+          type: number
+          format: double
+          description: Maximum Emails per Day
+        max_send_rate:
+          type: number
+          format: double
+          description: Maximum Emails per Second
+        sent_last_24_hours:
+          type: number
+          format: double
+          description: Emails Send in Last Day
+    SessionSummary:
+      type: object
+      description: SessionSummary
       required:
       - session_id
       - email_address
       - last_accessed
       - created_at
       - number_of_data_objects
+      properties:
+        created_at:
+          type: string
+          format: date-time
+          description: Create At
+        email_address:
+          $ref: '#/components/schemas/str'
+          description: Email Address
+        last_accessed:
+          type: string
+          format: date-time
+          description: Last Accessed
+        number_of_data_objects:
+          type: integer
+          format: int64
+          description: Number of Data Objects
+        session_id:
+          type: string
+          format: uuid
+          description: Session ID
+    str:
+      type: string

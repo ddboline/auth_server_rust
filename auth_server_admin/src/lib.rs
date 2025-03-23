@@ -1,8 +1,8 @@
 use clap::Parser;
-use futures::{stream::FuturesUnordered, try_join, TryStreamExt};
+use futures::{TryStreamExt, stream::FuturesUnordered, try_join};
 use itertools::Itertools;
 use refinery::embed_migrations;
-use stack_string::{format_sstr, StackString};
+use stack_string::{StackString, format_sstr};
 use std::collections::{BTreeSet, HashMap};
 use stdout_channel::StdoutChannel;
 use time::OffsetDateTime;
@@ -19,7 +19,7 @@ use auth_server_lib::{
     invitation::Invitation, pgpool::PgPool, session::Session, session_data::SessionData,
     user::User,
 };
-use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
+use authorized_users::{AUTHORIZED_USERS, AuthorizedUser};
 
 embed_migrations!("../migrations");
 
@@ -375,8 +375,8 @@ mod test {
 
     use auth_server_ext::errors::AuthServerExtError as Error;
     use auth_server_lib::{
-        config::Config, errors::AuthServerError, get_random_string, invitation::Invitation,
-        pgpool::PgPool, session::Session, user::User, AUTH_APP_MUTEX,
+        AUTH_APP_MUTEX, config::Config, errors::AuthServerError, get_random_string,
+        invitation::Invitation, pgpool::PgPool, session::Session, user::User,
     };
 
     use crate::AuthServerOptions;
@@ -503,11 +503,13 @@ mod test {
             .map_err(Into::<AuthServerError>::into)?;
 
         assert_eq!(mock_stderr.lock().await.len(), 0);
-        assert!(mock_stdout
-            .lock()
-            .await
-            .join("")
-            .contains("Password updated"));
+        assert!(
+            mock_stdout
+                .lock()
+                .await
+                .join("")
+                .contains("Password updated")
+        );
         debug!("change pwd {:?}", mock_stdout.lock().await);
 
         let mock_stdout = MockStdout::new();
@@ -655,9 +657,11 @@ mod test {
             .close()
             .await
             .map_err(Into::<AuthServerError>::into)?;
-        assert!(Invitation::get_by_uuid(invitation_uuid, &pool)
-            .await?
-            .is_none());
+        assert!(
+            Invitation::get_by_uuid(invitation_uuid, &pool)
+                .await?
+                .is_none()
+        );
 
         let email = format_sstr!("test+process{}@example.com", get_random_string(32));
 

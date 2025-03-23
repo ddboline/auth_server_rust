@@ -1,5 +1,5 @@
 use log::debug;
-use postgres_query::{client::GenericClient, query, FromSqlRow, Query};
+use postgres_query::{FromSqlRow, Query, client::GenericClient, query};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use stack_string::StackString;
@@ -388,8 +388,8 @@ mod tests {
     use std::collections::{HashMap, HashSet};
 
     use crate::{
-        config::Config, errors::AuthServerError as Error, get_random_string, pgpool::PgPool,
-        session::Session, user::User, AUTH_APP_MUTEX,
+        AUTH_APP_MUTEX, config::Config, errors::AuthServerError as Error, get_random_string,
+        pgpool::PgPool, session::Session, user::User,
     };
 
     #[tokio::test]

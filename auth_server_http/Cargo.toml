@@ -1,8 +1,9 @@
 [package]
 name = "auth_server_http"
-version = "0.12.5"
+version = "0.13.0"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
-edition = "2018"
+edition = "2024"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -30,7 +31,7 @@ rand = "0.9"
 serde = { version="1.0", features=["derive"] }
 serde_json="1.0"
 serde_yml = "0.0.12"
-stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types", "utoipa_types", "axum_types"], tag="1.1.1" }
+stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types", "utoipa_types", "axum_types"], tag="1.1.2" }
 thiserror = "2.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting", "parsing"]}
 tokio = {version="1.43", features=["rt", "macros", "rt-multi-thread"]}
@@ -39,6 +40,7 @@ tower = "0.5"
 tower-http = {version="0.6", features=["cors"]}
 url = "2.5"
 utoipa = { version = "5.3", features = ["axum_extras", "yaml", "time", "uuid", "smallvec", "url", "openapi_extensions", "decimal"] }
+utoipa-helper = {git = "https://github.com/ddboline/utoipa_helper.git", tag="0.1.2"}
 utoipa-swagger-ui = { version = "9.0" , features = ["axum"] }
 utoipa-axum = { version = "0.2" }
 utoipa-redoc = {version="6.0", features=["axum"]}

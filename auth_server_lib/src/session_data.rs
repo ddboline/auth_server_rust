@@ -1,5 +1,5 @@
 use futures::{Stream, TryStreamExt};
-use postgres_query::{client::GenericClient, query, Error as PqError, FromSqlRow, Query};
+use postgres_query::{Error as PqError, FromSqlRow, Query, client::GenericClient, query};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use stack_string::StackString;

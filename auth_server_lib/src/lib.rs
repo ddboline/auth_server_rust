@@ -21,7 +21,7 @@ use rand::{
     rng as thread_rng,
 };
 use smallvec::SmallVec;
-use stack_string::{StackString, MAX_INLINE};
+use stack_string::{MAX_INLINE, StackString};
 use tokio::sync::Mutex;
 
 pub static AUTH_APP_MUTEX: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));

@@ -1,7 +1,7 @@
 use argon2::password_hash::Error as ArgonError;
 use deadpool_postgres::{BuildError, ConfigError};
 use envy::Error as EnvyError;
-use postgres_query::{extract::Error as QueryExtractError, Error as QueryError};
+use postgres_query::{Error as QueryError, extract::Error as QueryExtractError};
 use serde_json::Error as SerdeJsonError;
 use serde_yml::Error as YamlError;
 use std::{io::Error as IoError, net::AddrParseError};
@@ -97,7 +97,7 @@ mod tests {
     use argon2::password_hash::Error as ArgonError;
     use deadpool_postgres::{BuildError, ConfigError};
     use envy::Error as EnvyError;
-    use postgres_query::{extract::Error as QueryExtractError, Error as QueryError};
+    use postgres_query::{Error as QueryError, extract::Error as QueryExtractError};
     use serde_json::Error as SerdeJsonError;
     use serde_yml::Error as YamlError;
     use std::{io::Error as IoError, net::AddrParseError};

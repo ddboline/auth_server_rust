@@ -9,7 +9,7 @@ pub mod google_openid;
 pub mod ses_client;
 
 use log::debug;
-use stack_string::{format_sstr, StackString};
+use stack_string::{StackString, format_sstr};
 use time::macros::format_description;
 use url::Url;
 
