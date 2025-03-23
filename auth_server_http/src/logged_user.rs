@@ -185,10 +185,7 @@ where
 {
     type Rejection = Error;
 
-    async fn from_request_parts(
-        parts: &mut Parts,
-        state: &S,
-    ) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let cookie_jar = CookieJar::from_request_parts(parts, state)
             .await
             .expect("extract failed");
@@ -275,10 +272,7 @@ where
 {
     type Rejection = Error;
 
-    async fn from_request_parts(
-        parts: &mut Parts,
-        _: &S,
-    ) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
         let session: Uuid = parts
             .headers
             .get("session")
@@ -300,10 +294,7 @@ where
 {
     type Rejection = Error;
 
-    async fn from_request_parts(
-        parts: &mut Parts,
-        _: &S,
-    ) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
         let secret_key: StackString = parts
             .headers
             .get("secret-key")

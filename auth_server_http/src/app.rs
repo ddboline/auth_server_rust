@@ -164,7 +164,7 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
     let port = config.port;
 
     let addr: SocketAddr = format_sstr!("{host}:{port}").parse()?;
-    println!("{addr:?}" );
+    println!("{addr:?}");
     let listener = TcpListener::bind(&addr).await?;
     axum::serve(listener, router.into_make_service())
         .await
