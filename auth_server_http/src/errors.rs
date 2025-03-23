@@ -22,10 +22,11 @@ use utoipa::{
     openapi::{ResponseBuilder, ResponsesBuilder},
 };
 use uuid::Error as ParseError;
+use utoipa::openapi::content::ContentBuilder;
 
 use auth_server_ext::{errors::AuthServerExtError, google_openid::OpenidError};
 use auth_server_lib::errors::AuthServerError;
-use authorized_users::errors::AuthUsersError;
+use authorized_users::{errors::AuthUsersError, LOGIN_HTML};
 
 #[derive(Debug, Error)]
 pub enum ServiceError {
@@ -105,10 +106,8 @@ impl IntoResponse for ServiceError {
             | Self::AuthUsersError(_)
             | Self::InvalidHeaderName(_)
             | Self::InvalidHeaderValue(_) => (
-                StatusCode::UNAUTHORIZED,
-                ErrorMessage {
-                    message: "Not Authorized".into(),
-                },
+                StatusCode::OK,
+                LOGIN_HTML,
             )
                 .into_response(),
             Self::BadRequest(s) => {
@@ -130,7 +129,7 @@ impl IntoResponses for ServiceError {
         String,
         utoipa::openapi::RefOr<utoipa::openapi::response::Response>,
     > {
-        let error_message_content = utoipa::openapi::content::ContentBuilder::new()
+        let error_message_content = ContentBuilder::new()
             .schema(Some(ErrorMessage::schema()))
             .build();
         ResponsesBuilder::new()
@@ -138,7 +137,7 @@ impl IntoResponses for ServiceError {
                 StatusCode::UNAUTHORIZED.as_str(),
                 ResponseBuilder::new()
                     .description("Not Authorized")
-                    .content("application/json", error_message_content.clone()),
+                    .content("text/html", ContentBuilder::new().schema(Some(String::schema())).build()),
             )
             .response(
                 StatusCode::BAD_REQUEST.as_str(),
