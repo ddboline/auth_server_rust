@@ -56,14 +56,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -126,14 +121,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -169,14 +159,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -230,14 +215,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -274,14 +254,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -318,14 +293,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -384,14 +354,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -428,14 +393,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -472,14 +432,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -528,14 +483,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -606,14 +556,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -672,14 +617,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -715,14 +655,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -762,14 +697,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -804,14 +734,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -850,14 +775,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -893,14 +813,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -970,14 +885,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -1014,14 +924,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -1058,14 +963,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -1102,14 +1002,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
@@ -1166,14 +1061,9 @@ paths:
         '401':
           description: Not Authorized
           content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                required:
-                - message
-                properties:
-                  message:
-                    $ref: '#/components/schemas/str'
+                type: string
         '500':
           description: Internal Server Error
           content:
