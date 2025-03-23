@@ -10,7 +10,6 @@ use stack_string::StackString;
 use std::{
     cmp::PartialEq,
     convert::{Infallible, TryFrom, TryInto},
-    future::Future,
     hash::Hash,
     str::FromStr,
 };
@@ -70,6 +69,8 @@ impl UserCookies<'_> {
         StackString::from_display(self.jwt.encoded())
     }
 
+    /// # Errors
+    /// Returns error on invalid header value
     pub fn get_headers(&self) -> Result<HeaderMap, Error> {
         let mut headers = HeaderMap::new();
         headers.append(
@@ -91,7 +92,7 @@ impl LoggedUser {
         secure: bool,
     ) -> Result<UserCookies<'static>, Error> {
         let domain: String = domain.as_ref().into();
-        let session_id: Uuid = self.session.into();
+        let session_id: Uuid = self.session;
         let session = Cookie::build(("session-id", session_id.to_string()))
             .path("/")
             .http_only(true)
@@ -163,7 +164,7 @@ impl LoggedUser {
         Ok(())
     }
 
-    fn extract_user_from_cookies(cookie_jar: CookieJar) -> Option<LoggedUser> {
+    fn extract_user_from_cookies(cookie_jar: &CookieJar) -> Option<LoggedUser> {
         let session_id: Uuid = StackString::from_display(cookie_jar.get("session-id")?.encoded())
             .strip_prefix("session-id=")?
             .parse()
@@ -184,19 +185,17 @@ where
 {
     type Rejection = Error;
 
-    fn from_request_parts(
+    async fn from_request_parts(
         parts: &mut Parts,
         state: &S,
-    ) -> impl Future<Output = Result<Self, Self::Rejection>> + Send {
-        async move {
-            let cookie_jar = CookieJar::from_request_parts(parts, state)
-                .await
-                .expect("extract failed");
-            debug!("cookie_jar {cookie_jar:?}");
-            let user = LoggedUser::extract_user_from_cookies(cookie_jar)
-                .ok_or_else(|| Error::Unauthorized)?;
-            Ok(user)
-        }
+    ) -> Result<Self, Self::Rejection> {
+        let cookie_jar = CookieJar::from_request_parts(parts, state)
+            .await
+            .expect("extract failed");
+        debug!("cookie_jar {cookie_jar:?}");
+        let user = LoggedUser::extract_user_from_cookies(&cookie_jar)
+            .ok_or_else(|| Error::Unauthorized)?;
+        Ok(user)
     }
 }
 
@@ -206,34 +205,24 @@ where
 {
     type Rejection = Infallible;
 
-    fn from_request_parts(
+    async fn from_request_parts(
         parts: &mut Parts,
         state: &S,
-    ) -> impl Future<Output = Result<Option<Self>, Self::Rejection>> + Send {
-        async move {
-            let cookie_jar = CookieJar::from_request_parts(parts, state)
-                .await
-                .expect("extract failed");
-            Ok(LoggedUser::extract_user_from_cookies(cookie_jar))
-        }
+    ) -> Result<Option<Self>, Self::Rejection> {
+        let cookie_jar = CookieJar::from_request_parts(parts, state)
+            .await
+            .expect("extract failed");
+        Ok(LoggedUser::extract_user_from_cookies(&cookie_jar))
     }
 }
-
-// impl FromRequest for LoggedUser {
-//     type Filter = BoxedFilter<(Self,)>;
-
-//     fn new() -> Self::Filter {
-//         Self::filter().boxed()
-//     }
-// }
 
 impl From<AuthorizedUser> for LoggedUser {
     fn from(user: AuthorizedUser) -> Self {
         Self {
             email: user.email,
-            session: user.session.into(),
+            session: user.session,
             secret_key: user.secret_key,
-            created_at: user.created_at.into(),
+            created_at: user.created_at,
         }
     }
 }
@@ -242,9 +231,9 @@ impl From<LoggedUser> for AuthorizedUser {
     fn from(user: LoggedUser) -> Self {
         Self {
             email: user.email,
-            session: user.session.into(),
+            session: user.session,
             secret_key: user.secret_key,
-            created_at: user.created_at.into(),
+            created_at: user.created_at,
         }
     }
 }
@@ -286,19 +275,17 @@ where
 {
     type Rejection = Error;
 
-    fn from_request_parts(
+    async fn from_request_parts(
         parts: &mut Parts,
         _: &S,
-    ) -> impl Future<Output = Result<Self, Self::Rejection>> + Send {
-        async move {
-            let session: Uuid = parts
-                .headers
-                .get("session")
-                .ok_or_else(|| Error::Unauthorized)?
-                .to_str()?
-                .parse()?;
-            Ok(Self(session))
-        }
+    ) -> Result<Self, Self::Rejection> {
+        let session: Uuid = parts
+            .headers
+            .get("session")
+            .ok_or_else(|| Error::Unauthorized)?
+            .to_str()?
+            .parse()?;
+        Ok(Self(session))
     }
 }
 
@@ -313,19 +300,17 @@ where
 {
     type Rejection = Error;
 
-    fn from_request_parts(
+    async fn from_request_parts(
         parts: &mut Parts,
         _: &S,
-    ) -> impl Future<Output = Result<Self, Self::Rejection>> + Send {
-        async move {
-            let secret_key: StackString = parts
-                .headers
-                .get("secret-key")
-                .ok_or_else(|| Error::Unauthorized)?
-                .to_str()?
-                .into();
-            Ok(Self(secret_key))
-        }
+    ) -> Result<Self, Self::Rejection> {
+        let secret_key: StackString = parts
+            .headers
+            .get("secret-key")
+            .ok_or_else(|| Error::Unauthorized)?
+            .to_str()?
+            .into();
+        Ok(Self(secret_key))
     }
 }
 #[cfg(test)]

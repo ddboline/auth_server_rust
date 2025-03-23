@@ -5,6 +5,8 @@
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::unused_async)]
 #![allow(clippy::ignored_unit_patterns)]
+#![allow(clippy::similar_names)]
+#![allow(clippy::doc_markdown)]
 
 pub mod app;
 pub mod auth;

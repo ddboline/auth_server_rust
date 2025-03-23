@@ -79,7 +79,7 @@ async fn index_html(
             Vec::new()
         };
         let data = if let Some(user) = &user {
-            SessionData::get_session_summary(&data.pool, user.session.into())
+            SessionData::get_session_summary(&data.pool, user.session)
                 .await
                 .map_err(Into::<Error>::into)?
         } else {
@@ -118,7 +118,7 @@ async fn register_html(
     data: State<Arc<AppState>>,
 ) -> WarpResult<RegisterResponse> {
     let Query(query) = query;
-    let invitation_id: Uuid = query.id.into();
+    let invitation_id: Uuid = query.id;
     let email = query.email;
 
     if let Some(invitation) = Invitation::get_by_uuid(invitation_id, &data.pool)
@@ -130,7 +130,7 @@ async fn register_html(
             return Ok(HtmlBase::new(body).into());
         }
     }
-    Err(Error::BadRequest("Invalid invitation").into())
+    Err(Error::BadRequest("Invalid invitation"))
 }
 
 #[derive(UtoipaResponse)]
@@ -206,7 +206,7 @@ struct ApiAuthDeleteResponse(HtmlBase::<StackString>);
 #[utoipa::path(delete, path = "/api/auth", responses(ApiAuthDeleteResponse, Error))]
 /// Log out
 async fn logout(user: LoggedUser, data: State<Arc<AppState>>) -> WarpResult<ApiAuthDeleteResponse> {
-    let session_id = user.session.into();
+    let session_id = user.session;
     let _ = data.session_cache.remove_session(session_id);
     LoggedUser::delete_user_session(session_id, &data.pool).await?;
     let cookies = user.clear_jwt_cookie(
@@ -229,7 +229,7 @@ struct ApiAuthGetResponse(JsonBase::<LoggedUser>);
 #[utoipa::path(get, path = "/api/auth", responses(ApiAuthGetResponse, Error))]
 /// Get current username if logged in
 async fn get_user(user: LoggedUser, data: State<Arc<AppState>>) -> WarpResult<ApiAuthGetResponse> {
-    let session_id = user.session.into();
+    let session_id = user.session;
     if !data.session_cache.has_session(session_id) {
         if let Some(session) = Session::get_session(&data.pool, session_id)
             .await
@@ -237,7 +237,7 @@ async fn get_user(user: LoggedUser, data: State<Arc<AppState>>) -> WarpResult<Ap
         {
             let _ = data.session_cache.add_session(session);
         } else {
-            return Err(Error::Unauthorized.into());
+            return Err(Error::Unauthorized);
         }
     }
     Ok(JsonBase::new(user).into())
@@ -288,7 +288,6 @@ async fn get_session(
 
 #[derive(UtoipaResponse)]
 #[response(description = "Set Session Object", status = "CREATED", content = "application/json")]
-
 #[rustfmt::skip]
 struct PostSessionResponse(JsonBase::<Value>);
 
@@ -383,10 +382,10 @@ struct SessionDataObj {
 impl From<SessionData> for SessionDataObj {
     fn from(value: SessionData) -> Self {
         Self {
-            session_id: value.session_id.into(),
+            session_id: value.session_id,
             session_key: value.session_key,
             session_value: value.session_value,
-            created_at: value.created_at.to_offsetdatetime().into(),
+            created_at: value.created_at.to_offsetdatetime(),
         }
     }
 }
@@ -406,7 +405,7 @@ async fn list_session_obj(
     user: LoggedUser,
     data: State<Arc<AppState>>,
 ) -> WarpResult<SessionDataObjResponse> {
-    let values = SessionData::get_by_session_id_streaming(&data.pool, user.session.into())
+    let values = SessionData::get_by_session_id_streaming(&data.pool, user.session)
         .await
         .map_err(Into::<Error>::into)?
         .map_ok(Into::into)
@@ -459,7 +458,7 @@ async fn list_session_data(
     user: LoggedUser,
     data: State<Arc<AppState>>,
 ) -> WarpResult<ListSessionDataResponse> {
-    let data = SessionData::get_session_summary(&data.pool, user.session.into())
+    let data = SessionData::get_session_summary(&data.pool, user.session)
         .await
         .map_err(Into::<Error>::into)?;
     let body = session_data_body(data).map_err(Into::<Error>::into)?;
@@ -511,7 +510,7 @@ async fn delete_sessions(
 ) -> WarpResult<DeleteSessionsResponse> {
     let Query(session_query) = session_query;
     if let Some(session_key) = &session_query.session_key {
-        let session_id = user.session.into();
+        let session_id = user.session;
         Session::delete_session_data_from_cache(
             &data.pool,
             session_id,
@@ -524,8 +523,8 @@ async fn delete_sessions(
             .remove_data(session_id, &user.secret_key, session_key)?;
     }
     if let Some(session) = session_query.session {
-        LoggedUser::delete_user_session(session.into(), &data.pool).await?;
-        let _ = data.session_cache.remove_session(session.into());
+        LoggedUser::delete_user_session(session, &data.pool).await?;
+        let _ = data.session_cache.remove_session(session);
     }
     Ok(HtmlBase::new("finished").into())
 }
@@ -555,7 +554,7 @@ impl From<Invitation> for InvitationOutput {
         Self {
             id: i.id.to_string().into(),
             email: i.email,
-            expires_at: expires_at.into(),
+            expires_at,
         }
     }
 }
@@ -621,7 +620,7 @@ async fn register_user(
 ) -> WarpResult<ApiRegisterResponse> {
     let Path(invitation_id) = invitation_id;
     let Json(user_data) = user_data;
-    if let Some(invitation) = Invitation::get_by_uuid(invitation_id.into(), &data.pool)
+    if let Some(invitation) = Invitation::get_by_uuid(invitation_id, &data.pool)
         .await
         .map_err(Into::<Error>::into)?
     {
@@ -644,7 +643,7 @@ async fn register_user(
             .await
             .map_err(Into::<Error>::into)?;
     }
-    Err(Error::BadRequest("Invalid invitation").into())
+    Err(Error::BadRequest("Invalid invitation"))
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
@@ -679,7 +678,7 @@ async fn change_password_user(
         user.update(&data.pool).await.map_err(Into::<Error>::into)?;
         "password updated".into()
     } else {
-        return Err(Error::BadRequest("Invalid User").into());
+        return Err(Error::BadRequest("Invalid User"));
     };
     let resp = JsonBase::new(PasswordChangeOutput { message });
     Ok(resp.into())
@@ -802,7 +801,7 @@ async fn callback_body(
         let session = Session::new(user.email.as_str());
         session.insert(pool).await?;
 
-        user.session = session.id.into();
+        user.session = session.id;
         user.secret_key = session.secret_key;
 
         let cookies =
@@ -911,7 +910,7 @@ async fn test_login_user_jwt(
             let user = AuthorizedUser::new(&email, session.id, &session.secret_key);
             AUTHORIZED_USERS.update_users(hashmap! {user.email.clone() => user.clone()});
             let mut user: LoggedUser = user.into();
-            user.session = session.id.into();
+            user.session = session.id;
             let cookies = user.get_jwt_cookie(&config.domain, config.expiration_seconds, false)?;
             return Ok((user, cookies));
         }
