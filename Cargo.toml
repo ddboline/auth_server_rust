@@ -3,7 +3,6 @@ name = "auth_server_rust"
 version = "0.13.0"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2024"
-license-file = "LICENSE"
 license = "MIT"
 
 [package.metadata.deb]
