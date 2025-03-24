@@ -46,10 +46,11 @@ impl Token {
             ..jws::RegisteredHeader::default()
         };
         let jwt = JWT::new_decoded(header.into(), claimset);
-        debug!("jwt {:?}", jwt);
+        debug!("jwt {jwt:?}",);
 
-        let jws = jwt.into_encoded(&JWT_SECRET.get_jws_secret())?;
-        debug!("jws {:?}", jws);
+        let jws: jws::Compact<ClaimsSet<PrivateClaim>, Empty> =
+            jwt.into_encoded(&JWT_SECRET.get_jws_secret())?;
+        debug!("jws {jws:?}",);
 
         let jwe_header = jwe::RegisteredHeader {
             cek_algorithm: KM_ALGORITHM,
@@ -59,7 +60,7 @@ impl Token {
             ..jwe::RegisteredHeader::default()
         };
         let jwe = JWE::new_decrypted(jwe_header.into(), jws);
-        debug!("jwe {:?}", jwe);
+        debug!("jwe {jwe:?}",);
 
         let options = EncryptionOptions::AES_GCM {
             nonce: get_random_nonce().into(),

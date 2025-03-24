@@ -73,14 +73,14 @@ impl GoogleClient {
                     });
                 }
                 Err(OpenidError::ClientError(ClientError::Reqwest(e))) => {
-                    debug!("Reqwest error {}", e);
+                    debug!("Reqwest error {e}",);
                     sleep(Duration::from_secs(1)).await;
                 }
                 Err(e) => {
                     if delay > 256 {
                         return Err(e.into());
                     }
-                    error!("Encountered error {:?}, sleep and try again", e);
+                    error!("Encountered error {e:?}, sleep and try again",);
                     sleep(Duration::from_secs(delay)).await;
                     delay *= 2;
                 }
@@ -166,7 +166,7 @@ impl GoogleClient {
             notify.notify_waiters();
             return Err(Error::ExpiredToken);
         }
-        debug!("Nonce {:?}", nonce);
+        debug!("Nonce {nonce:?}",);
         let user = if let Some(mock_email) = &self.mock_email {
             Self::mock_user(mock_email.as_str())
         } else {

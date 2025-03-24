@@ -354,7 +354,7 @@ impl Session {
             let session_data = session_obj
                 .set_session_data_conn(conn, &session_key, payload.clone())
                 .await?;
-            debug!("session_data {:?}", session_data);
+            debug!("session_data {session_data:?}",);
             tran.commit().await?;
             Ok(Some(session_data))
         } else {
