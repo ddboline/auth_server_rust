@@ -109,10 +109,18 @@ async fn run_app(config: Config) -> Result<(), Error> {
         .layer(cors)
         .split_for_parts();
 
+    let spec_yaml = serde_yml::to_string(&api)?;
+
     let router = router
-        .merge(SwaggerUi::new("/swaggerui").url("/api/openapi.json", api.clone()))
+        .route(
+            "/api/openapi/yaml",
+            axum::routing::get(|| async move {
+                (StatusCode::OK, [("content-type", "text/yaml")], spec_yaml)
+            }),
+        )
+        .merge(SwaggerUi::new("/api/swaggerui").url("/api/openapi/json", api.clone()))
         .merge(Redoc::with_url("/api/redoc", api.clone()))
-        .merge(RapiDoc::new("/api/openapi.json").path("/rapidoc"));
+        .merge(RapiDoc::new("/api/openapi/json").path("/rapidoc"));
 
     let host = &config.host;
     let port = config.port;
@@ -158,8 +166,13 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
     let spec_yaml = serde_yml::to_string(&api)?;
 
     let router = router
-        .route("/api/openapi/yaml", axum::routing::get(|| async move { (StatusCode::OK, [("content-type", "text/yaml")], spec_yaml) } ))
-        .merge(SwaggerUi::new("/swaggerui").url("/api/openapi/json", api.clone()))
+        .route(
+            "/api/openapi/yaml",
+            axum::routing::get(|| async move {
+                (StatusCode::OK, [("content-type", "text/yaml")], spec_yaml)
+            }),
+        )
+        .merge(SwaggerUi::new("/api/swaggerui").url("/api/openapi/json", api.clone()))
         .merge(Redoc::with_url("/api/redoc", api.clone()))
         .merge(RapiDoc::new("/api/openapi/json").path("/rapidoc"));
 
