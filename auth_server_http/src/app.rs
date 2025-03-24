@@ -9,6 +9,7 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
+use log::debug;
 
 use auth_server_ext::{google_openid::GoogleClient, ses_client::SesInstance};
 use auth_server_lib::{
@@ -126,7 +127,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
     let port = config.port;
 
     let addr: SocketAddr = format_sstr!("{host}:{port}").parse()?;
-    println!("{addr:?}");
+    debug!("{addr:?}");
     let listener = TcpListener::bind(&addr).await?;
     axum::serve(listener, router.into_make_service()).await?;
 
@@ -180,7 +181,7 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
     let port = config.port;
 
     let addr: SocketAddr = format_sstr!("{host}:{port}").parse()?;
-    println!("{addr:?}");
+    debug!("{addr:?}");
     let listener = TcpListener::bind(&addr).await?;
     axum::serve(listener, router.into_make_service())
         .await
@@ -199,7 +200,7 @@ pub async fn fill_auth_from_db(pool: &PgPool, expiration_seconds: u32) -> Result
     )?;
     let existing_users = AUTHORIZED_USERS.get_users();
     let most_recent_user = existing_users.values().map(|i| i.created_at).max();
-    println!("most_recent_user_db {most_recent_user_db:?} most_recent_user {most_recent_user:?}");
+    debug!("most_recent_user_db {most_recent_user_db:?} most_recent_user {most_recent_user:?}");
     if cleanup_result == 0
         && most_recent_user_db.is_some()
         && most_recent_user.is_some()
@@ -214,7 +215,7 @@ pub async fn fill_auth_from_db(pool: &PgPool, expiration_seconds: u32) -> Result
         .await;
     let users = result.map_err(Into::<AuthServerError>::into)?;
     AUTHORIZED_USERS.update_users(users);
-    println!("AUTHORIZED_USERS {:?}", *AUTHORIZED_USERS);
+    debug!("AUTHORIZED_USERS {:?}", *AUTHORIZED_USERS);
     Ok(())
 }
 
@@ -231,6 +232,7 @@ mod tests {
     };
     use url::Url;
     use utoipa::OpenApi;
+    use log::debug;
 
     use auth_server_ext::{google_openid::GoogleClient, ses_client::SesInstance};
     use auth_server_lib::{
@@ -255,7 +257,7 @@ mod tests {
     #[test]
     fn test_get_random_string() -> Result<(), Error> {
         let rs = get_random_string(32);
-        println!("{}", rs);
+        debug!("{}", rs);
         assert_eq!(rs.len(), 32);
         Ok(())
     }
@@ -284,7 +286,7 @@ mod tests {
         }
         let config = Config::init_config()?;
 
-        println!("{} {}", config.port, config.domain);
+        debug!("{} {}", config.port, config.domain);
         let test_handle = spawn({
             env_logger::init();
             let config = config.clone();
@@ -299,7 +301,7 @@ mod tests {
             "email" => &email,
             "password" => &password,
         };
-        println!("login");
+        debug!("login");
         let resp: LoggedUser = client
             .post(url.as_str())
             .json(&data)
@@ -308,10 +310,10 @@ mod tests {
             .error_for_status()?
             .json()
             .await?;
-        println!("logged in {:?}", resp);
+        debug!("logged in {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
-        println!("get me");
+        debug!("get me");
         let resp = client
             .get(url.as_str())
             .send()
@@ -319,7 +321,7 @@ mod tests {
             .error_for_status()?
             .text()
             .await?;
-        println!("resp {resp}");
+        debug!("resp {resp}");
         let resp: LoggedUser = client
             .get(url.as_str())
             .send()
@@ -327,7 +329,7 @@ mod tests {
             .error_for_status()?
             .json()
             .await?;
-        println!("I am: {:?}", resp);
+        debug!("I am: {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
         let url = format_sstr!("http://localhost:{test_port}/api/openapi.json");
@@ -338,7 +340,7 @@ mod tests {
             .error_for_status()?
             .text()
             .await?;
-        println!("{result}");
+        debug!("{result}");
 
         unsafe {
             std::env::remove_var("TESTENV");
@@ -388,7 +390,7 @@ mod tests {
         };
 
         let client = reqwest::Client::builder().cookie_store(true).build()?;
-        println!("register");
+        debug!("register");
         let resp: LoggedUser = client
             .post(url.as_str())
             .json(&data)
@@ -397,7 +399,7 @@ mod tests {
             .error_for_status()?
             .json()
             .await?;
-        println!("registered {:?}", resp);
+        debug!("registered {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
         assert!(
@@ -411,7 +413,7 @@ mod tests {
             "email" => &email,
             "password" => &password,
         };
-        println!("login");
+        debug!("login");
         let resp: LoggedUser = client
             .post(url.as_str())
             .json(&data)
@@ -420,10 +422,10 @@ mod tests {
             .error_for_status()?
             .json()
             .await?;
-        println!("logged in {:?}", resp);
+        debug!("logged in {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
-        println!("get me");
+        debug!("get me");
 
         let resp: LoggedUser = client
             .get(url.as_str())
@@ -432,7 +434,7 @@ mod tests {
             .error_for_status()?
             .json()
             .await?;
-        println!("I am: {:?}", resp);
+        debug!("I am: {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
         let url = format_sstr!("http://localhost:{test_port}/api/password_change");
@@ -441,7 +443,7 @@ mod tests {
             "email" => &email,
             "password" => &new_password,
         };
-        println!("change password");
+        debug!("change password");
         let output: PasswordChangeOutput = client
             .post(url.as_str())
             .json(&data)
@@ -450,14 +452,14 @@ mod tests {
             .error_for_status()?
             .json()
             .await?;
-        println!("password changed {:?}", output);
+        debug!("password changed {:?}", output);
         assert_eq!(output.message.as_str(), "password updated");
 
         let base_url: Url = format_sstr!("http://localhost:{test_port}").parse()?;
         let data = hashmap! {
             "key" => "value",
         };
-        println!("POST session");
+        debug!("POST session");
         AuthorizedUser::set_session_data(
             &base_url,
             resp.session.into(),
@@ -468,7 +470,7 @@ mod tests {
         )
         .await
         .map_err(Into::<AuthServerError>::into)?;
-        println!("GET session");
+        debug!("GET session");
         let resp: HashMap<String, String> = AuthorizedUser::get_session_data(
             &base_url,
             resp.session.into(),
@@ -478,7 +480,7 @@ mod tests {
         )
         .await
         .map_err(Into::<AuthServerError>::into)?;
-        println!("{resp:?}");
+        debug!("{resp:?}");
         assert_eq!(resp.len(), 1);
         let url = format_sstr!("http://localhost:{test_port}/api/auth");
         let status = client
