@@ -345,7 +345,7 @@ mod tests {
         debug!("I am: {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
-        let url = format_sstr!("http://localhost:{test_port}/api/openapi.json");
+        let url = format_sstr!("http://localhost:{test_port}/api/openapi/json");
         let result = client
             .get(url.as_str())
             .send()
