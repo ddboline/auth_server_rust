@@ -1,15 +1,12 @@
 use futures::{TryStreamExt, try_join};
 use http::{Method, StatusCode};
+use log::debug;
 use stack_string::{StackString, format_sstr};
 use std::{collections::HashMap, convert::TryInto, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{net::TcpListener, task::spawn, time::interval};
 use tower_http::cors::{Any, CorsLayer};
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
-use utoipa_rapidoc::RapiDoc;
-use utoipa_redoc::{Redoc, Servable};
-use utoipa_swagger_ui::SwaggerUi;
-use log::debug;
 
 use auth_server_ext::{google_openid::GoogleClient, ses_client::SesInstance};
 use auth_server_lib::{
@@ -110,18 +107,26 @@ async fn run_app(config: Config) -> Result<(), Error> {
         .layer(cors)
         .split_for_parts();
 
+    let spec_json = serde_json::to_string_pretty(&api)?;
     let spec_yaml = serde_yml::to_string(&api)?;
 
     let router = router
+        .route(
+            "/api/openapi/json",
+            axum::routing::get(|| async move {
+                (
+                    StatusCode::OK,
+                    [("content-type", "application/json")],
+                    spec_json,
+                )
+            }),
+        )
         .route(
             "/api/openapi/yaml",
             axum::routing::get(|| async move {
                 (StatusCode::OK, [("content-type", "text/yaml")], spec_yaml)
             }),
-        )
-        .merge(SwaggerUi::new("/api/swaggerui").url("/api/openapi/json", api.clone()))
-        .merge(Redoc::with_url("/api/redoc", api.clone()))
-        .merge(RapiDoc::new("/api/openapi/json").path("/rapidoc"));
+        );
 
     let host = &config.host;
     let port = config.port;
@@ -164,18 +169,26 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
         .layer(cors)
         .split_for_parts();
 
+    let spec_json = serde_json::to_string_pretty(&api)?;
     let spec_yaml = serde_yml::to_string(&api)?;
 
     let router = router
+        .route(
+            "/api/openapi/json",
+            axum::routing::get(|| async move {
+                (
+                    StatusCode::OK,
+                    [("content-type", "application/json")],
+                    spec_json,
+                )
+            }),
+        )
         .route(
             "/api/openapi/yaml",
             axum::routing::get(|| async move {
                 (StatusCode::OK, [("content-type", "text/yaml")], spec_yaml)
             }),
-        )
-        .merge(SwaggerUi::new("/api/swaggerui").url("/api/openapi/json", api.clone()))
-        .merge(Redoc::with_url("/api/redoc", api.clone()))
-        .merge(RapiDoc::new("/api/openapi/json").path("/rapidoc"));
+        );
 
     let host = &config.host;
     let port = config.port;
@@ -223,6 +236,7 @@ pub async fn fill_auth_from_db(pool: &PgPool, expiration_seconds: u32) -> Result
 mod tests {
     use anyhow::Error;
     use http::StatusCode;
+    use log::debug;
     use maplit::hashmap;
     use stack_string::format_sstr;
     use std::{collections::HashMap, env, sync::Arc};
@@ -232,7 +246,6 @@ mod tests {
     };
     use url::Url;
     use utoipa::OpenApi;
-    use log::debug;
 
     use auth_server_ext::{google_openid::GoogleClient, ses_client::SesInstance};
     use auth_server_lib::{
