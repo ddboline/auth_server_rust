@@ -23,6 +23,7 @@ use utoipa::{
 };
 use uuid::Error as ParseError;
 use utoipa::openapi::content::ContentBuilder;
+use serde_yml::Error as YamlError;
 
 use auth_server_ext::{errors::AuthServerExtError, google_openid::OpenidError};
 use auth_server_lib::errors::AuthServerError;
@@ -66,6 +67,8 @@ pub enum ServiceError {
     BadSecret,
     #[error("ToStrError {0}")]
     ToStrError(#[from] ToStrError),
+    #[error("YamlError {0}")]
+    YamlError(#[from] YamlError),
 }
 
 // we can return early in our handlers if UUID provided by the user is not valid

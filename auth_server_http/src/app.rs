@@ -1,5 +1,5 @@
 use futures::{TryStreamExt, try_join};
-use http::Method;
+use http::{Method, StatusCode};
 use stack_string::{StackString, format_sstr};
 use std::{collections::HashMap, convert::TryInto, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{net::TcpListener, task::spawn, time::interval};
@@ -155,10 +155,13 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
         .layer(cors)
         .split_for_parts();
 
+    let spec_yaml = serde_yml::to_string(&api)?;
+
     let router = router
-        .merge(SwaggerUi::new("/swaggerui").url("/api/openapi.json", api.clone()))
+        .route("/api/openapi/yaml", axum::routing::get(|| async move { (StatusCode::OK, [("content-type", "text/yaml")], spec_yaml) } ))
+        .merge(SwaggerUi::new("/swaggerui").url("/api/openapi/json", api.clone()))
         .merge(Redoc::with_url("/api/redoc", api.clone()))
-        .merge(RapiDoc::new("/api/openapi.json").path("/rapidoc"));
+        .merge(RapiDoc::new("/api/openapi/json").path("/rapidoc"));
 
     let host = &config.host;
     let port = config.port;
