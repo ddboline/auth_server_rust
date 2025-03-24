@@ -48,8 +48,7 @@ use crate::{
     logged_user::{LoggedUser, SecretKey, SessionKey, UserCookies},
 };
 
-type WarpResult<T> = Result<T, Error>;
-type HttpResult<T> = Result<T, Error>;
+type AuthResult<T> = Result<T, Error>;
 
 #[derive(Deserialize, ToSchema)]
 struct FinalUrlData {
@@ -69,7 +68,7 @@ async fn index_html(
     user: Option<LoggedUser>,
     data: State<Arc<AppState>>,
     query: Query<FinalUrlData>,
-) -> WarpResult<AuthIndexResponse> {
+) -> AuthResult<AuthIndexResponse> {
     let Query(query) = query;
 
     let body = {
@@ -116,7 +115,7 @@ struct RegisterResponse(HtmlBase::<StackString>);
 async fn register_html(
     query: Query<RegisterQuery>,
     data: State<Arc<AppState>>,
-) -> WarpResult<RegisterResponse> {
+) -> AuthResult<RegisterResponse> {
     let Query(query) = query;
     let invitation_id: Uuid = query.id;
     let email = query.email;
@@ -153,7 +152,7 @@ struct AuthLoginResponse(HtmlBase::<StackString>);
 async fn login_html(
     user: Option<LoggedUser>,
     query: Query<FinalUrlData>,
-) -> WarpResult<AuthLoginResponse> {
+) -> AuthResult<AuthLoginResponse> {
     let Query(query) = query;
     let body = login_body(user, query.final_url).map_err(Into::<Error>::into)?;
     Ok(HtmlBase::new(body).into())
@@ -170,7 +169,7 @@ struct PwChangeResponse(HtmlBase::<StackString>);
     responses(PwChangeResponse, Error)
 )]
 /// Password Change Page
-async fn change_password(user: LoggedUser) -> WarpResult<PwChangeResponse> {
+async fn change_password(user: LoggedUser) -> AuthResult<PwChangeResponse> {
     let body = change_password_body(user).map_err(Into::<Error>::into)?;
     Ok(HtmlBase::new(body).into())
 }
@@ -185,7 +184,7 @@ struct ApiAuthResponse(JsonBase::<LoggedUser>);
 async fn login(
     data: State<Arc<AppState>>,
     auth_data: Json<AuthRequest>,
-) -> WarpResult<ApiAuthResponse> {
+) -> AuthResult<ApiAuthResponse> {
     let Json(auth_data) = auth_data;
 
     let (user, session, cookies) = auth_data.login_user_jwt(&data.pool, &data.config).await?;
@@ -205,7 +204,7 @@ struct ApiAuthDeleteResponse(HtmlBase::<StackString>);
 
 #[utoipa::path(delete, path = "/api/auth", responses(ApiAuthDeleteResponse, Error))]
 /// Log out
-async fn logout(user: LoggedUser, data: State<Arc<AppState>>) -> WarpResult<ApiAuthDeleteResponse> {
+async fn logout(user: LoggedUser, data: State<Arc<AppState>>) -> AuthResult<ApiAuthDeleteResponse> {
     let session_id = user.session;
     let _ = data.session_cache.remove_session(session_id);
     LoggedUser::delete_user_session(session_id, &data.pool).await?;
@@ -228,7 +227,7 @@ struct ApiAuthGetResponse(JsonBase::<LoggedUser>);
 
 #[utoipa::path(get, path = "/api/auth", responses(ApiAuthGetResponse, Error))]
 /// Get current username if logged in
-async fn get_user(user: LoggedUser, data: State<Arc<AppState>>) -> WarpResult<ApiAuthGetResponse> {
+async fn get_user(user: LoggedUser, data: State<Arc<AppState>>) -> AuthResult<ApiAuthGetResponse> {
     let session_id = user.session;
     if !data.session_cache.has_session(session_id) {
         if let Some(session) = Session::get_session(&data.pool, session_id)
@@ -259,7 +258,7 @@ async fn get_session(
     session_key: Path<StackString>,
     session: SessionKey,
     secret_key: SecretKey,
-) -> WarpResult<GetSessionResponse> {
+) -> AuthResult<GetSessionResponse> {
     let Path(session_key) = session_key;
     let session = session.into();
     let secret_key: StackString = secret_key.into();
@@ -303,14 +302,14 @@ async fn post_session(
     session: SessionKey,
     secret_key: SecretKey,
     payload: Json<Value>,
-) -> WarpResult<PostSessionResponse> {
+) -> AuthResult<PostSessionResponse> {
     let Path(session_key) = session_key;
     let session = session.into();
     let secret_key: StackString = secret_key.into();
 
     let Json(payload) = payload;
-    debug!("payload {} {}", payload, session);
-    debug!("session {}", session);
+    debug!("payload {payload} {session}");
+    debug!("session {session}");
     if let Some(session_data) = Session::set_session_from_cache(
         &data.pool,
         session,
@@ -350,7 +349,7 @@ async fn delete_session(
     session_key: Path<StackString>,
     session: SessionKey,
     secret_key: SecretKey,
-) -> WarpResult<DeleteSessionResponse> {
+) -> AuthResult<DeleteSessionResponse> {
     let Path(session_key) = session_key;
     let session = session.into();
     let secret_key: StackString = secret_key.into();
@@ -404,7 +403,7 @@ struct SessionDataObjResponse(JsonBase::<Vec<SessionDataObj>>);
 async fn list_session_obj(
     user: LoggedUser,
     data: State<Arc<AppState>>,
-) -> WarpResult<SessionDataObjResponse> {
+) -> AuthResult<SessionDataObjResponse> {
     let values = SessionData::get_by_session_id_streaming(&data.pool, user.session)
         .await
         .map_err(Into::<Error>::into)?
@@ -431,13 +430,13 @@ struct ListSessionsResponse(HtmlBase::<StackString>);
 async fn list_sessions(
     _: LoggedUser,
     data: State<Arc<AppState>>,
-) -> WarpResult<ListSessionsResponse> {
+) -> AuthResult<ListSessionsResponse> {
     let summaries = list_sessions_lines(&data).await?;
     let body = session_body(summaries).map_err(Into::<Error>::into)?;
     Ok(HtmlBase::new(body).into())
 }
 
-async fn list_sessions_lines(data: &AppState) -> HttpResult<Vec<SessionSummary>> {
+async fn list_sessions_lines(data: &AppState) -> AuthResult<Vec<SessionSummary>> {
     Session::get_session_summary(&data.pool)
         .await
         .map_err(Into::into)
@@ -457,7 +456,7 @@ struct ListSessionDataResponse(HtmlBase::<StackString>);
 async fn list_session_data(
     user: LoggedUser,
     data: State<Arc<AppState>>,
-) -> WarpResult<ListSessionDataResponse> {
+) -> AuthResult<ListSessionDataResponse> {
     let data = SessionData::get_session_summary(&data.pool, user.session)
         .await
         .map_err(Into::<Error>::into)?;
@@ -475,7 +474,7 @@ struct SessionsResponse(JsonBase::<SessionsInner>);
 
 #[utoipa::path(get, path = "/api/sessions", responses(SessionsResponse, Error))]
 /// Open Sessions
-async fn get_sessions(_: LoggedUser, data: State<Arc<AppState>>) -> WarpResult<SessionsResponse> {
+async fn get_sessions(_: LoggedUser, data: State<Arc<AppState>>) -> AuthResult<SessionsResponse> {
     let objects: Vec<SessionSummaryWrapper> = list_sessions_lines(&data)
         .await?
         .into_iter()
@@ -507,7 +506,7 @@ async fn delete_sessions(
     user: LoggedUser,
     data: State<Arc<AppState>>,
     session_query: Query<SessionQuery>,
-) -> WarpResult<DeleteSessionsResponse> {
+) -> AuthResult<DeleteSessionsResponse> {
     let Query(session_query) = session_query;
     if let Some(session_key) = &session_query.session_key {
         let session_id = user.session;
@@ -573,7 +572,7 @@ struct ApiInvitationResponse(JsonBase::<InvitationOutput>);
 async fn register_email(
     data: State<Arc<AppState>>,
     invitation: Json<CreateInvitation>,
-) -> WarpResult<ApiInvitationResponse> {
+) -> AuthResult<ApiInvitationResponse> {
     let Json(invitation) = invitation;
 
     let email = invitation.email;
@@ -617,7 +616,7 @@ async fn register_user(
     data: State<Arc<AppState>>,
     invitation_id: Path<Uuid>,
     user_data: Json<PasswordData>,
-) -> WarpResult<ApiRegisterResponse> {
+) -> AuthResult<ApiRegisterResponse> {
     let Path(invitation_id) = invitation_id;
     let Json(user_data) = user_data;
     if let Some(invitation) = Invitation::get_by_uuid(invitation_id, &data.pool)
@@ -667,7 +666,7 @@ async fn change_password_user(
     user: LoggedUser,
     data: State<Arc<AppState>>,
     user_data: Json<PasswordData>,
-) -> WarpResult<ApiPasswordChangeResponse> {
+) -> AuthResult<ApiPasswordChangeResponse> {
     let Json(user_data) = user_data;
     let message: StackString = if let Some(mut user) = User::get_by_email(&user.email, &data.pool)
         .await
@@ -703,7 +702,7 @@ struct ApiAuthUrlResponse(JsonBase::<AuthUrlOutput>);
 async fn auth_url(
     data: State<Arc<AppState>>,
     query: Json<FinalUrlData>,
-) -> WarpResult<ApiAuthUrlResponse> {
+) -> AuthResult<ApiAuthUrlResponse> {
     let Json(query) = query;
     let (auth_url, csrf_state) = data
         .google_client
@@ -734,7 +733,7 @@ struct ApiAwaitResponse(HtmlBase::<StackString>);
 async fn auth_await(
     data: State<Arc<AppState>>,
     query: Query<AuthAwait>,
-) -> WarpResult<ApiAwaitResponse> {
+) -> AuthResult<ApiAwaitResponse> {
     let Query(AuthAwait { state }) = query;
     if timeout(
         Duration::from_secs(60),
@@ -772,7 +771,7 @@ struct ApiCallbackResponse(HtmlBase::<&'static str>);
 async fn callback(
     data: State<Arc<AppState>>,
     query: Query<CallbackQuery>,
-) -> WarpResult<ApiCallbackResponse> {
+) -> AuthResult<ApiCallbackResponse> {
     let Query(query) = query;
     let cookies = callback_body(query, &data.pool, &data.google_client, &data.config).await?;
     let body = r#"
@@ -791,7 +790,7 @@ async fn callback_body(
     pool: &PgPool,
     google_client: &GoogleClient,
     config: &Config,
-) -> HttpResult<UserCookies<'static>> {
+) -> AuthResult<UserCookies<'static>> {
     if let Some(user) = google_client
         .run_callback(&query.code, &query.state, pool)
         .await?
@@ -834,12 +833,12 @@ struct StatusResponse(JsonBase::<StatusOutput>);
 
 #[utoipa::path(get, path = "/api/status", responses(StatusResponse, Error))]
 /// Status endpoint")]
-async fn status(data: State<Arc<AppState>>) -> WarpResult<StatusResponse> {
+async fn status(data: State<Arc<AppState>>) -> AuthResult<StatusResponse> {
     let result = status_body(&data.pool).await?;
     Ok(JsonBase::new(result).into())
 }
 
-async fn status_body(pool: &PgPool) -> HttpResult<StatusOutput> {
+async fn status_body(pool: &PgPool) -> AuthResult<StatusOutput> {
     let sdk_config = aws_config::load_from_env().await;
     let ses = SesInstance::new(&sdk_config);
     let (
@@ -882,7 +881,7 @@ struct TestLoginResponse(JsonBase::<LoggedUser>);
 async fn test_login(
     data: State<Arc<AppState>>,
     auth_data: Json<AuthRequest>,
-) -> WarpResult<TestLoginResponse> {
+) -> AuthResult<TestLoginResponse> {
     let Json(auth_data) = auth_data;
     let session = Session::new(auth_data.email.as_str());
     let (user, cookies) = test_login_user_jwt(auth_data, session, &data.config).await?;
@@ -893,7 +892,7 @@ async fn test_login(
 }
 
 #[utoipa::path(get, path = "/api/auth", responses(ApiAuthGetResponse, Error))]
-async fn test_get_user(user: LoggedUser) -> WarpResult<ApiAuthGetResponse> {
+async fn test_get_user(user: LoggedUser) -> AuthResult<ApiAuthGetResponse> {
     Ok(JsonBase::new(user).into())
 }
 
@@ -901,7 +900,7 @@ async fn test_login_user_jwt(
     auth_data: AuthRequest,
     session: Session,
     config: &Config,
-) -> HttpResult<(LoggedUser, UserCookies<'static>)> {
+) -> AuthResult<(LoggedUser, UserCookies<'static>)> {
     use maplit::hashmap;
 
     if let Ok(s) = std::env::var("TESTENV") {

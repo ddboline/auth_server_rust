@@ -243,7 +243,7 @@ impl TryFrom<Token> for LoggedUser {
                 if AUTHORIZED_USERS.is_authorized(&user) {
                     return Ok(user.into());
                 }
-                debug!("NOT AUTHORIZED {:?}", user);
+                debug!("NOT AUTHORIZED {user:?}",);
             }
             Err(e) => {
                 debug!("token decode error {e}");
