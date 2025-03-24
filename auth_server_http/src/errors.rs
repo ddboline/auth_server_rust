@@ -9,6 +9,7 @@ use http::{
 use log::error;
 use serde::Serialize;
 use serde_json::Error as SerdeJsonError;
+use serde_yml::Error as YamlError;
 use stack_string::{StackString, format_sstr};
 use std::{
     fmt::{Debug, Error as FmtError},
@@ -19,15 +20,13 @@ use tokio::{task::JoinError, time::error::Elapsed};
 use url::ParseError as UrlParseError;
 use utoipa::{
     IntoResponses, PartialSchema, ToSchema,
-    openapi::{ResponseBuilder, ResponsesBuilder},
+    openapi::{ResponseBuilder, ResponsesBuilder, content::ContentBuilder},
 };
 use uuid::Error as ParseError;
-use utoipa::openapi::content::ContentBuilder;
-use serde_yml::Error as YamlError;
 
 use auth_server_ext::{errors::AuthServerExtError, google_openid::OpenidError};
 use auth_server_lib::errors::AuthServerError;
-use authorized_users::{errors::AuthUsersError, LOGIN_HTML};
+use authorized_users::{LOGIN_HTML, errors::AuthUsersError};
 
 #[derive(Debug, Error)]
 pub enum ServiceError {
@@ -108,11 +107,7 @@ impl IntoResponse for ServiceError {
             Self::Unauthorized
             | Self::AuthUsersError(_)
             | Self::InvalidHeaderName(_)
-            | Self::InvalidHeaderValue(_) => (
-                StatusCode::OK,
-                LOGIN_HTML,
-            )
-                .into_response(),
+            | Self::InvalidHeaderValue(_) => (StatusCode::OK, LOGIN_HTML).into_response(),
             Self::BadRequest(s) => {
                 (StatusCode::BAD_REQUEST, ErrorMessage { message: s.into() }).into_response()
             }
@@ -140,7 +135,10 @@ impl IntoResponses for ServiceError {
                 StatusCode::UNAUTHORIZED.as_str(),
                 ResponseBuilder::new()
                     .description("Not Authorized")
-                    .content("text/html", ContentBuilder::new().schema(Some(String::schema())).build()),
+                    .content(
+                        "text/html",
+                        ContentBuilder::new().schema(Some(String::schema())).build(),
+                    ),
             )
             .response(
                 StatusCode::BAD_REQUEST.as_str(),
