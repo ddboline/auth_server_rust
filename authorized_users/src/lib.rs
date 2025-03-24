@@ -11,7 +11,7 @@ pub mod token;
 use crate::errors::{AuthUsersError, TokenError};
 use arc_swap::ArcSwap;
 pub use authorized_user::AuthorizedUser;
-use biscuit::{jwk, jws, Empty};
+use biscuit::{Empty, jwk, jws};
 use crossbeam::atomic::AtomicCell;
 use once_cell::sync::Lazy;
 use rand::{

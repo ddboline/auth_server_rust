@@ -1,5 +1,5 @@
 use biscuit::errors::Error as BiscuitError;
-use reqwest::{header::InvalidHeaderValue, Error as ReqwestError};
+use reqwest::{Error as ReqwestError, header::InvalidHeaderValue};
 use std::io::Error as IoError;
 use thiserror::Error;
 use url::ParseError as UrlParseError;
@@ -54,7 +54,7 @@ impl From<BiscuitError> for AuthUsersError {
 #[cfg(test)]
 mod tests {
     use biscuit::errors::Error as BiscuitError;
-    use reqwest::{header::InvalidHeaderValue, Error as ReqwestError};
+    use reqwest::{Error as ReqwestError, header::InvalidHeaderValue};
     use stack_string::StackString;
     use std::io::Error as IoError;
     use url::ParseError as UrlParseError;

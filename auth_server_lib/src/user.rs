@@ -1,11 +1,11 @@
 use argon2::{
-    password_hash::{Error as ArgonError, Salt, SaltString},
     Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version,
+    password_hash::{Error as ArgonError, Salt, SaltString},
 };
 use futures::Stream;
 use once_cell::sync::Lazy;
-use postgres_query::{client::GenericClient, query, Error as PqError, FromSqlRow};
-use rand::{rng as thread_rng, RngCore};
+use postgres_query::{Error as PqError, FromSqlRow, client::GenericClient, query};
+use rand::{RngCore, rng as thread_rng};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::cmp::PartialEq;
@@ -301,13 +301,13 @@ mod tests {
     use stack_string::format_sstr;
 
     use crate::{
+        AUTH_APP_MUTEX,
         config::Config,
         date_time_wrapper::DateTimeWrapper,
         errors::AuthServerError as Error,
         get_random_string,
         pgpool::PgPool,
         user::{Argon, User},
-        AUTH_APP_MUTEX,
     };
 
     #[tokio::test]

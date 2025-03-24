@@ -1,5 +1,5 @@
 use futures::Stream;
-use postgres_query::{client::GenericClient, query, Error as PqError, FromSqlRow, Query};
+use postgres_query::{Error as PqError, FromSqlRow, Query, client::GenericClient, query};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::{cmp::PartialEq, hash::Hash};
@@ -134,8 +134,8 @@ mod tests {
     use stack_string::format_sstr;
 
     use crate::{
-        config::Config, errors::AuthServerError as Error, get_random_string,
-        invitation::Invitation, pgpool::PgPool, AUTH_APP_MUTEX,
+        AUTH_APP_MUTEX, config::Config, errors::AuthServerError as Error, get_random_string,
+        invitation::Invitation, pgpool::PgPool,
     };
 
     #[tokio::test]

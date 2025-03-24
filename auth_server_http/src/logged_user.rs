@@ -1,37 +1,39 @@
 use auth_server_lib::pgpool::PgPool;
-use cookie::{time::Duration, Cookie};
+use axum::extract::{FromRequestParts, OptionalFromRequestParts};
+use axum_extra::extract::CookieJar;
+use cookie::{Cookie, time::Duration};
+use derive_more::{Deref, From, Into};
+use http::{HeaderMap, header::SET_COOKIE, request::Parts};
 use log::debug;
-use rweb::{
-    filters::{cookie::cookie, BoxedFilter},
-    Filter, FromRequest, Rejection, Schema,
-};
-use rweb_helper::{DateTimeType, UuidWrapper};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::{
     cmp::PartialEq,
-    convert::{TryFrom, TryInto},
+    convert::{Infallible, TryFrom, TryInto},
     hash::Hash,
     str::FromStr,
 };
+use time::OffsetDateTime;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use auth_server_lib::session::Session;
-use authorized_users::{token::Token, AuthorizedUser, AUTHORIZED_USERS};
+use authorized_users::{AUTHORIZED_USERS, AuthorizedUser, token::Token};
 
 use crate::errors::ServiceError as Error;
 
-#[derive(Debug, Serialize, Deserialize, Eq, Clone, Schema)]
-#[schema(component = "LoggedUser")]
+#[derive(Debug, Serialize, Deserialize, Eq, Clone, ToSchema)]
+/// LoggedUser
 pub struct LoggedUser {
-    #[schema(description = "Email Address", example = r#""user@example.com""#)]
+    /// Email Address
+    #[schema(example = r#""user@example.com""#)]
     pub email: StackString,
-    #[schema(description = "Session ID")]
-    pub session: UuidWrapper,
-    #[schema(description = "Secret Key")]
+    /// Session ID
+    pub session: Uuid,
+    /// Secret Key
     pub secret_key: StackString,
-    #[schema(description = "User Created At")]
-    pub created_at: DateTimeType,
+    /// User Created At
+    pub created_at: OffsetDateTime,
 }
 
 impl PartialEq for LoggedUser {
@@ -50,6 +52,7 @@ impl Hash for LoggedUser {
     }
 }
 
+#[derive(Debug)]
 pub struct UserCookies<'a> {
     session: Cookie<'a>,
     jwt: Cookie<'a>,
@@ -65,6 +68,18 @@ impl UserCookies<'_> {
     pub fn get_jwt_cookie_str(&self) -> StackString {
         StackString::from_display(self.jwt.encoded())
     }
+
+    /// # Errors
+    /// Returns error on invalid header value
+    pub fn get_headers(&self) -> Result<HeaderMap, Error> {
+        let mut headers = HeaderMap::new();
+        headers.append(
+            SET_COOKIE,
+            self.get_session_cookie_str().as_str().try_into()?,
+        );
+        headers.append(SET_COOKIE, self.get_jwt_cookie_str().as_str().try_into()?);
+        Ok(headers)
+    }
 }
 
 impl LoggedUser {
@@ -77,7 +92,7 @@ impl LoggedUser {
         secure: bool,
     ) -> Result<UserCookies<'static>, Error> {
         let domain: String = domain.as_ref().into();
-        let session_id: Uuid = self.session.into();
+        let session_id: Uuid = self.session;
         let session = Cookie::build(("session-id", session_id.to_string()))
             .path("/")
             .http_only(true)
@@ -137,15 +152,6 @@ impl LoggedUser {
         }
     }
 
-    #[must_use]
-    pub fn filter() -> impl Filter<Extract = (Self,), Error = Rejection> + Copy {
-        cookie("session-id")
-            .and(cookie("jwt"))
-            .and_then(|id: Uuid, user: Self| async move {
-                user.verify_session_id(id).map_err(rweb::reject::custom)
-            })
-    }
-
     /// # Errors
     /// Returns error if db query fails
     pub async fn delete_user_session(session_id: Uuid, pool: &PgPool) -> Result<(), Error> {
@@ -157,13 +163,53 @@ impl LoggedUser {
         }
         Ok(())
     }
+
+    fn extract_user_from_cookies(cookie_jar: &CookieJar) -> Option<LoggedUser> {
+        let session_id: Uuid = StackString::from_display(cookie_jar.get("session-id")?.encoded())
+            .strip_prefix("session-id=")?
+            .parse()
+            .ok()?;
+        debug!("session_id {session_id:?}");
+        let user: LoggedUser = StackString::from_display(cookie_jar.get("jwt")?.encoded())
+            .strip_prefix("jwt=")?
+            .parse()
+            .ok()?;
+        debug!("user {user:?}");
+        user.verify_session_id(session_id).ok()
+    }
 }
 
-impl FromRequest for LoggedUser {
-    type Filter = BoxedFilter<(Self,)>;
+impl<S> FromRequestParts<S> for LoggedUser
+where
+    S: Send + Sync,
+{
+    type Rejection = Error;
 
-    fn new() -> Self::Filter {
-        Self::filter().boxed()
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let cookie_jar = CookieJar::from_request_parts(parts, state)
+            .await
+            .expect("extract failed");
+        debug!("cookie_jar {cookie_jar:?}");
+        let user = LoggedUser::extract_user_from_cookies(&cookie_jar)
+            .ok_or_else(|| Error::Unauthorized)?;
+        Ok(user)
+    }
+}
+
+impl<S> OptionalFromRequestParts<S> for LoggedUser
+where
+    S: Send + Sync,
+{
+    type Rejection = Infallible;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &S,
+    ) -> Result<Option<Self>, Self::Rejection> {
+        let cookie_jar = CookieJar::from_request_parts(parts, state)
+            .await
+            .expect("extract failed");
+        Ok(LoggedUser::extract_user_from_cookies(&cookie_jar))
     }
 }
 
@@ -171,9 +217,9 @@ impl From<AuthorizedUser> for LoggedUser {
     fn from(user: AuthorizedUser) -> Self {
         Self {
             email: user.email,
-            session: user.session.into(),
+            session: user.session,
             secret_key: user.secret_key,
-            created_at: user.created_at.into(),
+            created_at: user.created_at,
         }
     }
 }
@@ -182,9 +228,9 @@ impl From<LoggedUser> for AuthorizedUser {
     fn from(user: LoggedUser) -> Self {
         Self {
             email: user.email,
-            session: user.session.into(),
+            session: user.session,
             secret_key: user.secret_key,
-            created_at: user.created_at.into(),
+            created_at: user.created_at,
         }
     }
 }
@@ -197,7 +243,7 @@ impl TryFrom<Token> for LoggedUser {
                 if AUTHORIZED_USERS.is_authorized(&user) {
                     return Ok(user.into());
                 }
-                debug!("NOT AUTHORIZED {:?}", user);
+                debug!("NOT AUTHORIZED {user:?}",);
             }
             Err(e) => {
                 debug!("token decode error {e}");
@@ -217,6 +263,47 @@ impl FromStr for LoggedUser {
     }
 }
 
+#[derive(Into, From, Debug, Serialize, Deserialize, PartialEq, Eq, Clone, ToSchema, Hash, Copy)]
+pub struct SessionKey(Uuid);
+
+impl<S> FromRequestParts<S> for SessionKey
+where
+    S: Send + Sync,
+{
+    type Rejection = Error;
+
+    async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
+        let session: Uuid = parts
+            .headers
+            .get("session")
+            .ok_or_else(|| Error::Unauthorized)?
+            .to_str()?
+            .parse()?;
+        Ok(Self(session))
+    }
+}
+
+#[derive(
+    Into, From, Debug, Serialize, Deserialize, PartialEq, Eq, Clone, ToSchema, Hash, Deref,
+)]
+pub struct SecretKey(StackString);
+
+impl<S> FromRequestParts<S> for SecretKey
+where
+    S: Send + Sync,
+{
+    type Rejection = Error;
+
+    async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
+        let secret_key: StackString = parts
+            .headers
+            .get("secret-key")
+            .ok_or_else(|| Error::Unauthorized)?
+            .to_str()?
+            .into();
+        Ok(Self(secret_key))
+    }
+}
 #[cfg(test)]
 mod tests {
     use authorized_users::AuthorizedUser;

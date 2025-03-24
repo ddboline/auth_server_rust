@@ -1,7 +1,7 @@
 use futures::TryStreamExt;
-use postgres_query::{client::GenericClient, query_dyn, Error as PqError};
+use postgres_query::{Error as PqError, client::GenericClient, query_dyn};
 use serde::{Deserialize, Serialize};
-use stack_string::{format_sstr, StackString};
+use stack_string::{StackString, format_sstr};
 use std::convert::TryFrom;
 use url::Url;
 

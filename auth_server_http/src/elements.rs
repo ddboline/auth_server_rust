@@ -1,8 +1,8 @@
 use dioxus::prelude::{
-    component, dioxus_elements, rsx, Element, GlobalSignal, IntoDynNode, Props, Readable,
-    VirtualDom,
+    Element, GlobalSignal, IntoDynNode, Props, Readable, VirtualDom, component, dioxus_elements,
+    rsx,
 };
-use stack_string::{format_sstr, StackString};
+use stack_string::{StackString, format_sstr};
 use std::fmt::Error;
 use time::macros::format_description;
 use uuid::Uuid;

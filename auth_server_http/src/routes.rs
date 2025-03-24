@@ -1,13 +1,22 @@
-use futures::{try_join, TryStreamExt};
+use axum::{
+    Json,
+    extract::{Path, Query, State},
+};
+use derive_more::{From, Into};
+use futures::{TryStreamExt, try_join};
 use log::{debug, error};
-use rweb::{delete, get, post, Json, Query, Rejection, Schema};
-use rweb_helper::{DateTimeType, UuidWrapper};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use stack_string::{format_sstr, StackString};
-use std::{convert::Infallible, str, time::Duration};
+use stack_string::{StackString, format_sstr};
+use std::{str, sync::Arc, time::Duration};
 use time::OffsetDateTime;
 use tokio::time::{sleep, timeout};
+use utoipa::{PartialSchema, ToSchema};
+use utoipa_axum::{router::OpenApiRouter, routes};
+use utoipa_helper::{
+    UtoipaResponse, html_response::HtmlResponse as HtmlBase,
+    json_response::JsonResponse as JsonBase,
+};
 use uuid::Uuid;
 
 use auth_server_ext::{
@@ -17,6 +26,7 @@ use auth_server_ext::{
 };
 use auth_server_lib::{
     config::Config,
+    date_time_wrapper::iso8601,
     errors::AuthServerError,
     invitation::Invitation,
     pgpool::PgPool,
@@ -24,12 +34,10 @@ use auth_server_lib::{
     session_data::SessionData,
     user::User,
 };
-use authorized_users::{AuthorizedUser, AUTHORIZED_USERS};
-use rweb_helper::{
-    html_response::HtmlResponse as HtmlBase, json_response::JsonResponse as JsonBase, RwebResponse,
-};
+use authorized_users::{AUTHORIZED_USERS, AuthorizedUser};
 
 use crate::{
+    EmailStatsWrapper, SesQuotasWrapper, SessionSummaryWrapper,
     app::AppState,
     auth::AuthRequest,
     elements::{
@@ -37,36 +45,31 @@ use crate::{
         session_data_body,
     },
     errors::ServiceError as Error,
-    iso8601,
-    logged_user::{LoggedUser, UserCookies},
-    EmailStatsWrapper, SesQuotasWrapper, SessionSummaryWrapper,
+    logged_user::{LoggedUser, SecretKey, SessionKey, UserCookies},
 };
 
-pub type WarpResult<T> = Result<T, Rejection>;
-pub type HttpResult<T> = Result<T, Error>;
+type AuthResult<T> = Result<T, Error>;
 
-#[derive(Deserialize, Schema)]
-#[schema(component = "FinalUrl")]
-pub struct FinalUrlData {
-    #[schema(
-        description = "Url to redirect to after completion of authorization",
-        example = r#""https://example.com""#
-    )]
-    pub final_url: Option<StackString>,
+#[derive(Deserialize, ToSchema)]
+struct FinalUrlData {
+    #[schema(example = r#""https://example.com""#)]
+    /// Url to redirect to after completion of authorization
+    final_url: Option<StackString>,
 }
 
-#[derive(RwebResponse)]
-#[response(description = "Main Page", content = "html")]
-struct AuthIndexResponse(HtmlBase<StackString, Error>);
+#[derive(UtoipaResponse)]
+#[response(description = "Main Page", content = "text/html")]
+#[rustfmt::skip]
+struct AuthIndexResponse(HtmlBase::<StackString>);
 
-#[get("/auth/index.html")]
-#[openapi(description = "Main Page")]
-pub async fn index_html(
+#[utoipa::path(get, path = "/auth/index.html", responses(AuthIndexResponse, Error))]
+/// Main Page
+async fn index_html(
     user: Option<LoggedUser>,
-    #[data] data: AppState,
+    data: State<Arc<AppState>>,
     query: Query<FinalUrlData>,
-) -> WarpResult<AuthIndexResponse> {
-    let query = query.into_inner();
+) -> AuthResult<AuthIndexResponse> {
+    let Query(query) = query;
 
     let body = {
         let summaries = if user.is_some() {
@@ -75,7 +78,7 @@ pub async fn index_html(
             Vec::new()
         };
         let data = if let Some(user) = &user {
-            SessionData::get_session_summary(&data.pool, user.session.into())
+            SessionData::get_session_summary(&data.pool, user.session)
                 .await
                 .map_err(Into::<Error>::into)?
         } else {
@@ -86,33 +89,35 @@ pub async fn index_html(
     Ok(HtmlBase::new(body).into())
 }
 
-#[derive(RwebResponse)]
-#[response(description = "CSS", content = "css")]
-struct CssResponse(HtmlBase<&'static str, Infallible>);
+#[derive(UtoipaResponse)]
+#[response(description = "CSS", content = "text/css")]
+#[rustfmt::skip]
+struct CssResponse(HtmlBase::<&'static str>);
 
-#[get("/auth/main.css")]
-pub async fn main_css() -> WarpResult<CssResponse> {
-    Ok(HtmlBase::new(include_str!("../../templates/main.css")).into())
+#[utoipa::path(get, path = "/auth/main.css", responses(CssResponse))]
+async fn main_css() -> CssResponse {
+    HtmlBase::new(include_str!("../../templates/main.css")).into()
 }
 
-#[derive(Deserialize, Schema)]
+#[derive(Deserialize, ToSchema)]
 struct RegisterQuery {
-    id: UuidWrapper,
+    id: Uuid,
     email: StackString,
 }
 
-#[derive(RwebResponse)]
-#[response(description = "Registration", content = "html")]
-struct RegisterResponse(HtmlBase<StackString, Error>);
+#[derive(UtoipaResponse)]
+#[response(description = "Registration", content = "text/html")]
+#[rustfmt::skip]
+struct RegisterResponse(HtmlBase::<StackString>);
 
-#[get("/auth/register.html")]
-#[openapi(description = "Registration Page")]
-pub async fn register_html(
+#[utoipa::path(get, path = "/auth/register.html", responses(RegisterResponse, Error))]
+/// Registration Page
+async fn register_html(
     query: Query<RegisterQuery>,
-    #[data] data: AppState,
-) -> WarpResult<RegisterResponse> {
-    let query = query.into_inner();
-    let invitation_id: Uuid = query.id.into();
+    data: State<Arc<AppState>>,
+) -> AuthResult<RegisterResponse> {
+    let Query(query) = query;
+    let invitation_id: Uuid = query.id;
     let email = query.email;
 
     if let Some(invitation) = Invitation::get_by_uuid(invitation_id, &data.pool)
@@ -124,55 +129,63 @@ pub async fn register_html(
             return Ok(HtmlBase::new(body).into());
         }
     }
-    Err(Error::BadRequest("Invalid invitation").into())
+    Err(Error::BadRequest("Invalid invitation"))
 }
 
-#[derive(RwebResponse)]
-#[response(description = "Javascript", content = "js")]
-struct JsResponse(HtmlBase<&'static str, Infallible>);
+#[derive(UtoipaResponse)]
+#[response(description = "Javascript", content = "text/javascript")]
+#[rustfmt::skip]
+struct JsResponse(HtmlBase::<&'static str>);
 
-#[get("/auth/main.js")]
-pub async fn main_js() -> WarpResult<JsResponse> {
-    Ok(HtmlBase::new(include_str!("../../templates/main.js")).into())
+#[utoipa::path(get, path = "/auth/main.js", responses(JsResponse))]
+async fn main_js() -> JsResponse {
+    HtmlBase::new(include_str!("../../templates/main.js")).into()
 }
 
-#[derive(RwebResponse)]
-#[response(description = "Login Page", content = "html")]
-struct AuthLoginResponse(HtmlBase<StackString, Error>);
+#[derive(UtoipaResponse)]
+#[response(description = "Login Page", content = "text/html")]
+#[rustfmt::skip]
+struct AuthLoginResponse(HtmlBase::<StackString>);
 
-#[get("/auth/login.html")]
-#[openapi(description = "Login Page")]
-pub async fn login_html(
+#[utoipa::path(get, path = "/auth/login.html", responses(AuthLoginResponse, Error))]
+/// Login Page
+async fn login_html(
     user: Option<LoggedUser>,
     query: Query<FinalUrlData>,
-) -> WarpResult<AuthLoginResponse> {
-    let query = query.into_inner();
+) -> AuthResult<AuthLoginResponse> {
+    let Query(query) = query;
     let body = login_body(user, query.final_url).map_err(Into::<Error>::into)?;
     Ok(HtmlBase::new(body).into())
 }
 
-#[derive(RwebResponse)]
-#[response(description = "Change Password", content = "html")]
-struct PwChangeResponse(HtmlBase<StackString, Error>);
+#[derive(UtoipaResponse)]
+#[response(description = "Change Password", content = "text/html")]
+#[rustfmt::skip]
+struct PwChangeResponse(HtmlBase::<StackString>);
 
-#[get("/auth/change_password.html")]
-#[openapi(description = "Password Change Page")]
-pub async fn change_password(user: LoggedUser) -> WarpResult<PwChangeResponse> {
+#[utoipa::path(
+    get,
+    path = "/auth/change_password.html",
+    responses(PwChangeResponse, Error)
+)]
+/// Password Change Page
+async fn change_password(user: LoggedUser) -> AuthResult<PwChangeResponse> {
     let body = change_password_body(user).map_err(Into::<Error>::into)?;
     Ok(HtmlBase::new(body).into())
 }
 
-#[derive(RwebResponse)]
-#[response(description = "Current logged in username", status = "CREATED")]
-struct ApiAuthResponse(JsonBase<LoggedUser, Error>);
+#[derive(UtoipaResponse)]
+#[response(description = "Current logged in username", status = "CREATED", content = "application/json")]
+#[rustfmt::skip]
+struct ApiAuthResponse(JsonBase::<LoggedUser>);
 
-#[post("/api/auth")]
-#[openapi(description = "Login with username and password")]
-pub async fn login(
-    #[data] data: AppState,
+#[utoipa::path(post, path = "/api/auth", responses(ApiAuthResponse, Error))]
+/// Login with username and password
+async fn login(
+    data: State<Arc<AppState>>,
     auth_data: Json<AuthRequest>,
-) -> WarpResult<ApiAuthResponse> {
-    let auth_data = auth_data.into_inner();
+) -> AuthResult<ApiAuthResponse> {
+    let Json(auth_data) = auth_data;
 
     let (user, session, cookies) = auth_data.login_user_jwt(&data.pool, &data.config).await?;
 
@@ -184,14 +197,15 @@ pub async fn login(
     Ok(resp.into())
 }
 
-#[derive(RwebResponse)]
+#[derive(UtoipaResponse)]
 #[response(description = "Status Message", status = "NO_CONTENT")]
-struct ApiAuthDeleteResponse(JsonBase<StackString, Error>);
+#[rustfmt::skip]
+struct ApiAuthDeleteResponse(HtmlBase::<StackString>);
 
-#[delete("/api/auth")]
-#[openapi(description = "Log out")]
-pub async fn logout(user: LoggedUser, #[data] data: AppState) -> WarpResult<ApiAuthDeleteResponse> {
-    let session_id = user.session.into();
+#[utoipa::path(delete, path = "/api/auth", responses(ApiAuthDeleteResponse, Error))]
+/// Log out
+async fn logout(user: LoggedUser, data: State<Arc<AppState>>) -> AuthResult<ApiAuthDeleteResponse> {
+    let session_id = user.session;
     let _ = data.session_cache.remove_session(session_id);
     LoggedUser::delete_user_session(session_id, &data.pool).await?;
     let cookies = user.clear_jwt_cookie(
@@ -200,20 +214,21 @@ pub async fn logout(user: LoggedUser, #[data] data: AppState) -> WarpResult<ApiA
         data.config.secure,
     );
     let body = format_sstr!("{} has been logged out", user.email);
-    let resp = JsonBase::new(body)
+    let resp = HtmlBase::new(body)
         .with_cookie(cookies.get_session_cookie_str())
         .with_cookie(cookies.get_jwt_cookie_str());
     Ok(resp.into())
 }
 
-#[derive(RwebResponse)]
-#[response(description = "Current users email")]
-struct ApiAuthGetResponse(JsonBase<LoggedUser, Error>);
+#[derive(UtoipaResponse)]
+#[response(description = "Current users email", content = "application/json")]
+#[rustfmt::skip]
+struct ApiAuthGetResponse(JsonBase::<LoggedUser>);
 
-#[get("/api/auth")]
-#[openapi(description = "Get current username if logged in")]
-pub async fn get_user(user: LoggedUser, #[data] data: AppState) -> WarpResult<ApiAuthGetResponse> {
-    let session_id = user.session.into();
+#[utoipa::path(get, path = "/api/auth", responses(ApiAuthGetResponse, Error))]
+/// Get current username if logged in
+async fn get_user(user: LoggedUser, data: State<Arc<AppState>>) -> AuthResult<ApiAuthGetResponse> {
+    let session_id = user.session;
     if !data.session_cache.has_session(session_id) {
         if let Some(session) = Session::get_session(&data.pool, session_id)
             .await
@@ -221,24 +236,32 @@ pub async fn get_user(user: LoggedUser, #[data] data: AppState) -> WarpResult<Ap
         {
             let _ = data.session_cache.add_session(session);
         } else {
-            return Err(Error::Unauthorized.into());
+            return Err(Error::Unauthorized);
         }
     }
     Ok(JsonBase::new(user).into())
 }
 
-#[derive(RwebResponse)]
-#[response(description = "Session Object")]
-struct GetSessionResponse(JsonBase<Value, Error>);
+#[derive(UtoipaResponse)]
+#[response(description = "Session Object", content = "application/json")]
+#[rustfmt::skip]
+struct GetSessionResponse(JsonBase::<Value>);
 
-#[get("/api/session/{session_key}")]
-#[openapi(description = "Get Session")]
-pub async fn get_session(
-    #[header = "session"] session: Uuid,
-    #[header = "secret-key"] secret_key: StackString,
-    session_key: StackString,
-    #[data] data: AppState,
-) -> WarpResult<GetSessionResponse> {
+#[utoipa::path(
+    get,
+    path = "/api/session/{session_key}",
+    responses(GetSessionResponse, Error)
+)]
+/// Get Session
+async fn get_session(
+    data: State<Arc<AppState>>,
+    session_key: Path<StackString>,
+    session: SessionKey,
+    secret_key: SecretKey,
+) -> AuthResult<GetSessionResponse> {
+    let Path(session_key) = session_key;
+    let session = session.into();
+    let secret_key: StackString = secret_key.into();
     let value = if let Some(value) =
         data.session_cache
             .get_data(session, &secret_key, &session_key)?
@@ -262,22 +285,31 @@ pub async fn get_session(
     Ok(JsonBase::new(value).into())
 }
 
-#[derive(RwebResponse)]
-#[response(description = "Set Session Object", status = "CREATED")]
-struct PostSessionResponse(JsonBase<Value, Error>);
+#[derive(UtoipaResponse)]
+#[response(description = "Set Session Object", status = "CREATED", content = "application/json")]
+#[rustfmt::skip]
+struct PostSessionResponse(JsonBase::<Value>);
 
-#[post("/api/session/{session_key}")]
-#[openapi(description = "Set session value")]
-pub async fn post_session(
-    #[header = "session"] session: Uuid,
-    #[header = "secret-key"] secret_key: StackString,
-    #[data] data: AppState,
-    session_key: StackString,
+#[utoipa::path(
+    post,
+    path = "/api/session/{session_key}",
+    responses(PostSessionResponse, Error)
+)]
+/// Set session value
+async fn post_session(
+    data: State<Arc<AppState>>,
+    session_key: Path<StackString>,
+    session: SessionKey,
+    secret_key: SecretKey,
     payload: Json<Value>,
-) -> WarpResult<PostSessionResponse> {
-    let payload = payload.into_inner();
-    debug!("payload {} {}", payload, session);
-    debug!("session {}", session);
+) -> AuthResult<PostSessionResponse> {
+    let Path(session_key) = session_key;
+    let session = session.into();
+    let secret_key: StackString = secret_key.into();
+
+    let Json(payload) = payload;
+    debug!("payload {payload} {session}");
+    debug!("session {session}");
     if let Some(session_data) = Session::set_session_from_cache(
         &data.pool,
         session,
@@ -298,63 +330,81 @@ pub async fn post_session(
     Ok(JsonBase::new(payload).into())
 }
 
-#[derive(RwebResponse)]
-#[response(description = "Delete Session Object", status = "NO_CONTENT")]
-struct DeleteSessionResponse(JsonBase<Option<Value>, Error>);
+#[derive(ToSchema, Serialize, Deserialize, Into, From)]
+struct DeleteSesssionInner(Option<Value>);
 
-#[delete("/api/session/{session_key}")]
-#[openapi(description = "Delete session value")]
-pub async fn delete_session(
-    #[header = "session"] session: Uuid,
-    #[header = "secret-key"] secret_key: StackString,
-    #[data] data: AppState,
-    session_key: StackString,
-) -> WarpResult<DeleteSessionResponse> {
+#[derive(UtoipaResponse)]
+#[response(description = "Delete Session Object", status = "NO_CONTENT", content = "application/json")]
+#[rustfmt::skip]
+struct DeleteSessionResponse(JsonBase::<DeleteSesssionInner>);
+
+#[utoipa::path(
+    delete,
+    path = "/api/session/{session_key}",
+    responses(DeleteSessionResponse, Error)
+)]
+/// Delete session value
+async fn delete_session(
+    data: State<Arc<AppState>>,
+    session_key: Path<StackString>,
+    session: SessionKey,
+    secret_key: SecretKey,
+) -> AuthResult<DeleteSessionResponse> {
+    let Path(session_key) = session_key;
+    let session = session.into();
+    let secret_key: StackString = secret_key.into();
+
     Session::delete_session_data_from_cache(&data.pool, session, &secret_key, &session_key)
         .await
         .map_err(Into::<Error>::into)?;
     let result = data
         .session_cache
-        .remove_data(session, secret_key, session_key)?;
+        .remove_data(session, secret_key, session_key)?
+        .into();
     Ok(JsonBase::new(result).into())
 }
 
-#[derive(Schema, Serialize, Deserialize)]
-#[schema(component = "SessionData")]
+#[derive(ToSchema, Serialize, Deserialize)]
+/// SessionData
 struct SessionDataObj {
-    #[schema(description = "Session ID")]
-    session_id: UuidWrapper,
-    #[schema(description = "Session Key")]
+    /// Session ID
+    session_id: Uuid,
+    /// Session Key
     session_key: StackString,
-    #[schema(description = "Session Data")]
+    /// Session Data
     session_value: Value,
-    #[schema(description = "Created At")]
+    /// Created At
     #[serde(with = "iso8601")]
-    created_at: DateTimeType,
+    created_at: OffsetDateTime,
 }
 
 impl From<SessionData> for SessionDataObj {
     fn from(value: SessionData) -> Self {
         Self {
-            session_id: value.session_id.into(),
+            session_id: value.session_id,
             session_key: value.session_key,
             session_value: value.session_value,
-            created_at: value.created_at.to_offsetdatetime().into(),
+            created_at: value.created_at.to_offsetdatetime(),
         }
     }
 }
 
-#[derive(RwebResponse)]
-#[response(description = "Session Data")]
-struct SessionDataObjResponse(JsonBase<Vec<SessionDataObj>, Error>);
+#[derive(UtoipaResponse)]
+#[response(description = "Session Data", content = "application/json")]
+#[rustfmt::skip]
+struct SessionDataObjResponse(JsonBase::<Vec<SessionDataObj>>);
 
-#[get("/api/session-data")]
-#[openapi(description = "Session Data")]
-pub async fn list_session_obj(
+#[utoipa::path(
+    get,
+    path = "/api/session-data",
+    responses(SessionDataObjResponse, Error)
+)]
+/// Session Data
+async fn list_session_obj(
     user: LoggedUser,
-    #[data] data: AppState,
-) -> WarpResult<SessionDataObjResponse> {
-    let values = SessionData::get_by_session_id_streaming(&data.pool, user.session.into())
+    data: State<Arc<AppState>>,
+) -> AuthResult<SessionDataObjResponse> {
+    let values = SessionData::get_by_session_id_streaming(&data.pool, user.session)
         .await
         .map_err(Into::<Error>::into)?
         .map_ok(Into::into)
@@ -366,81 +416,100 @@ pub async fn list_session_obj(
     Ok(JsonBase::new(values).into())
 }
 
-#[derive(RwebResponse)]
+#[derive(UtoipaResponse)]
 #[response(description = "List Sessions")]
-struct ListSessionsResponse(HtmlBase<StackString, Error>);
+#[rustfmt::skip]
+struct ListSessionsResponse(HtmlBase::<StackString>);
 
-#[get("/api/list-sessions")]
-#[openapi(description = "List Sessions")]
-pub async fn list_sessions(
+#[utoipa::path(
+    get,
+    path = "/api/list-sessions",
+    responses(ListSessionsResponse, Error)
+)]
+/// List Sessions
+async fn list_sessions(
     _: LoggedUser,
-    #[data] data: AppState,
-) -> WarpResult<ListSessionsResponse> {
+    data: State<Arc<AppState>>,
+) -> AuthResult<ListSessionsResponse> {
     let summaries = list_sessions_lines(&data).await?;
     let body = session_body(summaries).map_err(Into::<Error>::into)?;
     Ok(HtmlBase::new(body).into())
 }
 
-async fn list_sessions_lines(data: &AppState) -> HttpResult<Vec<SessionSummary>> {
+async fn list_sessions_lines(data: &AppState) -> AuthResult<Vec<SessionSummary>> {
     Session::get_session_summary(&data.pool)
         .await
         .map_err(Into::into)
 }
 
-#[derive(RwebResponse)]
+#[derive(UtoipaResponse)]
 #[response(description = "List Session Data")]
-struct ListSessionDataResponse(HtmlBase<StackString, Error>);
+#[rustfmt::skip]
+struct ListSessionDataResponse(HtmlBase::<StackString>);
 
-#[get("/api/list-session-data")]
-#[openapi(description = "List Session Data")]
-pub async fn list_session_data(
+#[utoipa::path(
+    get,
+    path = "/api/list-session-data",
+    responses(ListSessionDataResponse, Error)
+)]
+/// List Session Data
+async fn list_session_data(
     user: LoggedUser,
-    #[data] data: AppState,
-) -> WarpResult<ListSessionDataResponse> {
-    let data = SessionData::get_session_summary(&data.pool, user.session.into())
+    data: State<Arc<AppState>>,
+) -> AuthResult<ListSessionDataResponse> {
+    let data = SessionData::get_session_summary(&data.pool, user.session)
         .await
         .map_err(Into::<Error>::into)?;
     let body = session_data_body(data).map_err(Into::<Error>::into)?;
     Ok(HtmlBase::new(body).into())
 }
 
-#[derive(RwebResponse)]
-#[response(description = "Sessions")]
-struct SessionsResponse(JsonBase<Vec<SessionSummaryWrapper>, Error>);
+#[derive(ToSchema, Serialize, Into, From)]
+struct SessionsInner(Vec<SessionSummaryWrapper>);
 
-#[get("/api/sessions")]
-#[openapi(description = "Open Sessions")]
-pub async fn get_sessions(_: LoggedUser, #[data] data: AppState) -> WarpResult<SessionsResponse> {
-    let objects = list_sessions_lines(&data)
+#[derive(UtoipaResponse)]
+#[response(description = "Sessions", content = "application/json")]
+#[rustfmt::skip]
+struct SessionsResponse(JsonBase::<SessionsInner>);
+
+#[utoipa::path(get, path = "/api/sessions", responses(SessionsResponse, Error))]
+/// Open Sessions
+async fn get_sessions(_: LoggedUser, data: State<Arc<AppState>>) -> AuthResult<SessionsResponse> {
+    let objects: Vec<SessionSummaryWrapper> = list_sessions_lines(&data)
         .await?
         .into_iter()
         .map(Into::into)
         .collect();
-    Ok(JsonBase::new(objects).into())
+    Ok(JsonBase::new(objects.into()).into())
 }
 
-#[derive(RwebResponse)]
+#[derive(UtoipaResponse)]
 #[response(description = "Delete Sessions", status = "NO_CONTENT")]
-struct DeleteSessionsResponse(HtmlBase<&'static str, Error>);
+#[rustfmt::skip]
+struct DeleteSessionsResponse(HtmlBase::<&'static str>);
 
-#[derive(Deserialize, Schema, Debug)]
-pub struct SessionQuery {
-    #[schema(description = "Session Key")]
-    pub session_key: Option<StackString>,
-    #[schema(description = "Session")]
-    pub session: Option<UuidWrapper>,
+#[derive(Deserialize, ToSchema, Debug)]
+struct SessionQuery {
+    /// Session Key
+    session_key: Option<StackString>,
+    /// Session
+    session: Option<Uuid>,
 }
 
-#[delete("/api/sessions")]
-#[openapi(description = "Delete Sessions")]
-pub async fn delete_sessions(
+#[utoipa::path(
+    delete,
+    path = "/api/sessions",
+    responses(DeleteSessionsResponse, Error)
+)]
+/// Delete Sessions
+async fn delete_sessions(
     user: LoggedUser,
-    #[data] data: AppState,
+    data: State<Arc<AppState>>,
     session_query: Query<SessionQuery>,
-) -> WarpResult<DeleteSessionsResponse> {
-    let session_query = session_query.into_inner();
+) -> AuthResult<DeleteSessionsResponse> {
+    let Query(session_query) = session_query;
     if let Some(session_key) = &session_query.session_key {
-        let session_id = user.session.into();
+        let session_id = user.session;
         Session::delete_session_data_from_cache(
             &data.pool,
             session_id,
@@ -453,29 +522,29 @@ pub async fn delete_sessions(
             .remove_data(session_id, &user.secret_key, session_key)?;
     }
     if let Some(session) = session_query.session {
-        LoggedUser::delete_user_session(session.into(), &data.pool).await?;
-        let _ = data.session_cache.remove_session(session.into());
+        LoggedUser::delete_user_session(session, &data.pool).await?;
+        let _ = data.session_cache.remove_session(session);
     }
     Ok(HtmlBase::new("finished").into())
 }
 
-#[derive(Deserialize, Schema)]
-#[schema(component = "CreateInvitation")]
-pub struct CreateInvitation {
-    #[schema(description = "Email to send invitation to")]
-    pub email: StackString,
+#[derive(Deserialize, ToSchema)]
+/// CreateInvitation
+struct CreateInvitation {
+    /// Email to send invitation to
+    email: StackString,
 }
 
-#[derive(Serialize, Schema)]
-#[schema(component = "Invitation")]
-pub struct InvitationOutput {
-    #[schema(description = "Invitation ID")]
-    pub id: StackString,
-    #[schema(description = "Email Address")]
-    pub email: StackString,
-    #[schema(description = "Expiration Datetime")]
+#[derive(Serialize, ToSchema)]
+/// Invitation
+struct InvitationOutput {
+    /// Invitation ID
+    id: StackString,
+    /// Email Address
+    email: StackString,
+    /// Expiration Datetime
     #[serde(with = "iso8601")]
-    pub expires_at: DateTimeType,
+    expires_at: OffsetDateTime,
 }
 
 impl From<Invitation> for InvitationOutput {
@@ -484,22 +553,27 @@ impl From<Invitation> for InvitationOutput {
         Self {
             id: i.id.to_string().into(),
             email: i.email,
-            expires_at: expires_at.into(),
+            expires_at,
         }
     }
 }
 
-#[derive(RwebResponse)]
-#[response(description = "Invitation Object", status = "CREATED")]
-struct ApiInvitationResponse(JsonBase<InvitationOutput, Error>);
+#[derive(UtoipaResponse)]
+#[response(description = "Invitation Object", status = "CREATED", content = "application/json")]
+#[rustfmt::skip]
+struct ApiInvitationResponse(JsonBase::<InvitationOutput>);
 
-#[post("/api/invitation")]
-#[openapi(description = "Send invitation to specified email")]
-pub async fn register_email(
-    #[data] data: AppState,
+#[utoipa::path(
+    post,
+    path = "/api/invitation",
+    responses(ApiInvitationResponse, Error)
+)]
+/// Send invitation to specified email
+async fn register_email(
+    data: State<Arc<AppState>>,
     invitation: Json<CreateInvitation>,
-) -> WarpResult<ApiInvitationResponse> {
-    let invitation = invitation.into_inner();
+) -> AuthResult<ApiInvitationResponse> {
+    let Json(invitation) = invitation;
 
     let email = invitation.email;
     let invitation = Invitation::from_email(email);
@@ -520,26 +594,32 @@ pub async fn register_email(
     Ok(resp.into())
 }
 
-#[derive(Debug, Deserialize, Schema)]
-#[schema(component = "PasswordData")]
-pub struct PasswordData {
-    #[schema(description = "Password")]
-    pub password: StackString,
+#[derive(Debug, Deserialize, ToSchema)]
+/// PasswordData
+struct PasswordData {
+    /// Password
+    password: StackString,
 }
 
-#[derive(RwebResponse)]
-#[response(description = "Registered Email", status = "CREATED")]
-struct ApiRegisterResponse(JsonBase<LoggedUser, Error>);
+#[derive(UtoipaResponse)]
+#[response(description = "Registered Email", status = "CREATED", content = "application/json")]
+#[rustfmt::skip]
+struct ApiRegisterResponse(JsonBase::<LoggedUser>);
 
-#[post("/api/register/{invitation_id}")]
-#[openapi(description = "Set password using link from email")]
-pub async fn register_user(
-    invitation_id: UuidWrapper,
-    #[data] data: AppState,
+#[utoipa::path(
+    post,
+    path = "/api/register/{invitation_id}",
+    responses(ApiRegisterResponse, Error)
+)]
+/// Set password using link from email
+async fn register_user(
+    data: State<Arc<AppState>>,
+    invitation_id: Path<Uuid>,
     user_data: Json<PasswordData>,
-) -> WarpResult<ApiRegisterResponse> {
-    let user_data: PasswordData = user_data.into_inner();
-    if let Some(invitation) = Invitation::get_by_uuid(invitation_id.into(), &data.pool)
+) -> AuthResult<ApiRegisterResponse> {
+    let Path(invitation_id) = invitation_id;
+    let Json(user_data) = user_data;
+    if let Some(invitation) = Invitation::get_by_uuid(invitation_id, &data.pool)
         .await
         .map_err(Into::<Error>::into)?
     {
@@ -562,27 +642,32 @@ pub async fn register_user(
             .await
             .map_err(Into::<Error>::into)?;
     }
-    Err(Error::BadRequest("Invalid invitation").into())
+    Err(Error::BadRequest("Invalid invitation"))
 }
 
-#[derive(Serialize, Deserialize, Debug, Schema)]
-#[schema(component = "PasswordChange")]
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+/// PasswordChange
 pub struct PasswordChangeOutput {
     pub message: StackString,
 }
 
-#[derive(RwebResponse)]
-#[response(description = "Success Message", status = "CREATED")]
-struct ApiPasswordChangeResponse(JsonBase<PasswordChangeOutput, Error>);
+#[derive(UtoipaResponse)]
+#[response(description = "Success Message", status = "CREATED", content = "application/json")]
+#[rustfmt::skip]
+struct ApiPasswordChangeResponse(JsonBase::<PasswordChangeOutput>);
 
-#[post("/api/password_change")]
-#[openapi(description = "Change password for currently logged in user")]
-pub async fn change_password_user(
+#[utoipa::path(
+    post,
+    path = "/api/password_change",
+    responses(ApiPasswordChangeResponse, Error)
+)]
+/// Change password for currently logged in user")]
+async fn change_password_user(
     user: LoggedUser,
-    #[data] data: AppState,
+    data: State<Arc<AppState>>,
     user_data: Json<PasswordData>,
-) -> WarpResult<ApiPasswordChangeResponse> {
-    let user_data = user_data.into_inner();
+) -> AuthResult<ApiPasswordChangeResponse> {
+    let Json(user_data) = user_data;
     let message: StackString = if let Some(mut user) = User::get_by_email(&user.email, &data.pool)
         .await
         .map_err(Into::<Error>::into)?
@@ -592,32 +677,33 @@ pub async fn change_password_user(
         user.update(&data.pool).await.map_err(Into::<Error>::into)?;
         "password updated".into()
     } else {
-        return Err(Error::BadRequest("Invalid User").into());
+        return Err(Error::BadRequest("Invalid User"));
     };
     let resp = JsonBase::new(PasswordChangeOutput { message });
     Ok(resp.into())
 }
 
-#[derive(Serialize, Deserialize, Schema)]
-#[schema(component = "AuthUrl")]
-pub struct AuthUrlOutput {
-    #[schema(description = "Auth URL")]
-    pub auth_url: StackString,
-    #[schema(description = "CSRF State")]
-    pub csrf_state: StackString,
+#[derive(Serialize, Deserialize, ToSchema)]
+/// AuthUrl")]
+struct AuthUrlOutput {
+    /// Auth URL")]
+    auth_url: StackString,
+    /// CSRF State")]
+    csrf_state: StackString,
 }
 
-#[derive(RwebResponse)]
-#[response(description = "Authorization Url", status = "CREATED")]
-struct ApiAuthUrlResponse(JsonBase<AuthUrlOutput, Error>);
+#[derive(UtoipaResponse)]
+#[response(description = "Authorization Url", status = "CREATED", content = "application/json")]
+#[rustfmt::skip]
+struct ApiAuthUrlResponse(JsonBase::<AuthUrlOutput>);
 
-#[post("/api/auth_url")]
-#[openapi(description = "Get Oauth Url")]
-pub async fn auth_url(
-    #[data] data: AppState,
+#[utoipa::path(post, path = "/api/auth_url", responses(ApiAuthUrlResponse, Error))]
+/// Get Oauth Url")]
+async fn auth_url(
+    data: State<Arc<AppState>>,
     query: Json<FinalUrlData>,
-) -> WarpResult<ApiAuthUrlResponse> {
-    let query = query.into_inner();
+) -> AuthResult<ApiAuthUrlResponse> {
+    let Json(query) = query;
     let (auth_url, csrf_state) = data
         .google_client
         .get_auth_url_csrf(query.final_url.as_ref().map(StackString::as_str))
@@ -631,23 +717,24 @@ pub async fn auth_url(
     Ok(resp.into())
 }
 
-#[derive(Schema, Serialize, Deserialize)]
-pub struct AuthAwait {
-    #[schema(description = "CSRF State")]
-    pub state: StackString,
+#[derive(ToSchema, Serialize, Deserialize)]
+struct AuthAwait {
+    /// CSRF State")]
+    state: StackString,
 }
 
-#[derive(RwebResponse)]
-#[response(description = "Finished", content = "html")]
-struct ApiAwaitResponse(HtmlBase<StackString, Infallible>);
+#[derive(UtoipaResponse)]
+#[response(description = "Finished", content = "text/html")]
+#[rustfmt::skip]
+struct ApiAwaitResponse(HtmlBase::<StackString>);
 
-#[get("/api/await")]
-#[openapi(description = "Await completion of auth")]
-pub async fn auth_await(
-    #[data] data: AppState,
+#[utoipa::path(get, path = "/api/await", responses(ApiAwaitResponse, Error))]
+/// Await completion of auth")]
+async fn auth_await(
+    data: State<Arc<AppState>>,
     query: Query<AuthAwait>,
-) -> WarpResult<ApiAwaitResponse> {
-    let state = query.into_inner().state;
+) -> AuthResult<ApiAwaitResponse> {
+    let Query(AuthAwait { state }) = query;
     if timeout(
         Duration::from_secs(60),
         data.google_client.wait_csrf(&state),
@@ -666,31 +753,27 @@ pub async fn auth_await(
     Ok(HtmlBase::new(final_url).into())
 }
 
-#[derive(Deserialize, Schema)]
-pub struct CallbackQuery {
-    #[schema(description = "Authorization Code")]
-    pub code: StackString,
-    #[schema(description = "CSRF State")]
-    pub state: StackString,
+#[derive(Deserialize, ToSchema)]
+struct CallbackQuery {
+    /// Authorization Code")]
+    code: StackString,
+    /// CSRF State")]
+    state: StackString,
 }
 
-#[derive(RwebResponse)]
-#[response(description = "Callback Response", content = "html")]
-struct ApiCallbackResponse(HtmlBase<&'static str, Error>);
+#[derive(UtoipaResponse)]
+#[response(description = "Callback Response", content = "text/html")]
+#[rustfmt::skip]
+struct ApiCallbackResponse(HtmlBase::<&'static str>);
 
-#[get("/api/callback")]
-#[openapi(description = "Callback method for use in Oauth flow")]
-pub async fn callback(
-    #[data] data: AppState,
+#[utoipa::path(get, path = "/api/callback", responses(ApiCallbackResponse, Error))]
+/// Callback method for use in Oauth flow")]
+async fn callback(
+    data: State<Arc<AppState>>,
     query: Query<CallbackQuery>,
-) -> WarpResult<ApiCallbackResponse> {
-    let cookies = callback_body(
-        query.into_inner(),
-        &data.pool,
-        &data.google_client,
-        &data.config,
-    )
-    .await?;
+) -> AuthResult<ApiCallbackResponse> {
+    let Query(query) = query;
+    let cookies = callback_body(query, &data.pool, &data.google_client, &data.config).await?;
     let body = r#"
         <title>Google Oauth Succeeded</title>
         This window can be closed.
@@ -707,7 +790,7 @@ async fn callback_body(
     pool: &PgPool,
     google_client: &GoogleClient,
     config: &Config,
-) -> HttpResult<UserCookies<'static>> {
+) -> AuthResult<UserCookies<'static>> {
     if let Some(user) = google_client
         .run_callback(&query.code, &query.state, pool)
         .await?
@@ -717,7 +800,7 @@ async fn callback_body(
         let session = Session::new(user.email.as_str());
         session.insert(pool).await?;
 
-        user.session = session.id.into();
+        user.session = session.id;
         user.secret_key = session.secret_key;
 
         let cookies =
@@ -728,33 +811,34 @@ async fn callback_body(
     }
 }
 
-#[derive(Serialize, Schema)]
-#[schema(component = "Status")]
-pub struct StatusOutput {
-    #[schema(description = "Number of Users")]
+#[derive(Serialize, ToSchema)]
+/// Status")]
+struct StatusOutput {
+    /// Number of Users")]
     number_of_users: u64,
-    #[schema(description = "Number of Invitations")]
+    /// Number of Invitations")]
     number_of_invitations: u64,
-    #[schema(description = "Number of Sessions")]
+    /// Number of Sessions")]
     number_of_sessions: u64,
-    #[schema(description = "Number of Data Entries")]
+    /// Number of Data Entries")]
     number_of_entries: u64,
     quota: SesQuotasWrapper,
     stats: EmailStatsWrapper,
 }
 
-#[derive(RwebResponse)]
-#[response(description = "Status output")]
-struct StatusResponse(JsonBase<StatusOutput, Error>);
+#[derive(UtoipaResponse)]
+#[response(description = "Status output", content = "application/json")]
+#[rustfmt::skip]
+struct StatusResponse(JsonBase::<StatusOutput>);
 
-#[get("/api/status")]
-#[openapi(description = "Status endpoint")]
-pub async fn status(#[data] data: AppState) -> WarpResult<StatusResponse> {
+#[utoipa::path(get, path = "/api/status", responses(StatusResponse, Error))]
+/// Status endpoint")]
+async fn status(data: State<Arc<AppState>>) -> AuthResult<StatusResponse> {
     let result = status_body(&data.pool).await?;
     Ok(JsonBase::new(result).into())
 }
 
-async fn status_body(pool: &PgPool) -> HttpResult<StatusOutput> {
+async fn status_body(pool: &PgPool) -> AuthResult<StatusOutput> {
     let sdk_config = aws_config::load_from_env().await;
     let ses = SesInstance::new(&sdk_config);
     let (
@@ -788,16 +872,17 @@ async fn status_body(pool: &PgPool) -> HttpResult<StatusOutput> {
     })
 }
 
-#[derive(RwebResponse)]
-#[response(description = "Login POST", status = "CREATED")]
-struct TestLoginResponse(JsonBase<LoggedUser, Error>);
+#[derive(UtoipaResponse)]
+#[response(description = "Login POST", status = "CREATED", content = "application/json")]
+#[rustfmt::skip]
+struct TestLoginResponse(JsonBase::<LoggedUser>);
 
-#[post("/api/auth")]
-pub async fn test_login(
+#[utoipa::path(post, path = "/api/auth", responses(TestLoginResponse, Error))]
+async fn test_login(
+    data: State<Arc<AppState>>,
     auth_data: Json<AuthRequest>,
-    #[data] data: AppState,
-) -> WarpResult<TestLoginResponse> {
-    let auth_data = auth_data.into_inner();
+) -> AuthResult<TestLoginResponse> {
+    let Json(auth_data) = auth_data;
     let session = Session::new(auth_data.email.as_str());
     let (user, cookies) = test_login_user_jwt(auth_data, session, &data.config).await?;
     let resp = JsonBase::new(user)
@@ -806,8 +891,8 @@ pub async fn test_login(
     Ok(resp.into())
 }
 
-#[get("/api/auth")]
-pub async fn test_get_user(user: LoggedUser) -> WarpResult<ApiAuthGetResponse> {
+#[utoipa::path(get, path = "/api/auth", responses(ApiAuthGetResponse, Error))]
+async fn test_get_user(user: LoggedUser) -> AuthResult<ApiAuthGetResponse> {
     Ok(JsonBase::new(user).into())
 }
 
@@ -815,7 +900,7 @@ async fn test_login_user_jwt(
     auth_data: AuthRequest,
     session: Session,
     config: &Config,
-) -> HttpResult<(LoggedUser, UserCookies<'static>)> {
+) -> AuthResult<(LoggedUser, UserCookies<'static>)> {
     use maplit::hashmap;
 
     if let Ok(s) = std::env::var("TESTENV") {
@@ -824,10 +909,45 @@ async fn test_login_user_jwt(
             let user = AuthorizedUser::new(&email, session.id, &session.secret_key);
             AUTHORIZED_USERS.update_users(hashmap! {user.email.clone() => user.clone()});
             let mut user: LoggedUser = user.into();
-            user.session = session.id.into();
+            user.session = session.id;
             let cookies = user.get_jwt_cookie(&config.domain, config.expiration_seconds, false)?;
             return Ok((user, cookies));
         }
     }
     Err(Error::BadRequest("Username and Password don't match"))
+}
+
+pub fn get_test_routes(app: &AppState) -> OpenApiRouter {
+    let app = Arc::new(app.clone());
+
+    OpenApiRouter::new()
+        .routes(routes!(test_get_user))
+        .routes(routes!(test_login))
+        .with_state(app)
+}
+
+pub fn get_api_scope(app: &AppState) -> OpenApiRouter {
+    let app = Arc::new(app.clone());
+
+    OpenApiRouter::new()
+        .routes(routes!(login, logout, get_user))
+        .routes(routes!(register_email))
+        .routes(routes!(register_user))
+        .routes(routes!(change_password_user))
+        .routes(routes!(auth_url))
+        .routes(routes!(auth_await))
+        .routes(routes!(callback))
+        .routes(routes!(status))
+        .routes(routes!(get_session, post_session, delete_session))
+        .routes(routes!(list_session_obj))
+        .routes(routes!(get_sessions, delete_sessions))
+        .routes(routes!(list_sessions))
+        .routes(routes!(list_session_data))
+        .routes(routes!(index_html))
+        .routes(routes!(main_css))
+        .routes(routes!(main_js))
+        .routes(routes!(register_html))
+        .routes(routes!(login_html))
+        .routes(routes!(change_password))
+        .with_state(app)
 }

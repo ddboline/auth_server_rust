@@ -1,4 +1,4 @@
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use crossbeam::atomic::AtomicCell;
 use log::{debug, error};
 pub use openid::error::{ClientError, Error as OpenidError};
@@ -73,14 +73,14 @@ impl GoogleClient {
                     });
                 }
                 Err(OpenidError::ClientError(ClientError::Reqwest(e))) => {
-                    debug!("Reqwest error {}", e);
+                    debug!("Reqwest error {e}",);
                     sleep(Duration::from_secs(1)).await;
                 }
                 Err(e) => {
                     if delay > 256 {
                         return Err(e.into());
                     }
-                    error!("Encountered error {:?}, sleep and try again", e);
+                    error!("Encountered error {e:?}, sleep and try again",);
                     sleep(Duration::from_secs(delay)).await;
                     delay *= 2;
                 }
@@ -166,7 +166,7 @@ impl GoogleClient {
             notify.notify_waiters();
             return Err(Error::ExpiredToken);
         }
-        debug!("Nonce {:?}", nonce);
+        debug!("Nonce {nonce:?}",);
         let user = if let Some(mock_email) = &self.mock_email {
             Self::mock_user(mock_email.as_str())
         } else {
@@ -251,15 +251,15 @@ mod tests {
     use stack_string::format_sstr;
     use std::time::SystemTime;
     use tokio::{
-        task::{spawn, JoinHandle},
-        time::{sleep, Duration},
+        task::{JoinHandle, spawn},
+        time::{Duration, sleep},
     };
 
-    use auth_server_lib::{config::Config, pgpool::PgPool, AUTH_APP_MUTEX};
+    use auth_server_lib::{AUTH_APP_MUTEX, config::Config, pgpool::PgPool};
 
     use crate::{
         errors::AuthServerExtError as Error,
-        google_openid::{get_token_string, GoogleClient},
+        google_openid::{GoogleClient, get_token_string},
     };
 
     #[tokio::test]

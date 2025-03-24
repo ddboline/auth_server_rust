@@ -1,5 +1,5 @@
 use log::debug;
-use postgres_query::{client::GenericClient, query, FromSqlRow, Query};
+use postgres_query::{FromSqlRow, Query, client::GenericClient, query};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use stack_string::StackString;
@@ -354,7 +354,7 @@ impl Session {
             let session_data = session_obj
                 .set_session_data_conn(conn, &session_key, payload.clone())
                 .await?;
-            debug!("session_data {:?}", session_data);
+            debug!("session_data {session_data:?}",);
             tran.commit().await?;
             Ok(Some(session_data))
         } else {
@@ -388,8 +388,8 @@ mod tests {
     use std::collections::{HashMap, HashSet};
 
     use crate::{
-        config::Config, errors::AuthServerError as Error, get_random_string, pgpool::PgPool,
-        session::Session, user::User, AUTH_APP_MUTEX,
+        AUTH_APP_MUTEX, config::Config, errors::AuthServerError as Error, get_random_string,
+        pgpool::PgPool, session::Session, user::User,
     };
 
     #[tokio::test]

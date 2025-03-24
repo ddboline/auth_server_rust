@@ -1,8 +1,9 @@
 use biscuit::{
+    ClaimsSet, Empty, JWE, JWT,
     jwa::{
         ContentEncryptionAlgorithm, EncryptionOptions, KeyManagementAlgorithm, SignatureAlgorithm,
     },
-    jwe, jws, ClaimsSet, Empty, JWE, JWT,
+    jwe, jws,
 };
 use derive_more::{Display, From, Into};
 use log::debug;
@@ -11,9 +12,10 @@ use std::convert::TryInto;
 use uuid::Uuid;
 
 use crate::{
+    JWT_SECRET, SECRET_KEY,
     claim::{Claim, PrivateClaim},
     errors::{AuthUsersError as Error, TokenError},
-    get_random_nonce, JWT_SECRET, SECRET_KEY,
+    get_random_nonce,
 };
 
 const SG_ALGORITHM: SignatureAlgorithm = SignatureAlgorithm::HS256;
@@ -44,10 +46,11 @@ impl Token {
             ..jws::RegisteredHeader::default()
         };
         let jwt = JWT::new_decoded(header.into(), claimset);
-        debug!("jwt {:?}", jwt);
+        debug!("jwt {jwt:?}",);
 
-        let jws = jwt.into_encoded(&JWT_SECRET.get_jws_secret())?;
-        debug!("jws {:?}", jws);
+        let jws: jws::Compact<ClaimsSet<PrivateClaim>, Empty> =
+            jwt.into_encoded(&JWT_SECRET.get_jws_secret())?;
+        debug!("jws {jws:?}",);
 
         let jwe_header = jwe::RegisteredHeader {
             cek_algorithm: KM_ALGORITHM,
@@ -57,7 +60,7 @@ impl Token {
             ..jwe::RegisteredHeader::default()
         };
         let jwe = JWE::new_decrypted(jwe_header.into(), jws);
-        debug!("jwe {:?}", jwe);
+        debug!("jwe {jwe:?}",);
 
         let options = EncryptionOptions::AES_GCM {
             nonce: get_random_nonce().into(),
@@ -88,14 +91,14 @@ impl Token {
 
 #[cfg(test)]
 mod tests {
-    use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+    use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
     use log::debug;
     use time::OffsetDateTime;
     use uuid::Uuid;
 
     use crate::{
-        errors::AuthUsersError as Error, get_random_key, token::Token, AuthorizedUser, JWT_SECRET,
-        KEY_LENGTH, SECRET_KEY,
+        AuthorizedUser, JWT_SECRET, KEY_LENGTH, SECRET_KEY, errors::AuthUsersError as Error,
+        get_random_key, token::Token,
     };
 
     #[test]

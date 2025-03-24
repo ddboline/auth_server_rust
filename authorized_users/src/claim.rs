@@ -6,8 +6,8 @@ use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::{
-    errors::{AuthUsersError as Error, TokenError},
     AuthorizedUser,
+    errors::{AuthUsersError as Error, TokenError},
 };
 
 // JWT claim
