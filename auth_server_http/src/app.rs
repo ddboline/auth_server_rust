@@ -17,13 +17,9 @@ use authorized_users::{
 };
 
 use crate::{
-    EmailStatsWrapper,
-    SesQuotasWrapper,
-    SessionSummaryWrapper,
     errors::ServiceError as Error,
-    logged_user::LoggedUser,
     // errors::error_response,
-    routes::{get_api_scope, get_test_routes},
+    routes::{get_api_scope, get_test_routes, ApiDoc},
     session_data_cache::SessionDataCache,
 };
 
@@ -31,17 +27,6 @@ async fn update_secrets(config: &Config) -> Result<(), AuthUsersError> {
     update_secret(&config.secret_path).await?;
     update_secret(&config.jwt_secret_path).await
 }
-
-#[derive(OpenApi)]
-#[openapi(
-    info(
-        title = "Rust Autorization Server",
-        description = "Authorization Server written in rust using jwt/jws/jwe and featuring \
-                       integration with Google OAuth",
-    ),
-    components(schemas(SessionSummaryWrapper, SesQuotasWrapper, EmailStatsWrapper, LoggedUser))
-)]
-struct ApiDoc;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -166,7 +151,6 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
 
     let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
         .merge(get_test_routes(&app))
-        .layer(cors)
         .split_for_parts();
 
     let spec_json = serde_json::to_string_pretty(&api)?;
@@ -188,7 +172,8 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
             axum::routing::get(|| async move {
                 (StatusCode::OK, [("content-type", "text/yaml")], spec_yaml)
             }),
-        );
+        )
+        .layer(cors);
 
     let host = &config.host;
     let port = config.port;

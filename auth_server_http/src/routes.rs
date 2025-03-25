@@ -18,6 +18,7 @@ use utoipa_helper::{
     json_response::JsonResponse as JsonBase,
 };
 use uuid::Uuid;
+use utoipa::OpenApi;
 
 use auth_server_ext::{
     google_openid::GoogleClient,
@@ -951,3 +952,14 @@ pub fn get_api_scope(app: &AppState) -> OpenApiRouter {
         .routes(routes!(change_password))
         .with_state(app)
 }
+
+#[derive(OpenApi)]
+#[openapi(
+    info(
+        title = "Rust Autorization Server",
+        description = "Authorization Server written in rust using jwt/jws/jwe and featuring \
+                       integration with Google OAuth",
+    ),
+    components(schemas(SessionSummaryWrapper, SesQuotasWrapper, EmailStatsWrapper, LoggedUser))
+)]
+pub struct ApiDoc;
