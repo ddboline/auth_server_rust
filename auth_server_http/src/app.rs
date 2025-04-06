@@ -1,8 +1,8 @@
 use futures::{TryStreamExt, try_join};
-use http::{Method, StatusCode};
+use http::{Method, StatusCode, header::CONTENT_TYPE};
 use log::debug;
 use stack_string::{StackString, format_sstr};
-use std::{collections::HashMap, convert::TryInto, net::SocketAddr, sync::Arc, time::Duration};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{net::TcpListener, task::spawn, time::interval};
 use tower_http::cors::{Any, CorsLayer};
 use utoipa::OpenApi;
@@ -19,7 +19,7 @@ use authorized_users::{
 use crate::{
     errors::ServiceError as Error,
     // errors::error_response,
-    routes::{get_api_scope, get_test_routes, ApiDoc},
+    routes::{ApiDoc, get_api_scope, get_test_routes},
     session_data_cache::SessionDataCache,
 };
 
@@ -84,7 +84,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
 
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST])
-        .allow_headers(["content-type".try_into()?, "jwt".try_into()?])
+        .allow_headers([CONTENT_TYPE])
         .allow_origin(Any);
 
     let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
@@ -101,7 +101,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
             axum::routing::get(|| async move {
                 (
                     StatusCode::OK,
-                    [("content-type", "application/json")],
+                    [(CONTENT_TYPE, mime::APPLICATION_JSON.essence_str())],
                     spec_json,
                 )
             }),
@@ -109,7 +109,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
         .route(
             "/api/openapi/yaml",
             axum::routing::get(|| async move {
-                (StatusCode::OK, [("content-type", "text/yaml")], spec_yaml)
+                (StatusCode::OK, [(CONTENT_TYPE, "text/yaml")], spec_yaml)
             }),
         );
 
@@ -146,7 +146,7 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
 
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST])
-        .allow_headers(["content-type".try_into()?, "jwt".try_into()?])
+        .allow_headers([CONTENT_TYPE])
         .allow_origin(Any);
 
     let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
@@ -162,7 +162,7 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
             axum::routing::get(|| async move {
                 (
                     StatusCode::OK,
-                    [("content-type", "application/json")],
+                    [(CONTENT_TYPE, mime::APPLICATION_JSON.essence_str())],
                     spec_json,
                 )
             }),
@@ -170,7 +170,7 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
         .route(
             "/api/openapi/yaml",
             axum::routing::get(|| async move {
-                (StatusCode::OK, [("content-type", "text/yaml")], spec_yaml)
+                (StatusCode::OK, [(CONTENT_TYPE, "text/yaml")], spec_yaml)
             }),
         )
         .layer(cors);
@@ -224,15 +224,13 @@ mod tests {
     use log::debug;
     use maplit::hashmap;
     use stack_string::format_sstr;
-    use std::{collections::HashMap, env, sync::Arc};
+    use std::{collections::HashMap, env};
     use tokio::{
         task::spawn,
         time::{Duration, sleep},
     };
     use url::Url;
-    use utoipa::OpenApi;
 
-    use auth_server_ext::{google_openid::GoogleClient, ses_client::SesInstance};
     use auth_server_lib::{
         AUTH_APP_MUTEX, config::Config, errors::AuthServerError, get_random_string,
         invitation::Invitation, pgpool::PgPool, session::Session, user::User,
@@ -240,16 +238,9 @@ mod tests {
     use authorized_users::{AuthorizedUser, JWT_SECRET, KEY_LENGTH, SECRET_KEY, get_random_key};
 
     use crate::{
-        app::{
-            ApiDoc,
-            AppState,
-            // get_api_scope,
-            run_app,
-            run_test_app,
-        },
+        app::{run_app, run_test_app},
         logged_user::LoggedUser,
-        routes::{PasswordChangeOutput, get_api_scope},
-        session_data_cache::SessionDataCache,
+        routes::PasswordChangeOutput,
     };
 
     #[test]
@@ -257,6 +248,10 @@ mod tests {
         let rs = get_random_string(32);
         debug!("{}", rs);
         assert_eq!(rs.len(), 32);
+
+        let x = mime::APPLICATION_JSON.essence_str();
+        println!("{x}");
+        assert!(false);
         Ok(())
     }
 
@@ -339,6 +334,17 @@ mod tests {
             .text()
             .await?;
         debug!("{result}");
+
+        let url = format_sstr!("http://localhost:{test_port}/api/openapi/yaml");
+        let spec_yaml = client
+            .get(url.as_str())
+            .send()
+            .await?
+            .error_for_status()?
+            .text()
+            .await?;
+
+        tokio::fs::write("../scripts/openapi.yaml", &spec_yaml).await?;
 
         unsafe {
             std::env::remove_var("TESTENV");
@@ -500,34 +506,6 @@ mod tests {
         user.delete(&pool).await?;
         assert_eq!(User::get_by_email(&email, &pool).await?, None);
         app_handle.abort();
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_api_spec() -> Result<(), Error> {
-        let config = Config::init_config()?;
-        let google_client = GoogleClient::new(&config).await?;
-        let sdk_config = aws_config::load_from_env().await;
-        let ses = SesInstance::new(&sdk_config);
-        let pool = PgPool::new(&config.database_url)?;
-
-        let app = AppState {
-            config: config.clone(),
-            pool,
-            google_client,
-            ses,
-            session_cache: SessionDataCache::new(),
-        };
-
-        let app = Arc::new(app);
-
-        let (_, spec) = utoipa_axum::router::OpenApiRouter::with_openapi(ApiDoc::openapi())
-            .merge(get_api_scope(&app))
-            .split_for_parts();
-        let spec_yaml = serde_yml::to_string(&spec).map_err(Into::<AuthServerError>::into)?;
-
-        std::fs::write("../scripts/openapi.yaml", &spec_yaml)?;
-
         Ok(())
     }
 }

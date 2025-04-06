@@ -1,11 +1,11 @@
-use dioxus::prelude::{
-    Element, GlobalSignal, IntoDynNode, Props, Readable, VirtualDom, component, dioxus_elements,
-    rsx,
-};
+use dioxus::prelude::{Element, IntoDynNode, Props, VirtualDom, component, dioxus_elements, rsx};
 use stack_string::{StackString, format_sstr};
 use std::fmt::Error;
 use time::macros::format_description;
 use uuid::Uuid;
+
+#[cfg(debug_assertions)]
+use dioxus::prelude::{GlobalSignal, Readable};
 
 use auth_server_lib::{session::SessionSummary, session_data::SessionData};
 

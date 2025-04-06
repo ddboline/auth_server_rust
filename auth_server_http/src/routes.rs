@@ -11,14 +11,13 @@ use stack_string::{StackString, format_sstr};
 use std::{str, sync::Arc, time::Duration};
 use time::OffsetDateTime;
 use tokio::time::{sleep, timeout};
-use utoipa::{PartialSchema, ToSchema};
+use utoipa::{OpenApi, PartialSchema, ToSchema};
 use utoipa_axum::{router::OpenApiRouter, routes};
 use utoipa_helper::{
     UtoipaResponse, html_response::HtmlResponse as HtmlBase,
     json_response::JsonResponse as JsonBase,
 };
 use uuid::Uuid;
-use utoipa::OpenApi;
 
 use auth_server_ext::{
     google_openid::GoogleClient,
