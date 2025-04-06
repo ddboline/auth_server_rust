@@ -248,10 +248,6 @@ mod tests {
         let rs = get_random_string(32);
         debug!("{}", rs);
         assert_eq!(rs.len(), 32);
-
-        let x = mime::APPLICATION_JSON.essence_str();
-        println!("{x}");
-        assert!(false);
         Ok(())
     }
 
