@@ -1,5 +1,5 @@
+use axum::http::{Method, StatusCode, header::CONTENT_TYPE};
 use futures::{TryStreamExt, try_join};
-use http::{Method, StatusCode, header::CONTENT_TYPE};
 use log::debug;
 use stack_string::{StackString, format_sstr};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
@@ -220,7 +220,7 @@ pub async fn fill_auth_from_db(pool: &PgPool, expiration_seconds: u32) -> Result
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
-    use http::StatusCode;
+    use axum::http::StatusCode;
     use log::debug;
     use maplit::hashmap;
     use stack_string::format_sstr;

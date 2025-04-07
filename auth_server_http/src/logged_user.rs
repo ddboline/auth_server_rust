@@ -1,9 +1,11 @@
 use auth_server_lib::pgpool::PgPool;
-use axum::extract::{FromRequestParts, OptionalFromRequestParts};
+use axum::{
+    extract::{FromRequestParts, OptionalFromRequestParts},
+    http::{HeaderMap, header::SET_COOKIE, request::Parts},
+};
 use axum_extra::extract::CookieJar;
 use cookie::{Cookie, time::Duration};
 use derive_more::{Deref, From, Into};
-use http::{HeaderMap, header::SET_COOKIE, request::Parts};
 use log::debug;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
