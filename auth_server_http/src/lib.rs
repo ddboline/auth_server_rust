@@ -82,6 +82,7 @@ struct _SessionSummaryWrapper {
     /// Session ID
     session_id: Uuid,
     /// Email Address
+    #[schema(inline)]
     email_address: StackString,
     /// Last Accessed
     last_accessed: OffsetDateTime,

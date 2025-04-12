@@ -52,7 +52,8 @@ type AuthResult<T> = Result<T, Error>;
 
 #[derive(Deserialize, ToSchema, IntoParams)]
 struct FinalUrlData {
-    #[schema(example = r#""https://example.com""#)]
+    #[param(example = r#""https://example.com""#, inline)]
+    #[schema(example = r#""https://example.com""#, inline)]
     /// Url to redirect to after completion of authorization
     final_url: Option<StackString>,
 }
@@ -69,6 +70,7 @@ struct AuthIndexResponse(HtmlBase::<StackString>);
     responses(AuthIndexResponse, Error)
 )]
 /// Main Page
+// Main Page
 async fn index_html(
     user: Option<LoggedUser>,
     data: State<Arc<AppState>>,
@@ -106,7 +108,11 @@ async fn main_css() -> CssResponse {
 
 #[derive(Deserialize, ToSchema, IntoParams)]
 struct RegisterQuery {
+    #[schema(inline)]
+    #[param(inline)]
     id: Uuid,
+    #[schema(inline)]
+    #[param(inline)]
     email: StackString,
 }
 
@@ -196,6 +202,7 @@ struct ApiAuthResponse(JsonBase::<LoggedUser>);
 
 #[utoipa::path(post, path = "/api/auth", request_body = AuthRequest, responses(ApiAuthResponse, Error))]
 /// Login with username and password
+// Login with username and password
 async fn login(
     data: State<Arc<AppState>>,
     auth_data: Json<AuthRequest>,
@@ -219,6 +226,7 @@ struct ApiAuthDeleteResponse(HtmlBase::<StackString>);
 
 #[utoipa::path(delete, path = "/api/auth", responses(ApiAuthDeleteResponse, Error))]
 /// Log out
+// Log out
 async fn logout(user: LoggedUser, data: State<Arc<AppState>>) -> AuthResult<ApiAuthDeleteResponse> {
     let session_id = user.session;
     let _ = data.session_cache.remove_session(session_id);
@@ -241,7 +249,8 @@ async fn logout(user: LoggedUser, data: State<Arc<AppState>>) -> AuthResult<ApiA
 struct ApiAuthGetResponse(JsonBase::<LoggedUser>);
 
 #[utoipa::path(get, path = "/api/auth", responses(ApiAuthGetResponse, Error))]
-/// Get current username if logged in
+/// Get current user if logged in
+// Get current user
 async fn get_user(user: LoggedUser, data: State<Arc<AppState>>) -> AuthResult<ApiAuthGetResponse> {
     let session_id = user.session;
     if !data.session_cache.has_session(session_id) {
@@ -395,8 +404,10 @@ async fn delete_session(
 /// SessionData
 struct SessionDataObj {
     /// Session ID
+    #[schema(inline)]
     session_id: Uuid,
     /// Session Key
+    #[schema(inline)]
     session_key: StackString,
     /// Session Data
     session_value: Value,
@@ -518,8 +529,12 @@ struct DeleteSessionsResponse(HtmlBase::<&'static str>);
 #[derive(Deserialize, ToSchema, Debug, IntoParams)]
 struct SessionQuery {
     /// Session Key
+    #[param(inline)]
+    #[schema(inline)]
     session_key: Option<StackString>,
     /// Session
+    #[param(inline)]
+    #[schema(inline)]
     session: Option<Uuid>,
 }
 
@@ -560,6 +575,7 @@ async fn delete_sessions(
 /// CreateInvitation
 struct CreateInvitation {
     /// Email to send invitation to
+    #[schema(inline)]
     email: StackString,
 }
 
@@ -567,8 +583,10 @@ struct CreateInvitation {
 /// Invitation
 struct InvitationOutput {
     /// Invitation ID
+    #[schema(inline)]
     id: StackString,
     /// Email Address
+    #[schema(inline)]
     email: StackString,
     /// Expiration Datetime
     #[serde(with = "iso8601")]
@@ -627,6 +645,7 @@ async fn register_email(
 /// PasswordData
 struct PasswordData {
     /// Password
+    #[schema(inline)]
     password: StackString,
 }
 
@@ -679,6 +698,7 @@ async fn register_user(
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
 /// PasswordChange
 pub struct PasswordChangeOutput {
+    #[schema(inline)]
     pub message: StackString,
 }
 
@@ -693,7 +713,7 @@ struct ApiPasswordChangeResponse(JsonBase::<PasswordChangeOutput>);
     request_body = PasswordData,
     responses(ApiPasswordChangeResponse, Error)
 )]
-/// Change password for currently logged in user")]
+/// Change password for currently logged in user
 async fn change_password_user(
     user: LoggedUser,
     data: State<Arc<AppState>>,
@@ -716,11 +736,13 @@ async fn change_password_user(
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
-/// AuthUrl")]
+/// AuthUrl
 struct AuthUrlOutput {
-    /// Auth URL")]
+    /// Auth URL
+    #[schema(inline)]
     auth_url: StackString,
-    /// CSRF State")]
+    /// CSRF State
+    #[schema(inline)]
     csrf_state: StackString,
 }
 
@@ -730,7 +752,7 @@ struct AuthUrlOutput {
 struct ApiAuthUrlResponse(JsonBase::<AuthUrlOutput>);
 
 #[utoipa::path(post, path = "/api/auth_url", request_body = FinalUrlData, responses(ApiAuthUrlResponse, Error))]
-/// Get Oauth Url")]
+/// Get Oauth Url
 async fn auth_url(
     data: State<Arc<AppState>>,
     query: Json<FinalUrlData>,
@@ -751,7 +773,8 @@ async fn auth_url(
 
 #[derive(ToSchema, Serialize, Deserialize, IntoParams)]
 struct AuthAwait {
-    /// CSRF State")]
+    /// CSRF State
+    #[param(inline)]
     state: StackString,
 }
 
@@ -766,7 +789,7 @@ struct ApiAwaitResponse(HtmlBase::<StackString>);
     params(AuthAwait),
     responses(ApiAwaitResponse, Error)
 )]
-/// Await completion of auth")]
+/// Await completion of auth
 async fn auth_await(
     data: State<Arc<AppState>>,
     query: Query<AuthAwait>,
@@ -792,9 +815,11 @@ async fn auth_await(
 
 #[derive(Deserialize, ToSchema, IntoParams)]
 struct CallbackQuery {
-    /// Authorization Code")]
+    /// Authorization Code
+    #[param(inline)]
     code: StackString,
-    /// CSRF State")]
+    /// CSRF State
+    #[param(inline)]
     state: StackString,
 }
 
@@ -809,7 +834,7 @@ struct ApiCallbackResponse(HtmlBase::<&'static str>);
     params(CallbackQuery),
     responses(ApiCallbackResponse, Error)
 )]
-/// Callback method for use in Oauth flow")]
+/// Callback method for use in Oauth flow
 async fn callback(
     data: State<Arc<AppState>>,
     query: Query<CallbackQuery>,
@@ -854,15 +879,15 @@ async fn callback_body(
 }
 
 #[derive(Serialize, ToSchema)]
-/// Status")]
+/// Status
 struct StatusOutput {
-    /// Number of Users")]
+    /// Number of Users
     number_of_users: u64,
-    /// Number of Invitations")]
+    /// Number of Invitations
     number_of_invitations: u64,
-    /// Number of Sessions")]
+    /// Number of Sessions
     number_of_sessions: u64,
-    /// Number of Data Entries")]
+    /// Number of Data Entries
     number_of_entries: u64,
     quota: SesQuotasWrapper,
     stats: EmailStatsWrapper,
@@ -874,7 +899,7 @@ struct StatusOutput {
 struct StatusResponse(JsonBase::<StatusOutput>);
 
 #[utoipa::path(get, path = "/api/status", responses(StatusResponse, Error))]
-/// Status endpoint")]
+/// Status endpoint
 async fn status(data: State<Arc<AppState>>) -> AuthResult<StatusResponse> {
     let result = status_body(&data.pool).await?;
     Ok(JsonBase::new(result).into())

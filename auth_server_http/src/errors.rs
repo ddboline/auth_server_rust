@@ -88,6 +88,7 @@ impl From<OpenidError> for ServiceError {
 
 #[derive(Serialize, ToSchema)]
 struct ErrorMessage {
+    #[schema(inline)]
     message: StackString,
 }
 

@@ -8,11 +8,11 @@ info:
   license:
     name: MIT
     identifier: MIT
-  version: '0.13.1'
+  version: '0.13.2'
 paths:
   /api/auth:
     get:
-      summary: Get current username if logged in
+      summary: Get current user if logged in
       operationId: get_user
       responses:
         '200':
@@ -33,10 +33,12 @@ paths:
                     format: date-time
                     description: User Created At
                   email:
-                    $ref: '#/components/schemas/str'
+                    oneOf:
+                    - type: string
                     description: Email Address
                   secret_key:
-                    $ref: '#/components/schemas/str'
+                    oneOf:
+                    - type: string
                     description: Secret Key
                   session:
                     type: string
@@ -52,7 +54,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -69,7 +71,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
     post:
       summary: Login with username and password
       operationId: login
@@ -98,10 +100,12 @@ paths:
                     format: date-time
                     description: User Created At
                   email:
-                    $ref: '#/components/schemas/str'
+                    oneOf:
+                    - type: string
                     description: Email Address
                   secret_key:
-                    $ref: '#/components/schemas/str'
+                    oneOf:
+                    - type: string
                     description: Secret Key
                   session:
                     type: string
@@ -117,7 +121,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -134,7 +138,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
     delete:
       summary: Log out
       operationId: logout
@@ -155,7 +159,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -172,10 +176,10 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/auth_url:
     post:
-      summary: Get Oauth Url")]
+      summary: Get Oauth Url
       operationId: auth_url
       requestBody:
         content:
@@ -190,17 +194,19 @@ paths:
             application/json:
               schema:
                 type: object
-                description: AuthUrl")]
+                description: AuthUrl
                 required:
                 - auth_url
                 - csrf_state
                 properties:
                   auth_url:
-                    $ref: '#/components/schemas/str'
-                    description: Auth URL")]
+                    oneOf:
+                    - type: string
+                    description: Auth URL
                   csrf_state:
-                    $ref: '#/components/schemas/str'
-                    description: CSRF State")]
+                    oneOf:
+                    - type: string
+                    description: CSRF State
         '400':
           description: Bad Request
           content:
@@ -211,7 +217,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -228,18 +234,18 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/await:
     get:
-      summary: Await completion of auth")]
+      summary: Await completion of auth
       operationId: auth_await
       parameters:
       - name: state
         in: query
-        description: CSRF State")]
+        description: CSRF State
         required: true
         schema:
-          $ref: '#/components/schemas/str'
+          type: string
       responses:
         '200':
           description: Finished
@@ -257,7 +263,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -274,24 +280,24 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/callback:
     get:
-      summary: Callback method for use in Oauth flow")]
+      summary: Callback method for use in Oauth flow
       operationId: callback
       parameters:
       - name: code
         in: query
-        description: Authorization Code")]
+        description: Authorization Code
         required: true
         schema:
-          $ref: '#/components/schemas/str'
+          type: string
       - name: state
         in: query
-        description: CSRF State")]
+        description: CSRF State
         required: true
         schema:
-          $ref: '#/components/schemas/str'
+          type: string
       responses:
         '200':
           description: Callback Response
@@ -309,7 +315,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -326,7 +332,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/invitation:
     post:
       summary: Send invitation to specified email
@@ -351,14 +357,16 @@ paths:
                 - expires_at
                 properties:
                   email:
-                    $ref: '#/components/schemas/str'
+                    oneOf:
+                    - type: string
                     description: Email Address
                   expires_at:
                     type: string
                     format: date-time
                     description: Expiration Datetime
                   id:
-                    $ref: '#/components/schemas/str'
+                    oneOf:
+                    - type: string
                     description: Invitation ID
         '400':
           description: Bad Request
@@ -370,7 +378,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -387,7 +395,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/list-session-data:
     get:
       summary: List Session Data
@@ -409,7 +417,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -426,7 +434,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/list-sessions:
     get:
       summary: List Sessions
@@ -448,7 +456,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -465,10 +473,10 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/password_change:
     post:
-      summary: Change password for currently logged in user")]
+      summary: Change password for currently logged in user
       operationId: change_password_user
       requestBody:
         content:
@@ -488,7 +496,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '400':
           description: Bad Request
           content:
@@ -499,7 +507,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -516,7 +524,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/register/{invitation_id}:
     post:
       summary: Set password using link from email
@@ -554,10 +562,12 @@ paths:
                     format: date-time
                     description: User Created At
                   email:
-                    $ref: '#/components/schemas/str'
+                    oneOf:
+                    - type: string
                     description: Email Address
                   secret_key:
-                    $ref: '#/components/schemas/str'
+                    oneOf:
+                    - type: string
                     description: Secret Key
                   session:
                     type: string
@@ -573,7 +583,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -590,7 +600,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/session-data:
     get:
       summary: Session Data
@@ -620,7 +630,8 @@ paths:
                       format: uuid
                       description: Session ID
                     session_key:
-                      $ref: '#/components/schemas/str'
+                      oneOf:
+                      - type: string
                       description: Session Key
                     session_value:
                       description: Session Data
@@ -634,7 +645,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -651,7 +662,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/session/{session_key}:
     get:
       summary: Get Session
@@ -692,7 +703,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -709,7 +720,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
     post:
       summary: Set session value
       operationId: post_session
@@ -741,7 +752,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -758,7 +769,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
     delete:
       summary: Delete session value
       operationId: delete_session
@@ -785,7 +796,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -802,7 +813,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/sessions:
     get:
       summary: Open Sessions
@@ -826,7 +837,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -843,7 +854,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
     delete:
       summary: Delete Sessions
       operationId: delete_sessions
@@ -855,7 +866,7 @@ paths:
         schema:
           oneOf:
           - type: 'null'
-          - $ref: '#/components/schemas/str'
+          - type: string
       - name: session
         in: query
         description: Session
@@ -882,7 +893,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -899,10 +910,10 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/status:
     get:
-      summary: Status endpoint")]
+      summary: Status endpoint
       operationId: status
       responses:
         '200':
@@ -911,7 +922,7 @@ paths:
             application/json:
               schema:
                 type: object
-                description: Status")]
+                description: Status
                 required:
                 - number_of_users
                 - number_of_invitations
@@ -923,22 +934,22 @@ paths:
                   number_of_entries:
                     type: integer
                     format: int64
-                    description: Number of Data Entries")]
+                    description: Number of Data Entries
                     minimum: 0
                   number_of_invitations:
                     type: integer
                     format: int64
-                    description: Number of Invitations")]
+                    description: Number of Invitations
                     minimum: 0
                   number_of_sessions:
                     type: integer
                     format: int64
-                    description: Number of Sessions")]
+                    description: Number of Sessions
                     minimum: 0
                   number_of_users:
                     type: integer
                     format: int64
-                    description: Number of Users")]
+                    description: Number of Users
                     minimum: 0
                   quota:
                     $ref: '#/components/schemas/SesQuotas'
@@ -954,7 +965,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -971,7 +982,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /auth/change_password.html:
     get:
       summary: Password Change Page
@@ -993,7 +1004,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -1010,7 +1021,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /auth/index.html:
     get:
       summary: Main Page
@@ -1023,7 +1034,8 @@ paths:
         schema:
           oneOf:
           - type: 'null'
-          - $ref: '#/components/schemas/str'
+          - type: string
+        example: '"https://example.com"'
       responses:
         '200':
           description: Main Page
@@ -1041,7 +1053,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -1058,7 +1070,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /auth/login.html:
     get:
       summary: Login Page
@@ -1071,7 +1083,8 @@ paths:
         schema:
           oneOf:
           - type: 'null'
-          - $ref: '#/components/schemas/str'
+          - type: string
+        example: '"https://example.com"'
       responses:
         '200':
           description: Login Page
@@ -1089,7 +1102,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -1106,7 +1119,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /auth/main.css:
     get:
       operationId: main_css
@@ -1142,7 +1155,7 @@ paths:
         in: query
         required: true
         schema:
-          $ref: '#/components/schemas/str'
+          type: string
       responses:
         '200':
           description: Registration
@@ -1160,7 +1173,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -1177,7 +1190,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
 components:
   schemas:
     AuthRequest:
@@ -1187,10 +1200,12 @@ components:
       - password
       properties:
         email:
-          $ref: '#/components/schemas/str'
+          oneOf:
+          - type: string
           description: Email Address
         password:
-          $ref: '#/components/schemas/str'
+          oneOf:
+          - type: string
           description: Password
     CreateInvitation:
       type: object
@@ -1199,7 +1214,8 @@ components:
       - email
       properties:
         email:
-          $ref: '#/components/schemas/str'
+          oneOf:
+          - type: string
           description: Email to send invitation to
     EmailStats:
       type: object
@@ -1243,8 +1259,8 @@ components:
         final_url:
           oneOf:
           - type: 'null'
-          - $ref: '#/components/schemas/str'
-            description: Url to redirect to after completion of authorization
+          - type: string
+          description: Url to redirect to after completion of authorization
     LoggedUser:
       type: object
       description: LoggedUser
@@ -1259,10 +1275,12 @@ components:
           format: date-time
           description: User Created At
         email:
-          $ref: '#/components/schemas/str'
+          oneOf:
+          - type: string
           description: Email Address
         secret_key:
-          $ref: '#/components/schemas/str'
+          oneOf:
+          - type: string
           description: Secret Key
         session:
           type: string
@@ -1275,7 +1293,8 @@ components:
       - password
       properties:
         password:
-          $ref: '#/components/schemas/str'
+          oneOf:
+          - type: string
           description: Password
     SesQuotas:
       type: object
@@ -1312,7 +1331,8 @@ components:
           format: date-time
           description: Create At
         email_address:
-          $ref: '#/components/schemas/str'
+          oneOf:
+          - type: string
           description: Email Address
         last_accessed:
           type: string
@@ -1326,5 +1346,3 @@ components:
           type: string
           format: uuid
           description: Session ID
-    str:
-      type: string

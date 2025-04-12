@@ -28,13 +28,16 @@ use crate::errors::ServiceError as Error;
 /// LoggedUser
 pub struct LoggedUser {
     /// Email Address
-    #[schema(example = r#""user@example.com""#)]
+    #[schema(example = r#""user@example.com""#, inline)]
     pub email: StackString,
     /// Session ID
+    #[schema(inline)]
     pub session: Uuid,
     /// Secret Key
+    #[schema(inline)]
     pub secret_key: StackString,
     /// User Created At
+    #[schema(inline)]
     pub created_at: OffsetDateTime,
 }
 

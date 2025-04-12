@@ -16,9 +16,10 @@ use crate::{
 // #[schema(component = "AuthRequest")]
 pub struct AuthRequest {
     /// Email Address
-    #[schema(example = r#""test@example.com""#)]
+    #[schema(example = r#""test@example.com""#, inline)]
     pub email: StackString,
     /// Password
+    #[schema(inline)]
     pub password: StackString,
 }
 
