@@ -11,7 +11,7 @@ use stack_string::{StackString, format_sstr};
 use std::{str, sync::Arc, time::Duration};
 use time::OffsetDateTime;
 use tokio::time::{sleep, timeout};
-use utoipa::{OpenApi, PartialSchema, ToSchema};
+use utoipa::{IntoParams, OpenApi, PartialSchema, ToSchema};
 use utoipa_axum::{router::OpenApiRouter, routes};
 use utoipa_helper::{
     UtoipaResponse, html_response::HtmlResponse as HtmlBase,
@@ -50,7 +50,7 @@ use crate::{
 
 type AuthResult<T> = Result<T, Error>;
 
-#[derive(Deserialize, ToSchema)]
+#[derive(Deserialize, ToSchema, IntoParams)]
 struct FinalUrlData {
     #[schema(example = r#""https://example.com""#)]
     /// Url to redirect to after completion of authorization
@@ -62,7 +62,12 @@ struct FinalUrlData {
 #[rustfmt::skip]
 struct AuthIndexResponse(HtmlBase::<StackString>);
 
-#[utoipa::path(get, path = "/auth/index.html", responses(AuthIndexResponse, Error))]
+#[utoipa::path(
+    get,
+    path = "/auth/index.html",
+    params(FinalUrlData),
+    responses(AuthIndexResponse, Error)
+)]
 /// Main Page
 async fn index_html(
     user: Option<LoggedUser>,
@@ -99,7 +104,7 @@ async fn main_css() -> CssResponse {
     HtmlBase::new(include_str!("../../templates/main.css")).into()
 }
 
-#[derive(Deserialize, ToSchema)]
+#[derive(Deserialize, ToSchema, IntoParams)]
 struct RegisterQuery {
     id: Uuid,
     email: StackString,
@@ -110,7 +115,12 @@ struct RegisterQuery {
 #[rustfmt::skip]
 struct RegisterResponse(HtmlBase::<StackString>);
 
-#[utoipa::path(get, path = "/auth/register.html", responses(RegisterResponse, Error))]
+#[utoipa::path(
+    get,
+    path = "/auth/register.html",
+    params(RegisterQuery),
+    responses(RegisterResponse, Error)
+)]
 /// Registration Page
 async fn register_html(
     query: Query<RegisterQuery>,
@@ -147,7 +157,12 @@ async fn main_js() -> JsResponse {
 #[rustfmt::skip]
 struct AuthLoginResponse(HtmlBase::<StackString>);
 
-#[utoipa::path(get, path = "/auth/login.html", responses(AuthLoginResponse, Error))]
+#[utoipa::path(
+    get,
+    path = "/auth/login.html",
+    params(FinalUrlData),
+    responses(AuthLoginResponse, Error)
+)]
 /// Login Page
 async fn login_html(
     user: Option<LoggedUser>,
@@ -179,7 +194,7 @@ async fn change_password(user: LoggedUser) -> AuthResult<PwChangeResponse> {
 #[rustfmt::skip]
 struct ApiAuthResponse(JsonBase::<LoggedUser>);
 
-#[utoipa::path(post, path = "/api/auth", responses(ApiAuthResponse, Error))]
+#[utoipa::path(post, path = "/api/auth", request_body = AuthRequest, responses(ApiAuthResponse, Error))]
 /// Login with username and password
 async fn login(
     data: State<Arc<AppState>>,
@@ -250,6 +265,11 @@ struct GetSessionResponse(JsonBase::<Value>);
 #[utoipa::path(
     get,
     path = "/api/session/{session_key}",
+    params(
+        ("session_key" = inline(StackString), description = "Session Key"),
+        ("session" = inline(Uuid), Header, description = "Session Header"),
+        ("secret-key" = inline(StackString), Header, description = "Secret Key Header"),
+    ),
     responses(GetSessionResponse, Error)
 )]
 /// Get Session
@@ -290,9 +310,15 @@ async fn get_session(
 #[rustfmt::skip]
 struct PostSessionResponse(JsonBase::<Value>);
 
+#[allow(dead_code)]
+#[derive(ToSchema)]
+struct SessionPayload(Value);
+
 #[utoipa::path(
     post,
     path = "/api/session/{session_key}",
+    request_body = inline(SessionPayload),
+    params(("session_key" = inline(StackString), description = "Session Key")),
     responses(PostSessionResponse, Error)
 )]
 /// Set session value
@@ -341,6 +367,7 @@ struct DeleteSessionResponse(JsonBase::<DeleteSesssionInner>);
 #[utoipa::path(
     delete,
     path = "/api/session/{session_key}",
+    params(("session_key" = inline(StackString), description = "Session Key")),
     responses(DeleteSessionResponse, Error)
 )]
 /// Delete session value
@@ -488,7 +515,7 @@ async fn get_sessions(_: LoggedUser, data: State<Arc<AppState>>) -> AuthResult<S
 #[rustfmt::skip]
 struct DeleteSessionsResponse(HtmlBase::<&'static str>);
 
-#[derive(Deserialize, ToSchema, Debug)]
+#[derive(Deserialize, ToSchema, Debug, IntoParams)]
 struct SessionQuery {
     /// Session Key
     session_key: Option<StackString>,
@@ -499,6 +526,7 @@ struct SessionQuery {
 #[utoipa::path(
     delete,
     path = "/api/sessions",
+    params(SessionQuery),
     responses(DeleteSessionsResponse, Error)
 )]
 /// Delete Sessions
@@ -566,6 +594,7 @@ struct ApiInvitationResponse(JsonBase::<InvitationOutput>);
 #[utoipa::path(
     post,
     path = "/api/invitation",
+    request_body = CreateInvitation,
     responses(ApiInvitationResponse, Error)
 )]
 /// Send invitation to specified email
@@ -609,6 +638,8 @@ struct ApiRegisterResponse(JsonBase::<LoggedUser>);
 #[utoipa::path(
     post,
     path = "/api/register/{invitation_id}",
+    request_body = PasswordData,
+    params(("invitation_id" = inline(Uuid), description = "Invitation ID")),
     responses(ApiRegisterResponse, Error)
 )]
 /// Set password using link from email
@@ -659,6 +690,7 @@ struct ApiPasswordChangeResponse(JsonBase::<PasswordChangeOutput>);
 #[utoipa::path(
     post,
     path = "/api/password_change",
+    request_body = PasswordData,
     responses(ApiPasswordChangeResponse, Error)
 )]
 /// Change password for currently logged in user")]
@@ -697,7 +729,7 @@ struct AuthUrlOutput {
 #[rustfmt::skip]
 struct ApiAuthUrlResponse(JsonBase::<AuthUrlOutput>);
 
-#[utoipa::path(post, path = "/api/auth_url", responses(ApiAuthUrlResponse, Error))]
+#[utoipa::path(post, path = "/api/auth_url", request_body = FinalUrlData, responses(ApiAuthUrlResponse, Error))]
 /// Get Oauth Url")]
 async fn auth_url(
     data: State<Arc<AppState>>,
@@ -717,7 +749,7 @@ async fn auth_url(
     Ok(resp.into())
 }
 
-#[derive(ToSchema, Serialize, Deserialize)]
+#[derive(ToSchema, Serialize, Deserialize, IntoParams)]
 struct AuthAwait {
     /// CSRF State")]
     state: StackString,
@@ -728,7 +760,12 @@ struct AuthAwait {
 #[rustfmt::skip]
 struct ApiAwaitResponse(HtmlBase::<StackString>);
 
-#[utoipa::path(get, path = "/api/await", responses(ApiAwaitResponse, Error))]
+#[utoipa::path(
+    get,
+    path = "/api/await",
+    params(AuthAwait),
+    responses(ApiAwaitResponse, Error)
+)]
 /// Await completion of auth")]
 async fn auth_await(
     data: State<Arc<AppState>>,
@@ -753,7 +790,7 @@ async fn auth_await(
     Ok(HtmlBase::new(final_url).into())
 }
 
-#[derive(Deserialize, ToSchema)]
+#[derive(Deserialize, ToSchema, IntoParams)]
 struct CallbackQuery {
     /// Authorization Code")]
     code: StackString,
@@ -766,7 +803,12 @@ struct CallbackQuery {
 #[rustfmt::skip]
 struct ApiCallbackResponse(HtmlBase::<&'static str>);
 
-#[utoipa::path(get, path = "/api/callback", responses(ApiCallbackResponse, Error))]
+#[utoipa::path(
+    get,
+    path = "/api/callback",
+    params(CallbackQuery),
+    responses(ApiCallbackResponse, Error)
+)]
 /// Callback method for use in Oauth flow")]
 async fn callback(
     data: State<Arc<AppState>>,
@@ -877,7 +919,7 @@ async fn status_body(pool: &PgPool) -> AuthResult<StatusOutput> {
 #[rustfmt::skip]
 struct TestLoginResponse(JsonBase::<LoggedUser>);
 
-#[utoipa::path(post, path = "/api/auth", responses(TestLoginResponse, Error))]
+#[utoipa::path(post, path = "/api/auth", request_body = AuthRequest, responses(TestLoginResponse, Error))]
 async fn test_login(
     data: State<Arc<AppState>>,
     auth_data: Json<AuthRequest>,

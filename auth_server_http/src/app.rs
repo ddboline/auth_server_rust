@@ -321,27 +321,6 @@ mod tests {
         debug!("I am: {:?}", resp);
         assert_eq!(resp.email.as_str(), email.as_str());
 
-        let url = format_sstr!("http://localhost:{test_port}/api/openapi/json");
-        let result = client
-            .get(url.as_str())
-            .send()
-            .await?
-            .error_for_status()?
-            .text()
-            .await?;
-        debug!("{result}");
-
-        let url = format_sstr!("http://localhost:{test_port}/api/openapi/yaml");
-        let spec_yaml = client
-            .get(url.as_str())
-            .send()
-            .await?
-            .error_for_status()?
-            .text()
-            .await?;
-
-        tokio::fs::write("../scripts/openapi.yaml", &spec_yaml).await?;
-
         unsafe {
             std::env::remove_var("TESTENV");
         }
@@ -501,6 +480,28 @@ mod tests {
 
         user.delete(&pool).await?;
         assert_eq!(User::get_by_email(&email, &pool).await?, None);
+
+        let url = format_sstr!("http://localhost:{test_port}/api/openapi/json");
+        let result = client
+            .get(url.as_str())
+            .send()
+            .await?
+            .error_for_status()?
+            .text()
+            .await?;
+        debug!("{result}");
+
+        let url = format_sstr!("http://localhost:{test_port}/api/openapi/yaml");
+        let spec_yaml = client
+            .get(url.as_str())
+            .send()
+            .await?
+            .error_for_status()?
+            .text()
+            .await?;
+
+        tokio::fs::write("../scripts/openapi.yaml", &spec_yaml).await?;
+
         app_handle.abort();
         Ok(())
     }

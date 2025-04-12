@@ -1,6 +1,6 @@
 [package]
 name = "authorized_users"
-version = "0.13.1"
+version = "0.13.2"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2024"
 
