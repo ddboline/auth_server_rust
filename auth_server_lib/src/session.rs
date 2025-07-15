@@ -6,6 +6,9 @@ use stack_string::StackString;
 use std::cmp::PartialEq;
 use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
+use checksums::{hash_reader, Algorithm};
+
+use authorized_users::{SECRET_KEY, JWT_SECRET};
 
 use crate::{
     date_time_wrapper::DateTimeWrapper,
@@ -17,11 +20,12 @@ use crate::{
 
 #[derive(FromSqlRow, Serialize, Deserialize, Debug, Eq)]
 pub struct Session {
-    pub id: Uuid,
-    pub email: StackString,
-    pub created_at: DateTimeWrapper,
-    pub last_accessed: DateTimeWrapper,
-    pub secret_key: StackString,
+    id: Uuid,
+    email: StackString,
+    created_at: DateTimeWrapper,
+    last_accessed: DateTimeWrapper,
+    secret_key: StackString,
+    key_hash: Option<StackString>,
 }
 
 impl PartialEq for Session {
@@ -36,13 +40,57 @@ impl Default for Session {
     }
 }
 
+impl Session {
+    #[must_use]
+    pub fn get_id(&self) -> Uuid {
+        self.id
+    }
+
+    #[must_use]
+    pub fn get_email(&self) -> &str {
+        self.email.as_str()
+    }
+
+    #[must_use]
+    pub fn get_created_at(&self) -> DateTimeWrapper {
+        self.created_at
+    }
+
+    #[must_use]
+    pub fn get_secret_key(&self) -> &str {
+        self.secret_key.as_str()
+    }
+}
+
 #[derive(FromSqlRow, Serialize, Deserialize, Debug, Eq, Clone)]
 pub struct SessionSummary {
-    pub session_id: Uuid,
-    pub email_address: StackString,
-    pub created_at: DateTimeWrapper,
-    pub last_accessed: DateTimeWrapper,
-    pub number_of_data_objects: i64,
+    session_id: Uuid,
+    email_address: StackString,
+    created_at: DateTimeWrapper,
+    last_accessed: DateTimeWrapper,
+    number_of_data_objects: i64,
+}
+
+impl SessionSummary {
+    #[must_use]
+    pub fn get_session_id(&self) -> Uuid {
+        self.session_id
+    }
+
+    #[must_use]
+    pub fn get_email_address(&self) -> &str {
+        &self.email_address
+    }
+
+    #[must_use]
+    pub fn get_number_of_data_objects(&self) -> i64 {
+        self.number_of_data_objects
+    }
+
+    #[must_use]
+    pub fn get_created_at(&self) -> DateTimeWrapper {
+        self.created_at
+    }
 }
 
 impl PartialEq for SessionSummary {
@@ -67,13 +115,25 @@ impl Default for SessionSummary {
 
 impl Session {
     pub fn new(email: impl Into<StackString>) -> Self {
+        let mut buf = Vec::new();
+        buf.extend(&SECRET_KEY.get());
+        buf.extend(JWT_SECRET.get());
+        let key_hash = Some(Self::get_key_hash());
         Self {
             id: Uuid::new_v4(),
             email: email.into(),
             created_at: DateTimeWrapper::now(),
             last_accessed: DateTimeWrapper::now(),
             secret_key: get_random_string(16),
+            key_hash,
         }
+    }
+
+    pub fn get_key_hash() -> StackString {
+        let mut buf = Vec::new();
+        buf.extend(&SECRET_KEY.get());
+        buf.extend(JWT_SECRET.get());
+        hash_reader(&mut buf.as_slice(), Algorithm::MD5).as_str().into()
     }
 
     /// # Errors
@@ -161,11 +221,12 @@ impl Session {
     fn insert_query(&self) -> Query {
         query!(
             "
-            INSERT INTO sessions (id, email, secret_key)
-            VALUES ($id, $email, $secret_key)",
+            INSERT INTO sessions (id, email, secret_key, key_hash)
+            VALUES ($id, $email, $secret_key, $key_hash)",
             id = self.id,
             email = self.email,
             secret_key = self.secret_key,
+            key_hash=self.key_hash,
         )
     }
 
@@ -213,16 +274,16 @@ impl Session {
 
     /// # Errors
     /// Returns error if db query fails
-    pub async fn cleanup(pool: &PgPool, expiration_seconds: u32) -> Result<u64, Error> {
+    pub async fn cleanup(pool: &PgPool, expiration_seconds: u32, key_hash: &str) -> Result<u64, Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
         let conn: &PgTransaction = &tran;
-        let result = Self::cleanup_conn(conn, expiration_seconds).await?;
+        let result = Self::cleanup_conn(conn, expiration_seconds, key_hash).await?;
         tran.commit().await?;
         Ok(result)
     }
 
-    async fn cleanup_conn<C>(conn: &C, expiration_seconds: u32) -> Result<u64, Error>
+    async fn cleanup_conn<C>(conn: &C, expiration_seconds: u32, key_hash: &str) -> Result<u64, Error>
     where
         C: GenericClient + Sync,
     {
@@ -235,14 +296,17 @@ impl Session {
                     SELECT id
                     FROM sessions
                     WHERE last_accessed < $time
+                       OR (key_hash IS NOT NULL AND key_hash != $key_hash)
                 )
             ",
             time = time,
+            key_hash = key_hash,
         );
         result += query.execute(conn).await?;
         let query = query!(
-            "DELETE FROM sessions WHERE last_accessed < $time",
-            time = time
+            "DELETE FROM sessions WHERE last_accessed < $time OR (key_hash IS NOT NULL AND key_hash != $key_hash)",
+            time = time,
+            key_hash = key_hash,
         );
         result += query.execute(conn).await?;
         Ok(result)
@@ -325,7 +389,7 @@ impl Session {
         let session_key = session_key.as_ref();
         let session_data =
             if let Some(mut session_data) = self.get_session_data_conn(conn, session_key).await? {
-                session_data.session_value = session_value;
+                session_data.set_session_value(session_value);
                 session_data
             } else {
                 SessionData::new(self.id, session_key, session_value)
@@ -387,6 +451,7 @@ mod tests {
     use stack_string::format_sstr;
     use std::collections::{HashMap, HashSet};
 
+    use authorized_users::get_secrets;
     use crate::{
         AUTH_APP_MUTEX, config::Config, errors::AuthServerError as Error, get_random_string,
         pgpool::PgPool, session::Session, user::User,
@@ -397,6 +462,8 @@ mod tests {
         let _lock = AUTH_APP_MUTEX.lock().await;
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url)?;
+
+        get_secrets(&config.secret_path, &config.jwt_secret_path).await.unwrap();
 
         let email = format_sstr!("test+session{}@example.com", get_random_string(32));
         let user = User::from_details(&email, "abc123")?;
@@ -420,7 +487,10 @@ mod tests {
         let new_session = new_session.unwrap();
         assert_eq!(new_session.email, session.email);
         let new_session_data = new_session.get_session_data(&pool, "test").await?.unwrap();
-        assert_eq!(new_session_data.session_value, session_data.session_value);
+        assert_eq!(
+            new_session_data.get_session_value(),
+            session_data.get_session_value()
+        );
 
         new_session
             .set_session_data(&pool, "test", "NEW TEST DATA".into())
@@ -434,7 +504,9 @@ mod tests {
         let new_session = new_session_map.get(&session.id).unwrap();
         assert_eq!(new_session.id, session.id);
         let new_session_data = new_session.get_session_data(&pool, "test").await?.unwrap();
-        assert_eq!(new_session_data.session_value, "NEW TEST DATA");
+        assert_eq!(new_session_data.get_session_value(), "NEW TEST DATA");
+
+        assert_eq!(new_session.key_hash.as_ref().unwrap(), &Session::get_key_hash());
 
         new_session_data.delete(&pool).await?;
         session.delete(&pool).await?;

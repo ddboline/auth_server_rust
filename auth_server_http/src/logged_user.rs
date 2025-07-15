@@ -221,22 +221,17 @@ where
 impl From<AuthorizedUser> for LoggedUser {
     fn from(user: AuthorizedUser) -> Self {
         Self {
-            email: user.email,
-            session: user.session,
-            secret_key: user.secret_key,
-            created_at: user.created_at,
+            email: user.get_email().into(),
+            session: user.get_session(),
+            secret_key: user.get_secret_key().into(),
+            created_at: user.get_created_at(),
         }
     }
 }
 
 impl From<LoggedUser> for AuthorizedUser {
     fn from(user: LoggedUser) -> Self {
-        Self {
-            email: user.email,
-            session: user.session,
-            secret_key: user.secret_key,
-            created_at: user.created_at,
-        }
+        Self::new(&user.email, user.session, &user.secret_key).with_created_at(user.created_at)
     }
 }
 
@@ -318,10 +313,7 @@ mod tests {
     #[test]
     fn test_authorized_user_to_logged_user() {
         let email = "test@localhost";
-        let user = AuthorizedUser {
-            email: email.into(),
-            ..AuthorizedUser::default()
-        };
+        let user = AuthorizedUser::default().with_email(email);
 
         let user: LoggedUser = user.into();
 

@@ -62,8 +62,8 @@ impl AuthRequest {
         let user = self.authenticate(pool).await?;
         let user: AuthorizedUser = user.into();
         let mut user: LoggedUser = user.into();
-        user.session = session.id;
-        user.secret_key = session.secret_key.clone();
+        user.session = session.get_id();
+        user.secret_key = session.get_secret_key().into();
         let cookies = user
             .get_jwt_cookie(&config.domain, config.expiration_seconds, config.secure)
             .map_err(|e| {

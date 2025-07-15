@@ -19,9 +19,9 @@ pub(crate) struct TomlEntry {
 
 #[derive(Debug)]
 pub struct Entry {
-    pub database_url: Url,
-    pub table: StackString,
-    pub email_field: StackString,
+    database_url: Url,
+    table: StackString,
+    email_field: StackString,
 }
 
 impl TryFrom<TomlEntry> for Entry {
@@ -43,6 +43,21 @@ impl Entry {
     /// Returns error if setup of pool fails
     pub fn get_pool(&self) -> Result<PgPool, Error> {
         PgPool::new(self.database_url.as_str())
+    }
+
+    #[must_use]
+    pub fn get_database_url(&self) -> &Url {
+        &self.database_url
+    }
+
+    #[must_use]
+    pub fn get_table(&self) -> &str {
+        self.table.as_str()
+    }
+
+    #[must_use]
+    pub fn get_email_field(&self) -> &str {
+        self.email_field.as_str()
     }
 
     /// # Errors

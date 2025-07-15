@@ -60,6 +60,7 @@ impl TryFrom<ConfigToml> for AuthUserConfig {
 #[cfg(test)]
 mod tests {
     use log::debug;
+    use url::Url;
 
     use crate::{auth_user_config::AuthUserConfig, errors::AuthServerError};
 
@@ -70,12 +71,10 @@ mod tests {
         debug!("{:?}", config);
         assert_eq!(config.len(), 2);
         let entry = config.get("aws_app_rust").unwrap();
-        assert_eq!(
-            entry.database_url,
-            "postgresql://user:password@localhost:5432/aws_app_cache".parse()?
-        );
-        assert_eq!(entry.table, "authorized_users");
-        assert_eq!(entry.email_field, "email");
+        let url: Url = "postgresql://user:password@localhost:5432/aws_app_cache".parse()?;
+        assert_eq!(entry.get_database_url(), &url,);
+        assert_eq!(entry.get_table(), "authorized_users");
+        assert_eq!(entry.get_email_field(), "email");
         Ok(())
     }
 }

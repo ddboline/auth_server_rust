@@ -13,13 +13,18 @@ use arc_swap::ArcSwap;
 pub use authorized_user::AuthorizedUser;
 use biscuit::{Empty, jwk, jws};
 use crossbeam::atomic::AtomicCell;
-use once_cell::sync::Lazy;
 use rand::{
     distr::{Distribution, StandardUniform},
     rng as thread_rng,
 };
 use stack_string::StackString;
-use std::{cell::Cell, collections::HashMap, path::Path, sync::Arc, thread::LocalKey};
+use std::{
+    cell::Cell,
+    collections::HashMap,
+    path::Path,
+    sync::{Arc, LazyLock},
+    thread::LocalKey,
+};
 use time::OffsetDateTime;
 use tokio::{
     fs::{self, File},
@@ -35,9 +40,9 @@ thread_local! {
     static JWT_SECRET_CACHE: Cell<Option<SecretKey>> = const { Cell::new(None) };
 }
 
-pub static AUTHORIZED_USERS: Lazy<AuthorizedUsers> = Lazy::new(AuthorizedUsers::new);
-pub static SECRET_KEY: Lazy<AuthSecret> = Lazy::new(|| AuthSecret::new(SECRET_KEY_CACHE));
-pub static JWT_SECRET: Lazy<AuthSecret> = Lazy::new(|| AuthSecret::new(JWT_SECRET_CACHE));
+pub static AUTHORIZED_USERS: LazyLock<AuthorizedUsers> = LazyLock::new(AuthorizedUsers::new);
+pub static SECRET_KEY: LazyLock<AuthSecret> = LazyLock::new(|| AuthSecret::new(SECRET_KEY_CACHE));
+pub static JWT_SECRET: LazyLock<AuthSecret> = LazyLock::new(|| AuthSecret::new(JWT_SECRET_CACHE));
 
 pub static LOGIN_HTML: &str = r"
     <script>
@@ -62,8 +67,15 @@ impl Default for AuthStatus {
 
 #[derive(Debug, Clone)]
 pub struct AuthInfo {
-    pub status: AuthStatus,
-    pub created_at: OffsetDateTime,
+    status: AuthStatus,
+    created_at: OffsetDateTime,
+}
+
+impl AuthInfo {
+    #[must_use]
+    pub fn get_created_at(&self) -> OffsetDateTime {
+        self.created_at
+    }
 }
 
 #[derive(Debug, Default)]
@@ -79,22 +91,22 @@ impl AuthorizedUsers {
         if let Some(AuthInfo {
             status: AuthStatus::Authorized,
             ..
-        }) = self.0.load_full().get(user.email.as_str())
+        }) = self.0.load_full().get(user.get_email())
         {
             return true;
         }
         false
     }
 
-    pub fn store_auth(&self, user: AuthorizedUser, is_auth: bool) {
+    pub fn store_auth(&self, user: &AuthorizedUser, is_auth: bool) {
         let status = if is_auth {
             AuthStatus::Authorized
         } else {
             AuthStatus::NotAuthorized
         };
-        let created_at = user.created_at;
+        let created_at = user.get_created_at();
         let mut auth_map = Arc::try_unwrap(self.0.load_full()).unwrap_or_else(|a| (*a).clone());
-        auth_map.insert(user.email, AuthInfo { status, created_at });
+        auth_map.insert(user.get_email().into(), AuthInfo { status, created_at });
         self.0.store(Arc::new(auth_map));
     }
 
@@ -117,7 +129,7 @@ impl AuthorizedUsers {
                     k,
                     AuthInfo {
                         status: AuthStatus::Authorized,
-                        created_at: u.created_at,
+                        created_at: u.get_created_at(),
                     },
                 )
             }))

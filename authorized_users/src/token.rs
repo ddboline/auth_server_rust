@@ -93,7 +93,6 @@ impl Token {
 mod tests {
     use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
     use log::debug;
-    use time::OffsetDateTime;
     use uuid::Uuid;
 
     use crate::{
@@ -112,19 +111,14 @@ mod tests {
         let session = Uuid::new_v4();
         let secret = URL_SAFE_NO_PAD.encode(&secret_key);
 
-        let user = AuthorizedUser {
-            email: "test@local".into(),
-            session,
-            secret_key: secret.into(),
-            created_at: OffsetDateTime::now_utc(),
-        };
+        let user = AuthorizedUser::new("test@local", session, &secret);
 
         let token = Token::create_token(
-            user.email.clone(),
+            user.get_email(),
             "localhost",
             3600,
             session,
-            user.secret_key.clone(),
+            user.get_secret_key(),
         )?;
 
         debug!("token {}", token);
@@ -133,7 +127,7 @@ mod tests {
 
         let obs_user: AuthorizedUser = claim.into();
 
-        debug!("{}", obs_user.email);
+        debug!("{}", obs_user.get_email());
 
         assert_eq!(user, obs_user);
         Ok(())

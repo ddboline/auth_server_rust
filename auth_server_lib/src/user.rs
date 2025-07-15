@@ -3,12 +3,11 @@ use argon2::{
     password_hash::{Error as ArgonError, Salt, SaltString},
 };
 use futures::Stream;
-use once_cell::sync::Lazy;
 use postgres_query::{Error as PqError, FromSqlRow, client::GenericClient, query};
 use rand::{RngCore, rng as thread_rng};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
-use std::cmp::PartialEq;
+use std::{cmp::PartialEq, sync::LazyLock};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
@@ -21,13 +20,13 @@ use crate::{
     pgpool::{PgPool, PgTransaction},
 };
 
-static ARGON: Lazy<Argon> = Lazy::new(|| Argon::new().expect("Failed to init Argon"));
-static FAKE_PASSWORD: Lazy<StackString> = Lazy::new(|| {
+static ARGON: LazyLock<Argon> = LazyLock::new(|| Argon::new().expect("Failed to init Argon"));
+static FAKE_PASSWORD: LazyLock<StackString> = LazyLock::new(|| {
     ARGON
         .hash_password("password")
         .expect("Failed to generate password")
 });
-static ALTERNATE_FAKE: Lazy<StackString> = Lazy::new(|| {
+static ALTERNATE_FAKE: LazyLock<StackString> = LazyLock::new(|| {
     ARGON
         .hash_password("fake password")
         .expect("Failed to generate password")
@@ -66,10 +65,10 @@ impl Argon {
 
 #[derive(FromSqlRow, Serialize, Deserialize, Debug, Eq)]
 pub struct User {
-    pub email: StackString,
+    email: StackString,
     // password here is always the hashed password
     password: StackString,
-    pub created_at: DateTimeWrapper,
+    created_at: DateTimeWrapper,
 }
 
 impl PartialEq for User {
@@ -79,6 +78,16 @@ impl PartialEq for User {
 }
 
 impl User {
+    #[must_use]
+    pub fn get_email(&self) -> &str {
+        self.email.as_str()
+    }
+
+    #[must_use]
+    pub fn get_created_at(&self) -> DateTimeWrapper {
+        self.created_at
+    }
+
     /// # Errors
     /// Returns error if hashing fails
     pub fn from_details(
@@ -285,12 +294,8 @@ impl User {
 
 impl From<User> for AuthorizedUser {
     fn from(user: User) -> Self {
-        Self {
-            email: user.email,
-            session: Uuid::new_v4(),
-            secret_key: get_random_string(16),
-            created_at: user.created_at.into(),
-        }
+        Self::new(user.email.as_str(), Uuid::new_v4(), &get_random_string(16))
+            .with_created_at(user.created_at.into())
     }
 }
 

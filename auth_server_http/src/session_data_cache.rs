@@ -22,10 +22,13 @@ impl SessionDataMap {
         Self(HashMap::new())
     }
 
-    pub fn add_session(&mut self, session: Session) {
+    pub fn add_session(&mut self, session: &Session) {
         self.insert(
-            session.id,
-            (session.secret_key, Arc::new(Mutex::new(HashMap::new()))),
+            session.get_id(),
+            (
+                session.get_secret_key().into(),
+                Arc::new(Mutex::new(HashMap::new())),
+            ),
         );
     }
 
@@ -49,7 +52,7 @@ impl SessionDataCache {
     }
 
     #[must_use]
-    pub fn add_session(&self, session: Session) -> Arc<SessionDataMap> {
+    pub fn add_session(&self, session: &Session) -> Arc<SessionDataMap> {
         let mut session_data_cache =
             Arc::try_unwrap(self.load_full()).unwrap_or_else(|a| (*a).clone());
         session_data_cache.add_session(session);

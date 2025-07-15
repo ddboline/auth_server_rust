@@ -235,9 +235,9 @@ fn session_data_element(data: &[(SessionData, StackString)]) -> Element {
             },
             tbody {
                 {data.iter().enumerate().map(|(idx, (s, js))| {
-                    let id = s.session_id;
-                    let key = &s.session_key;
-                    let created_at = s.created_at.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z")).unwrap_or_else(|_| String::new());
+                    let id = s.get_session_id();
+                    let key = s.get_session_key();
+                    let created_at = s.get_created_at().format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z")).unwrap_or_else(|_| String::new());
                     rsx! {
                         tr {
                             key: "list-session-data-row-{idx}",
@@ -294,10 +294,10 @@ fn session_element(summaries: &[SessionSummary]) -> Element {
             },
             tbody {
                 {summaries.iter().enumerate().map(|(idx, s)| {
-                    let id = s.session_id;
-                    let email = &s.email_address;
-                    let created_at = s.created_at.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z")).unwrap_or_else(|_| String::new());
-                    let n_obj = s.number_of_data_objects;
+                    let id = s.get_session_id();
+                    let email = s.get_email_address();
+                    let created_at = s.get_created_at().format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z")).unwrap_or_else(|_| String::new());
+                    let n_obj = s.get_number_of_data_objects();
                     rsx! {
                         tr {
                             key: "list-session-row-{idx}",

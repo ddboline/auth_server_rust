@@ -122,9 +122,9 @@ impl AuthServerOptions {
                 {
                     stdout.send(format_sstr!(
                         "{} {}",
-                        user.email,
+                        user.get_email(),
                         auth_app_map
-                            .get(&user.email)
+                            .get(user.get_email())
                             .map_or_else(String::new, |apps| apps.iter().join(" "))
                     ));
                 }
@@ -169,7 +169,7 @@ impl AuthServerOptions {
                 if User::get_by_email(email.clone(), pool).await?.is_none() {
                     let user = User::from_details(email, password)?;
                     user.upsert(pool).await?;
-                    stdout.send(format_sstr!("Add user {}", user.email));
+                    stdout.send(format_sstr!("Add user {}", user.get_email()));
                 } else {
                     stdout.send(format_sstr!("User {email} exists"));
                 }
@@ -183,7 +183,7 @@ impl AuthServerOptions {
                 }
                 if let Some(user) = User::get_by_email(email.clone(), pool).await? {
                     user.delete(pool).await?;
-                    stdout.send(format_sstr!("Deleted user {}", user.email));
+                    stdout.send(format_sstr!("Deleted user {}", user.get_email()));
                 } else {
                     stdout.send(format_sstr!("User {email} does not exist"));
                 }
@@ -198,7 +198,7 @@ impl AuthServerOptions {
                         user.upsert(pool).await?;
                         invitation.delete(pool).await?;
                         let user: AuthorizedUser = user.into();
-                        AUTHORIZED_USERS.store_auth(user.clone(), true);
+                        AUTHORIZED_USERS.store_auth(&user, true);
                         stdout.send(
                             serde_json::to_string(&user).map_err(Into::<AuthServerError>::into)?,
                         );
@@ -373,6 +373,7 @@ mod test {
     use stdout_channel::{MockStdout, StdoutChannel};
     use uuid::Uuid;
 
+    use authorized_users::get_secrets;
     use auth_server_ext::errors::AuthServerExtError as Error;
     use auth_server_lib::{
         AUTH_APP_MUTEX, config::Config, errors::AuthServerError, get_random_string,
@@ -388,6 +389,8 @@ mod test {
         let pool = PgPool::new(&config.database_url)?;
         let email = format_sstr!("ddboline+{}@ddboline.net", get_random_string(32));
         let password = get_random_string(32);
+
+        get_secrets(&config.secret_path, &config.jwt_secret_path).await.unwrap();
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();
@@ -695,7 +698,7 @@ mod test {
         let stdout = StdoutChannel::with_mock_stdout(mock_stdout.clone(), mock_stderr.clone());
 
         AuthServerOptions::ListSessionData {
-            id: Some(session_data.session_id),
+            id: Some(session_data.get_session_id()),
         }
         .process_args(&pool, &stdout)
         .await?;
@@ -708,7 +711,7 @@ mod test {
         }
 
         AuthServerOptions::RmSessions {
-            ids: vec![session_data.session_id],
+            ids: vec![session_data.get_session_id()],
         }
         .process_args(&pool, &stdout)
         .await?;

@@ -85,13 +85,11 @@ async fn index_html(
             Vec::new()
         };
         let data = if let Some(user) = &user {
-            SessionData::get_session_summary(&data.pool, user.session)
-                .await
-                .map_err(Into::<Error>::into)?
+            SessionData::get_session_summary(&data.pool, user.session).await?
         } else {
             Vec::new()
         };
-        index_body(user, summaries, data, query.final_url).map_err(Into::<Error>::into)?
+        index_body(user, summaries, data, query.final_url)?
     };
     Ok(HtmlBase::new(body).into())
 }
@@ -135,17 +133,16 @@ async fn register_html(
     let Query(query) = query;
     let invitation_id: Uuid = query.id;
     let email = query.email;
+    let invitation = Invitation::get_by_uuid(invitation_id, &data.pool)
+        .await?
+        .ok_or_else(|| Error::BadRequest("Invitation Not Found"))?;
 
-    if let Some(invitation) = Invitation::get_by_uuid(invitation_id, &data.pool)
-        .await
-        .map_err(Into::<Error>::into)?
-    {
-        if invitation.email == email {
-            let body = register_body(invitation_id).map_err(Into::<Error>::into)?;
-            return Ok(HtmlBase::new(body).into());
-        }
+    if invitation.email == email {
+        let body = register_body(invitation_id)?;
+        Ok(HtmlBase::new(body).into())
+    } else {
+        Err(Error::BadRequest("Invalid invitation"))
     }
-    Err(Error::BadRequest("Invalid invitation"))
 }
 
 #[derive(UtoipaResponse)]
@@ -175,7 +172,7 @@ async fn login_html(
     query: Query<FinalUrlData>,
 ) -> AuthResult<AuthLoginResponse> {
     let Query(query) = query;
-    let body = login_body(user, query.final_url).map_err(Into::<Error>::into)?;
+    let body = login_body(user, query.final_url)?;
     Ok(HtmlBase::new(body).into())
 }
 
@@ -191,7 +188,7 @@ struct PwChangeResponse(HtmlBase::<StackString>);
 )]
 /// Password Change Page
 async fn change_password(user: LoggedUser) -> AuthResult<PwChangeResponse> {
-    let body = change_password_body(user).map_err(Into::<Error>::into)?;
+    let body = change_password_body(user)?;
     Ok(HtmlBase::new(body).into())
 }
 
@@ -211,7 +208,7 @@ async fn login(
 
     let (user, session, cookies) = auth_data.login_user_jwt(&data.pool, &data.config).await?;
 
-    let _ = data.session_cache.add_session(session);
+    let _ = data.session_cache.add_session(&session);
 
     let resp = JsonBase::new(user)
         .with_cookie(cookies.get_session_cookie_str())
@@ -254,11 +251,8 @@ struct ApiAuthGetResponse(JsonBase::<LoggedUser>);
 async fn get_user(user: LoggedUser, data: State<Arc<AppState>>) -> AuthResult<ApiAuthGetResponse> {
     let session_id = user.session;
     if !data.session_cache.has_session(session_id) {
-        if let Some(session) = Session::get_session(&data.pool, session_id)
-            .await
-            .map_err(Into::<Error>::into)?
-        {
-            let _ = data.session_cache.add_session(session);
+        if let Some(session) = Session::get_session(&data.pool, session_id).await? {
+            let _ = data.session_cache.add_session(&session);
         } else {
             return Err(Error::Unauthorized);
         }
@@ -291,27 +285,21 @@ async fn get_session(
     let Path(session_key) = session_key;
     let session = session.into();
     let secret_key: StackString = secret_key.into();
-    let value = if let Some(value) =
-        data.session_cache
-            .get_data(session, &secret_key, &session_key)?
+    if let Some(value) = data
+        .session_cache
+        .get_data(session, &secret_key, &session_key)?
     {
-        value
+        Ok(JsonBase::new(value).into())
     } else if let Some(session_data) =
-        SessionData::get_session_from_cache(&data.pool, session, &secret_key, &session_key)
-            .await
-            .map_err(Into::<Error>::into)?
+        SessionData::get_session_from_cache(&data.pool, session, &secret_key, &session_key).await?
     {
-        data.session_cache.set_data(
-            session,
-            secret_key,
-            session_key,
-            &session_data.session_value,
-        )?;
-        session_data.session_value
+        let value = session_data.get_session_value().clone();
+        data.session_cache
+            .set_data(session, secret_key, session_key, &value)?;
+        Ok(JsonBase::new(value).into())
     } else {
-        Value::Null
-    };
-    Ok(JsonBase::new(value).into())
+        Ok(JsonBase::new(Value::Null).into())
+    }
 }
 
 #[derive(UtoipaResponse)]
@@ -352,14 +340,13 @@ async fn post_session(
         &session_key,
         payload.clone(),
     )
-    .await
-    .map_err(Into::<Error>::into)?
+    .await?
     {
         data.session_cache.set_data(
             session,
             secret_key,
             session_key,
-            &session_data.session_value,
+            session_data.get_session_value(),
         )?;
     }
     Ok(JsonBase::new(payload).into())
@@ -390,9 +377,7 @@ async fn delete_session(
     let session = session.into();
     let secret_key: StackString = secret_key.into();
 
-    Session::delete_session_data_from_cache(&data.pool, session, &secret_key, &session_key)
-        .await
-        .map_err(Into::<Error>::into)?;
+    Session::delete_session_data_from_cache(&data.pool, session, &secret_key, &session_key).await?;
     let result = data
         .session_cache
         .remove_data(session, secret_key, session_key)?
@@ -419,10 +404,10 @@ struct SessionDataObj {
 impl From<SessionData> for SessionDataObj {
     fn from(value: SessionData) -> Self {
         Self {
-            session_id: value.session_id,
-            session_key: value.session_key,
-            session_value: value.session_value,
-            created_at: value.created_at.to_offsetdatetime(),
+            session_id: value.get_session_id(),
+            session_key: value.get_session_key().into(),
+            session_value: value.get_session_value().clone(),
+            created_at: value.get_created_at().to_offsetdatetime(),
         }
     }
 }
@@ -443,13 +428,11 @@ async fn list_session_obj(
     data: State<Arc<AppState>>,
 ) -> AuthResult<SessionDataObjResponse> {
     let values = SessionData::get_by_session_id_streaming(&data.pool, user.session)
-        .await
-        .map_err(Into::<Error>::into)?
+        .await?
         .map_ok(Into::into)
         .try_collect()
         .await
-        .map_err(Into::<AuthServerError>::into)
-        .map_err(Into::<Error>::into)?;
+        .map_err(Into::<AuthServerError>::into)?;
 
     Ok(JsonBase::new(values).into())
 }
@@ -470,7 +453,7 @@ async fn list_sessions(
     data: State<Arc<AppState>>,
 ) -> AuthResult<ListSessionsResponse> {
     let summaries = list_sessions_lines(&data).await?;
-    let body = session_body(summaries).map_err(Into::<Error>::into)?;
+    let body = session_body(summaries)?;
     Ok(HtmlBase::new(body).into())
 }
 
@@ -495,10 +478,8 @@ async fn list_session_data(
     user: LoggedUser,
     data: State<Arc<AppState>>,
 ) -> AuthResult<ListSessionDataResponse> {
-    let data = SessionData::get_session_summary(&data.pool, user.session)
-        .await
-        .map_err(Into::<Error>::into)?;
-    let body = session_data_body(data).map_err(Into::<Error>::into)?;
+    let data = SessionData::get_session_summary(&data.pool, user.session).await?;
+    let body = session_data_body(data)?;
     Ok(HtmlBase::new(body).into())
 }
 
@@ -559,8 +540,7 @@ async fn delete_sessions(
             &user.secret_key,
             session_key,
         )
-        .await
-        .map_err(Into::<Error>::into)?;
+        .await?;
         data.session_cache
             .remove_data(session_id, &user.secret_key, session_key)?;
     }
@@ -624,18 +604,14 @@ async fn register_email(
 
     let email = invitation.email;
     let invitation = Invitation::from_email(email);
-    invitation
-        .insert(&data.pool)
-        .await
-        .map_err(Into::<Error>::into)?;
+    invitation.insert(&data.pool).await?;
     send_invitation(
         &data.ses,
         &invitation,
         &data.config.sending_email_address,
         &data.config.callback_url,
     )
-    .await
-    .map_err(Into::<Error>::into)?;
+    .await?;
 
     let resp = JsonBase::new(invitation.into());
     Ok(resp.into())
@@ -669,30 +645,22 @@ async fn register_user(
 ) -> AuthResult<ApiRegisterResponse> {
     let Path(invitation_id) = invitation_id;
     let Json(user_data) = user_data;
-    if let Some(invitation) = Invitation::get_by_uuid(invitation_id, &data.pool)
-        .await
-        .map_err(Into::<Error>::into)?
-    {
-        let expires_at: OffsetDateTime = invitation.expires_at.into();
-        if expires_at > OffsetDateTime::now_utc() {
-            let user = User::from_details(invitation.email.clone(), &user_data.password)
-                .map_err(Into::<Error>::into)?;
-            user.upsert(&data.pool).await.map_err(Into::<Error>::into)?;
-            invitation
-                .delete(&data.pool)
-                .await
-                .map_err(Into::<Error>::into)?;
-            let user: AuthorizedUser = user.into();
-            AUTHORIZED_USERS.store_auth(user.clone(), true);
-            let resp = JsonBase::new(user.into());
-            return Ok(resp.into());
-        }
-        invitation
-            .delete(&data.pool)
-            .await
-            .map_err(Into::<Error>::into)?;
+    let invitation = Invitation::get_by_uuid(invitation_id, &data.pool)
+        .await?
+        .ok_or_else(|| Error::BadRequest("Invitation Not Found"))?;
+    let expires_at: OffsetDateTime = invitation.expires_at.into();
+    if expires_at > OffsetDateTime::now_utc() {
+        let user = User::from_details(invitation.email.clone(), &user_data.password)?;
+        user.upsert(&data.pool).await?;
+        invitation.delete(&data.pool).await?;
+        let user: AuthorizedUser = user.into();
+        AUTHORIZED_USERS.store_auth(&user, true);
+        let resp = JsonBase::new(user.into());
+        Ok(resp.into())
+    } else {
+        invitation.delete(&data.pool).await?;
+        Err(Error::BadRequest("Invalid invitation"))
     }
-    Err(Error::BadRequest("Invalid invitation"))
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
@@ -720,17 +688,12 @@ async fn change_password_user(
     user_data: Json<PasswordData>,
 ) -> AuthResult<ApiPasswordChangeResponse> {
     let Json(user_data) = user_data;
-    let message: StackString = if let Some(mut user) = User::get_by_email(&user.email, &data.pool)
-        .await
-        .map_err(Into::<Error>::into)?
-    {
-        user.set_password(&user_data.password)
-            .map_err(Into::<Error>::into)?;
-        user.update(&data.pool).await.map_err(Into::<Error>::into)?;
-        "password updated".into()
-    } else {
-        return Err(Error::BadRequest("Invalid User"));
-    };
+    let mut user = User::get_by_email(&user.email, &data.pool)
+        .await?
+        .ok_or_else(|| Error::BadRequest("User Not Found"))?;
+    user.set_password(&user_data.password)?;
+    user.update(&data.pool).await?;
+    let message = "password updated".into();
     let resp = JsonBase::new(PasswordChangeOutput { message });
     Ok(resp.into())
 }
@@ -761,8 +724,7 @@ async fn auth_url(
     let (auth_url, csrf_state) = data
         .google_client
         .get_auth_url_csrf(query.final_url.as_ref().map(StackString::as_str))
-        .await
-        .map_err(Into::<Error>::into)?;
+        .await?;
     let auth_url: String = auth_url.into();
     let resp = JsonBase::new(AuthUrlOutput {
         auth_url: auth_url.into(),
@@ -805,11 +767,10 @@ async fn auth_await(
         error!("await timed out");
     }
     sleep(Duration::from_millis(10)).await;
-    let final_url = if let Some(s) = data.google_client.decode(&state) {
-        s
-    } else {
-        "".into()
-    };
+    let final_url = data
+        .google_client
+        .decode(&state)
+        .unwrap_or_else(|| "".into());
     Ok(HtmlBase::new(final_url).into())
 }
 
@@ -858,24 +819,20 @@ async fn callback_body(
     google_client: &GoogleClient,
     config: &Config,
 ) -> AuthResult<UserCookies<'static>> {
-    if let Some(user) = google_client
+    let user = google_client
         .run_callback(&query.code, &query.state, pool)
         .await?
-    {
-        let mut user: LoggedUser = user.into();
+        .ok_or_else(|| Error::BadRequest("Callback Failed"))?;
+    let mut user: LoggedUser = user.into();
 
-        let session = Session::new(user.email.as_str());
-        session.insert(pool).await?;
+    let session = Session::new(user.email.as_str());
+    session.insert(pool).await?;
 
-        user.session = session.id;
-        user.secret_key = session.secret_key;
+    user.session = session.get_id();
+    user.secret_key = session.get_secret_key().into();
 
-        let cookies =
-            user.get_jwt_cookie(&config.domain, config.expiration_seconds, config.secure)?;
-        Ok(cookies)
-    } else {
-        Err(Error::BadRequest("Callback Failed"))
-    }
+    let cookies = user.get_jwt_cookie(&config.domain, config.expiration_seconds, config.secure)?;
+    Ok(cookies)
 }
 
 #[derive(Serialize, ToSchema)]
@@ -973,10 +930,10 @@ async fn test_login_user_jwt(
     if let Ok(s) = std::env::var("TESTENV") {
         if &s == "true" {
             let email = auth_data.email;
-            let user = AuthorizedUser::new(&email, session.id, &session.secret_key);
-            AUTHORIZED_USERS.update_users(hashmap! {user.email.clone() => user.clone()});
+            let user = AuthorizedUser::new(&email, session.get_id(), session.get_secret_key());
+            AUTHORIZED_USERS.update_users(hashmap! {user.get_email().into() => user.clone()});
             let mut user: LoggedUser = user.into();
-            user.session = session.id;
+            user.session = session.get_id();
             let cookies = user.get_jwt_cookie(&config.domain, config.expiration_seconds, false)?;
             return Ok((user, cookies));
         }

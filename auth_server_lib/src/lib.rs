@@ -15,16 +15,16 @@ pub mod session_data;
 pub mod toml_entry;
 pub mod user;
 
-use once_cell::sync::Lazy;
 use rand::{
     distr::{Alphanumeric, Distribution, SampleString},
     rng as thread_rng,
 };
 use smallvec::SmallVec;
 use stack_string::{MAX_INLINE, StackString};
+use std::sync::LazyLock;
 use tokio::sync::Mutex;
 
-pub static AUTH_APP_MUTEX: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+pub static AUTH_APP_MUTEX: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
 #[must_use]
 pub fn get_random_string(n: usize) -> StackString {

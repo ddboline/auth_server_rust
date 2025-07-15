@@ -198,10 +198,7 @@ impl GoogleClient {
     }
 
     fn mock_user(mock_email: &str) -> AuthorizedUser {
-        AuthorizedUser {
-            email: mock_email.into(),
-            ..AuthorizedUser::default()
-        }
+        AuthorizedUser::default().with_email(mock_email)
     }
 
     pub async fn cleanup_token_map(&self) {
@@ -299,7 +296,7 @@ mod tests {
         let url = client.decode(&state).unwrap();
         assert_eq!(&url, "test-redirect-url");
         assert!(result.is_some());
-        assert_eq!(result.unwrap().email, "test+openid@example.com");
+        assert_eq!(result.unwrap().get_email(), "test+openid@example.com");
 
         let x = task.await??;
         assert!(x > 2.0);

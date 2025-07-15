@@ -1,0 +1,1 @@
+ALTER TABLE sessions ADD COLUMN key_hash TEXT;

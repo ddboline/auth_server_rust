@@ -15,12 +15,12 @@ use crate::{
 
 #[derive(FromSqlRow, Serialize, Deserialize, Debug, Eq, Clone)]
 pub struct SessionData {
-    pub id: Uuid,
-    pub session_id: Uuid,
-    pub session_key: StackString,
-    pub session_value: Value,
-    pub created_at: DateTimeWrapper,
-    pub modified_at: DateTimeWrapper,
+    id: Uuid,
+    session_id: Uuid,
+    session_key: StackString,
+    session_value: Value,
+    created_at: DateTimeWrapper,
+    modified_at: DateTimeWrapper,
 }
 
 impl PartialEq for SessionData {
@@ -42,6 +42,7 @@ impl Hash for SessionData {
 }
 
 impl SessionData {
+    #[must_use]
     pub fn new(session_id: Uuid, key: impl Into<StackString>, value: Value) -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -51,6 +52,35 @@ impl SessionData {
             created_at: DateTimeWrapper::now(),
             modified_at: DateTimeWrapper::now(),
         }
+    }
+
+    #[must_use]
+    pub fn get_id(&self) -> Uuid {
+        self.id
+    }
+
+    #[must_use]
+    pub fn get_session_id(&self) -> Uuid {
+        self.session_id
+    }
+
+    #[must_use]
+    pub fn get_session_key(&self) -> &str {
+        self.session_key.as_str()
+    }
+
+    #[must_use]
+    pub fn get_session_value(&self) -> &Value {
+        &self.session_value
+    }
+
+    #[must_use]
+    pub fn get_created_at(&self) -> DateTimeWrapper {
+        self.created_at
+    }
+
+    pub fn set_session_value(&mut self, session_value: Value) {
+        self.session_value = session_value;
     }
 
     /// # Errors
@@ -261,7 +291,7 @@ impl SessionData {
         session_key: &str,
     ) -> Result<Option<SessionData>, Error> {
         if let Some(session_obj) = Session::get_session(pool, session).await? {
-            if session_obj.secret_key != secret_key {
+            if session_obj.get_secret_key() != secret_key {
                 Err(Error::BadSecret)
             } else if let Some(session_data) =
                 session_obj.get_session_data(pool, &session_key).await?

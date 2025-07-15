@@ -105,11 +105,6 @@ impl TryFrom<ClaimsSet<PrivateClaim>> for Claim {
 
 impl From<Claim> for AuthorizedUser {
     fn from(claim: Claim) -> Self {
-        Self {
-            email: claim.get_email().into(),
-            session: claim.session,
-            secret_key: claim.secret_key,
-            ..Self::default()
-        }
+        Self::new(claim.get_email(), claim.session, &claim.secret_key)
     }
 }

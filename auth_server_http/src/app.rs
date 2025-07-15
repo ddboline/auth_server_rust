@@ -13,7 +13,7 @@ use auth_server_lib::{
     config::Config, errors::AuthServerError, pgpool::PgPool, session::Session, user::User,
 };
 use authorized_users::{
-    AUTHORIZED_USERS, AuthorizedUser, errors::AuthUsersError, get_secrets, update_secret,
+    AUTHORIZED_USERS, AuthInfo, AuthorizedUser, errors::AuthUsersError, get_secrets, update_secret,
 };
 
 use crate::{
@@ -192,12 +192,13 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
 ///     * `User::get_authorized_users` fails
 ///     * `AUTHORIZED_USERS.merge_users` fails
 pub async fn fill_auth_from_db(pool: &PgPool, expiration_seconds: u32) -> Result<(), Error> {
+    let key_hash = Session::get_key_hash();
     let (cleanup_result, most_recent_user_db) = try_join!(
-        Session::cleanup(pool, expiration_seconds),
+        Session::cleanup(pool, expiration_seconds, &key_hash),
         User::get_most_recent(pool),
     )?;
     let existing_users = AUTHORIZED_USERS.get_users();
-    let most_recent_user = existing_users.values().map(|i| i.created_at).max();
+    let most_recent_user = existing_users.values().map(AuthInfo::get_created_at).max();
     debug!("most_recent_user_db {most_recent_user_db:?} most_recent_user {most_recent_user:?}");
     if cleanup_result == 0
         && most_recent_user_db.is_some()
@@ -208,7 +209,7 @@ pub async fn fill_auth_from_db(pool: &PgPool, expiration_seconds: u32) -> Result
     }
     let result: Result<HashMap<StackString, AuthorizedUser>, _> = User::get_authorized_users(pool)
         .await?
-        .map_ok(|user| (user.email.clone(), user.into()))
+        .map_ok(|user| (user.get_email().into(), user.into()))
         .try_collect()
         .await;
     let users = result.map_err(Into::<AuthServerError>::into)?;

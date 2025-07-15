@@ -10,10 +10,10 @@ use crate::{errors::AuthUsersError as Error, token::Token};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq)]
 pub struct AuthorizedUser {
-    pub email: StackString,
-    pub session: Uuid,
-    pub secret_key: StackString,
-    pub created_at: OffsetDateTime,
+    email: StackString,
+    session: Uuid,
+    secret_key: StackString,
+    created_at: OffsetDateTime,
 }
 
 impl PartialEq for AuthorizedUser {
@@ -60,6 +60,38 @@ impl AuthorizedUser {
             secret_key: secret_key.into(),
             ..Self::default()
         }
+    }
+
+    #[must_use]
+    pub fn with_email(mut self, email: &str) -> Self {
+        self.email = email.into();
+        self
+    }
+
+    #[must_use]
+    pub fn with_created_at(mut self, created_at: OffsetDateTime) -> Self {
+        self.created_at = created_at;
+        self
+    }
+
+    #[must_use]
+    pub fn get_email(&self) -> &str {
+        self.email.as_str()
+    }
+
+    #[must_use]
+    pub fn get_session(&self) -> Uuid {
+        self.session
+    }
+
+    #[must_use]
+    pub fn get_secret_key(&self) -> &str {
+        self.secret_key.as_str()
+    }
+
+    #[must_use]
+    pub fn get_created_at(&self) -> OffsetDateTime {
+        self.created_at
     }
 
     /// # Errors
