@@ -1,3 +1,4 @@
+use checksums::{Algorithm, hash_reader};
 use log::debug;
 use postgres_query::{FromSqlRow, Query, client::GenericClient, query};
 use serde::{Deserialize, Serialize};
@@ -6,9 +7,8 @@ use stack_string::StackString;
 use std::cmp::PartialEq;
 use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
-use checksums::{hash_reader, Algorithm};
 
-use authorized_users::{SECRET_KEY, JWT_SECRET};
+use authorized_users::{JWT_SECRET, SECRET_KEY};
 
 use crate::{
     date_time_wrapper::DateTimeWrapper,
@@ -133,7 +133,9 @@ impl Session {
         let mut buf = Vec::new();
         buf.extend(&SECRET_KEY.get());
         buf.extend(JWT_SECRET.get());
-        hash_reader(&mut buf.as_slice(), Algorithm::MD5).as_str().into()
+        hash_reader(&mut buf.as_slice(), Algorithm::MD5)
+            .as_str()
+            .into()
     }
 
     /// # Errors
@@ -226,7 +228,7 @@ impl Session {
             id = self.id,
             email = self.email,
             secret_key = self.secret_key,
-            key_hash=self.key_hash,
+            key_hash = self.key_hash,
         )
     }
 
@@ -274,7 +276,11 @@ impl Session {
 
     /// # Errors
     /// Returns error if db query fails
-    pub async fn cleanup(pool: &PgPool, expiration_seconds: u32, key_hash: &str) -> Result<u64, Error> {
+    pub async fn cleanup(
+        pool: &PgPool,
+        expiration_seconds: u32,
+        key_hash: &str,
+    ) -> Result<u64, Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
         let conn: &PgTransaction = &tran;
@@ -283,7 +289,11 @@ impl Session {
         Ok(result)
     }
 
-    async fn cleanup_conn<C>(conn: &C, expiration_seconds: u32, key_hash: &str) -> Result<u64, Error>
+    async fn cleanup_conn<C>(
+        conn: &C,
+        expiration_seconds: u32,
+        key_hash: &str,
+    ) -> Result<u64, Error>
     where
         C: GenericClient + Sync,
     {
@@ -304,7 +314,8 @@ impl Session {
         );
         result += query.execute(conn).await?;
         let query = query!(
-            "DELETE FROM sessions WHERE last_accessed < $time OR (key_hash IS NOT NULL AND key_hash != $key_hash)",
+            "DELETE FROM sessions WHERE last_accessed < $time OR (key_hash IS NOT NULL AND \
+             key_hash != $key_hash)",
             time = time,
             key_hash = key_hash,
         );
@@ -451,11 +462,11 @@ mod tests {
     use stack_string::format_sstr;
     use std::collections::{HashMap, HashSet};
 
-    use authorized_users::get_secrets;
     use crate::{
         AUTH_APP_MUTEX, config::Config, errors::AuthServerError as Error, get_random_string,
         pgpool::PgPool, session::Session, user::User,
     };
+    use authorized_users::get_secrets;
 
     #[tokio::test]
     async fn test_session() -> Result<(), Error> {
@@ -463,7 +474,9 @@ mod tests {
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url)?;
 
-        get_secrets(&config.secret_path, &config.jwt_secret_path).await.unwrap();
+        get_secrets(&config.secret_path, &config.jwt_secret_path)
+            .await
+            .unwrap();
 
         let email = format_sstr!("test+session{}@example.com", get_random_string(32));
         let user = User::from_details(&email, "abc123")?;
@@ -506,7 +519,10 @@ mod tests {
         let new_session_data = new_session.get_session_data(&pool, "test").await?.unwrap();
         assert_eq!(new_session_data.get_session_value(), "NEW TEST DATA");
 
-        assert_eq!(new_session.key_hash.as_ref().unwrap(), &Session::get_key_hash());
+        assert_eq!(
+            new_session.key_hash.as_ref().unwrap(),
+            &Session::get_key_hash()
+        );
 
         new_session_data.delete(&pool).await?;
         session.delete(&pool).await?;

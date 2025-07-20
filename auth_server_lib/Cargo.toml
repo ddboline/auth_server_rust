@@ -33,9 +33,9 @@ stack-string = { version="1.1", features=["postgres_types"] }
 stdout-channel = "0.6"
 thiserror = "2.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}
-tokio = {version="1.45", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.46", features=["rt", "macros", "rt-multi-thread"]}
 tokio-postgres = {version = "0.7", features = ["with-time-0_3", "with-uuid-1", "with-serde_json-1"]}
-toml = "0.8"
+toml = "0.9"
 uuid = { version = "1.13", features = ["serde", "v4"] }
 url = {version="2.5", features=["serde"]}
 

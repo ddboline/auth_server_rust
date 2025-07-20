@@ -373,12 +373,12 @@ mod test {
     use stdout_channel::{MockStdout, StdoutChannel};
     use uuid::Uuid;
 
-    use authorized_users::get_secrets;
     use auth_server_ext::errors::AuthServerExtError as Error;
     use auth_server_lib::{
         AUTH_APP_MUTEX, config::Config, errors::AuthServerError, get_random_string,
         invitation::Invitation, pgpool::PgPool, session::Session, user::User,
     };
+    use authorized_users::get_secrets;
 
     use crate::AuthServerOptions;
 
@@ -390,7 +390,9 @@ mod test {
         let email = format_sstr!("ddboline+{}@ddboline.net", get_random_string(32));
         let password = get_random_string(32);
 
-        get_secrets(&config.secret_path, &config.jwt_secret_path).await.unwrap();
+        get_secrets(&config.secret_path, &config.jwt_secret_path)
+            .await
+            .unwrap();
 
         let mock_stdout = MockStdout::new();
         let mock_stderr = MockStdout::new();

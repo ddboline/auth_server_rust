@@ -21,6 +21,6 @@ smallvec = "1.14"
 stack-string = { version="1.1", features=["postgres_types"] }
 thiserror = "2.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}
-tokio = {version="1.45", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.46", features=["rt", "macros", "rt-multi-thread"]}
 url = "2.5"
 uuid = { version = "1.13", features = ["serde", "v4"] }
