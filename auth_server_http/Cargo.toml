@@ -38,7 +38,7 @@ toml = "0.9"
 tower = "0.5"
 tower-http = {version="0.6", features=["cors"]}
 url = "2.5"
-utoipa = { version = "5.3", features = ["axum_extras", "yaml", "time", "uuid", "smallvec", "url", "openapi_extensions", "decimal"] }
+utoipa = { version = "5.4", features = ["axum_extras", "yaml", "time", "uuid", "smallvec", "url", "openapi_extensions", "decimal"] }
 utoipa-helper = "0.1"
 utoipa-axum = { version = "0.2" }
 uuid = { version = "1.16", features = ["serde", "v4"] }

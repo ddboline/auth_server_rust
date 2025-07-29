@@ -30,7 +30,7 @@ auth_server_admin = {path="auth_server_admin"}
 auth_server_ext = {path="auth_server_ext"}
 auth_server_http = {path = "auth_server_http"}
 env_logger = {version="0.11", features=["color", "humantime", "regex"], default-features = false}
-tokio = {version="1.46", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.47", features=["rt", "macros", "rt-multi-thread"]}
 
 [[bin]]
 name = "auth-server-rust"
