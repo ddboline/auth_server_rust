@@ -190,7 +190,7 @@ impl SessionData {
         Ok(count as u64)
     }
 
-    fn insert_query(&self) -> Query {
+    fn insert_query(&self) -> Query<'_> {
         query!(
             "
                 INSERT INTO session_values (id, session_id, session_key, session_value)
@@ -212,7 +212,7 @@ impl SessionData {
         Ok(())
     }
 
-    fn update_query(&self) -> Query {
+    fn update_query(&self) -> Query<'_> {
         query!(
             "
                 UPDATE session_values

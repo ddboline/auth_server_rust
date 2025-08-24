@@ -78,12 +78,10 @@ impl Token {
 
         if let jwe::Compact::Decrypted { payload, .. } =
             token.into_decrypted(&SECRET_KEY.get_jwk_secret(), KM_ALGORITHM, CE_ALGORITHM)?
-        {
-            if let jws::Compact::Decoded { payload, .. } =
+            && let jws::Compact::Decoded { payload, .. } =
                 payload.into_decoded(&JWT_SECRET.get_jws_secret(), SG_ALGORITHM)?
-            {
-                return payload.try_into();
-            }
+        {
+            return payload.try_into();
         }
         Err(TokenError::DecodeFailure.into())
     }

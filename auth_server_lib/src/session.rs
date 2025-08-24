@@ -220,7 +220,7 @@ impl Session {
         Ok(())
     }
 
-    fn insert_query(&self) -> Query {
+    fn insert_query(&self) -> Query<'_> {
         query!(
             "
             INSERT INTO sessions (id, email, secret_key, key_hash)

@@ -87,7 +87,7 @@ impl Invitation {
         Ok(())
     }
 
-    fn insert_query(&self) -> Query {
+    fn insert_query(&self) -> Query<'_> {
         query!(
             "
             INSERT INTO invitations (id, email, expires_at)

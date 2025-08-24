@@ -927,16 +927,16 @@ async fn test_login_user_jwt(
 ) -> AuthResult<(LoggedUser, UserCookies<'static>)> {
     use maplit::hashmap;
 
-    if let Ok(s) = std::env::var("TESTENV") {
-        if &s == "true" {
-            let email = auth_data.email;
-            let user = AuthorizedUser::new(&email, session.get_id(), session.get_secret_key());
-            AUTHORIZED_USERS.update_users(hashmap! {user.get_email().into() => user.clone()});
-            let mut user: LoggedUser = user.into();
-            user.session = session.get_id();
-            let cookies = user.get_jwt_cookie(&config.domain, config.expiration_seconds, false)?;
-            return Ok((user, cookies));
-        }
+    if let Ok(s) = std::env::var("TESTENV")
+        && &s == "true"
+    {
+        let email = auth_data.email;
+        let user = AuthorizedUser::new(&email, session.get_id(), session.get_secret_key());
+        AUTHORIZED_USERS.update_users(hashmap! {user.get_email().into() => user.clone()});
+        let mut user: LoggedUser = user.into();
+        user.session = session.get_id();
+        let cookies = user.get_jwt_cookie(&config.domain, config.expiration_seconds, false)?;
+        return Ok((user, cookies));
     }
     Err(Error::BadRequest("Username and Password don't match"))
 }

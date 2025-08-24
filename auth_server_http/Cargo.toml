@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_http"
-version = "0.13.2"
+version = "0.13.3"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2024"
 license = "MIT"
@@ -33,7 +33,7 @@ serde_yml = "0.0.12"
 stack-string = { version="1.1", features=["postgres_types", "utoipa_types", "axum_types"] }
 thiserror = "2.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting", "parsing"]}
-tokio = {version="1.46", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.47", features=["rt", "macros", "rt-multi-thread"]}
 toml = "0.9"
 tower = "0.5"
 tower-http = {version="0.6", features=["cors"]}

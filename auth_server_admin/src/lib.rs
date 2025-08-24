@@ -251,17 +251,17 @@ impl AuthServerOptions {
                 stdout.send(format_sstr!("{stats}"));
             }
             AuthServerOptions::AddToApp { email, app } => {
-                if let Ok(auth_user_config) = AuthUserConfig::new(&config.auth_user_config_path) {
-                    if let Some(entry) = auth_user_config.get(app.as_str()) {
-                        entry.add_user(email.as_str()).await?;
-                    }
+                if let Ok(auth_user_config) = AuthUserConfig::new(&config.auth_user_config_path)
+                    && let Some(entry) = auth_user_config.get(app.as_str())
+                {
+                    entry.add_user(email.as_str()).await?;
                 }
             }
             AuthServerOptions::RemoveFromApp { email, app } => {
-                if let Ok(auth_user_config) = AuthUserConfig::new(&config.auth_user_config_path) {
-                    if let Some(entry) = auth_user_config.get(app.as_str()) {
-                        entry.remove_user(email.as_str()).await?;
-                    }
+                if let Ok(auth_user_config) = AuthUserConfig::new(&config.auth_user_config_path)
+                    && let Some(entry) = auth_user_config.get(app.as_str())
+                {
+                    entry.remove_user(email.as_str()).await?;
                 }
             }
             AuthServerOptions::RunMigrations => {
