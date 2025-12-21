@@ -53,16 +53,11 @@ pub static LOGIN_HTML: &str = r"
     </script>
 ";
 
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, Default)]
 pub enum AuthStatus {
-    Authorized,
+    #[default]
     NotAuthorized,
-}
-
-impl Default for AuthStatus {
-    fn default() -> Self {
-        Self::NotAuthorized
-    }
+    Authorized,
 }
 
 #[derive(Debug, Clone)]

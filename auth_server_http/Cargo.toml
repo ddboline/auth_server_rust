@@ -1,6 +1,6 @@
 [package]
 name = "auth_server_http"
-version = "0.13.3"
+version = "0.13.4"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2024"
 license = "MIT"
@@ -13,14 +13,15 @@ auth_server_ext = {path = "../auth_server_ext"}
 auth_server_lib = {path="../auth_server_lib"}
 authorized_users = {path = "../authorized_users"}
 axum = { version = "0.8", features = ["multipart"] }
-axum-extra = {version="0.10", features=["cookie"]}
-aws-config = {version="1.6", features=["behavior-version-latest"]}
+axum-extra = {version="0.12", features=["cookie"]}
+aws-config = {version="1.8", features=["behavior-version-latest"]}
 bytes = "1.10"
 cookie = {version="0.18", features=["percent-encode"]}
 derive_more = {version="2.0", features=["full"]}
-dioxus-core = "0.6"
-dioxus-ssr = "0.6"
-dioxus = "0.6"
+dioxus-core = "0.7"
+dioxus-signals = "0.7"
+dioxus-ssr = "0.7"
+dioxus = "0.7"
 futures = "0.3"
 log = "0.4"
 maplit = "1.0"
