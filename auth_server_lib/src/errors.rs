@@ -3,7 +3,7 @@ use deadpool_postgres::{BuildError, ConfigError};
 use envy::Error as EnvyError;
 use postgres_query::{Error as QueryError, extract::Error as QueryExtractError};
 use serde_json::Error as SerdeJsonError;
-use serde_yml::Error as YamlError;
+use serde_yaml_ng::Error as YamlError;
 use std::{io::Error as IoError, net::AddrParseError};
 use stdout_channel::StdoutChannelError;
 use thiserror::Error;
@@ -99,7 +99,7 @@ mod tests {
     use envy::Error as EnvyError;
     use postgres_query::{Error as QueryError, extract::Error as QueryExtractError};
     use serde_json::Error as SerdeJsonError;
-    use serde_yml::Error as YamlError;
+    use serde_yaml_ng::Error as YamlError;
     use std::{io::Error as IoError, net::AddrParseError};
     use stdout_channel::StdoutChannelError;
     use time::error::{Format as TimeFormatError, Parse as TimeParseError};

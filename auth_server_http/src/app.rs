@@ -93,7 +93,7 @@ async fn run_app(config: Config) -> Result<(), Error> {
         .split_for_parts();
 
     let spec_json = serde_json::to_string_pretty(&api)?;
-    let spec_yaml = serde_yml::to_string(&api)?;
+    let spec_yaml = serde_yaml_ng::to_string(&api)?;
 
     let router = router
         .route(
@@ -154,7 +154,7 @@ pub async fn run_test_app(config: Config) -> Result<(), Error> {
         .split_for_parts();
 
     let spec_json = serde_json::to_string_pretty(&api)?;
-    let spec_yaml = serde_yml::to_string(&api)?;
+    let spec_yaml = serde_yaml_ng::to_string(&api)?;
 
     let router = router
         .route(

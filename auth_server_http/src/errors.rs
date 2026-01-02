@@ -9,7 +9,7 @@ use axum::{
 use log::error;
 use serde::Serialize;
 use serde_json::Error as SerdeJsonError;
-use serde_yml::Error as YamlError;
+use serde_yaml_ng::Error as YamlError;
 use stack_string::{StackString, format_sstr};
 use std::{
     fmt::{Debug, Error as FmtError},
