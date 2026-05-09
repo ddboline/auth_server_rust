@@ -21,6 +21,7 @@ pub struct SessionData {
     session_value: Value,
     created_at: DateTimeWrapper,
     modified_at: DateTimeWrapper,
+    deleted_at: Option<DateTimeWrapper>,
 }
 
 impl PartialEq for SessionData {
@@ -51,6 +52,7 @@ impl SessionData {
             session_value: value,
             created_at: DateTimeWrapper::now(),
             modified_at: DateTimeWrapper::now(),
+            deleted_at: None,
         }
     }
 
@@ -88,7 +90,7 @@ impl SessionData {
     pub async fn get_all_session_data(
         pool: &PgPool,
     ) -> Result<impl Stream<Item = Result<Self, PqError>>, Error> {
-        let query = query!("SELECT * FROM session_values");
+        let query = query!("SELECT * FROM session_values WHERE deleted_at IS NULL");
         let conn = pool.get().await?;
         query.fetch_streaming(&conn).await.map_err(Into::into)
     }
@@ -107,7 +109,7 @@ impl SessionData {
         let query = query!(
             "
                 SELECT * FROM session_values
-                WHERE id = $id
+                WHERE id = $id AND deleted_at IS NULL
             ",
             id = id,
         );
@@ -121,7 +123,8 @@ impl SessionData {
         session_id: Uuid,
     ) -> Result<impl Stream<Item = Result<Self, PqError>>, Error> {
         let query = query!(
-            "SELECT * FROM session_values WHERE session_id = $session_id ORDER BY created_at",
+            "SELECT * FROM session_values WHERE session_id = $session_id AND deleted_at IS NULL \
+             ORDER BY created_at",
             session_id = session_id
         );
         let conn = pool.get().await?;
@@ -154,7 +157,8 @@ impl SessionData {
     /// Returns error if db query fails
     pub async fn get_by_session_id(pool: &PgPool, session_id: Uuid) -> Result<Vec<Self>, Error> {
         let query = query!(
-            "SELECT * FROM session_values WHERE session_id = $session_id ORDER BY created_at",
+            "SELECT * FROM session_values WHERE session_id = $session_id AND deleted_at IS NULL \
+             ORDER BY created_at",
             session_id = session_id
         );
         let conn = pool.get().await?;
@@ -172,7 +176,8 @@ impl SessionData {
         let query = query!(
             "
                 SELECT * FROM session_values
-                WHERE session_id = $session_id AND session_key = $session_key
+                WHERE session_id = $session_id AND session_key = $session_key AND deleted_at IS \
+             NULL
             ",
             session_id = session_id,
             session_key = session_key
@@ -184,7 +189,7 @@ impl SessionData {
     /// # Errors
     /// Returns error if db query fails
     pub async fn get_number_entries(pool: &PgPool) -> Result<u64, Error> {
-        let query = query!("SELECT count(*) FROM session_values");
+        let query = query!("SELECT count(*) FROM session_values WHERE deleted_at IS NULL");
         let conn = pool.get().await?;
         let (count,) = query.fetch_one::<(i64,), _>(&conn).await?;
         Ok(count as u64)
@@ -277,7 +282,10 @@ impl SessionData {
     where
         C: GenericClient + Sync,
     {
-        let query = query!("DELETE FROM session_values WHERE id = $id", id = self.id);
+        let query = query!(
+            "UPDATE session_values SET deleted_at=now() WHERE id = $id",
+            id = self.id
+        );
         query.execute(&conn).await?;
         Ok(())
     }

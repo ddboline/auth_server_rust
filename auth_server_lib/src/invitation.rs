@@ -17,6 +17,7 @@ pub struct Invitation {
     pub id: Uuid,
     pub email: StackString,
     pub expires_at: DateTimeWrapper,
+    pub deleted_at: Option<DateTimeWrapper>,
 }
 
 impl PartialEq for Invitation {
@@ -38,13 +39,14 @@ impl Invitation {
             id: Uuid::new_v4(),
             email: email.into(),
             expires_at: (OffsetDateTime::now_utc() + Duration::hours(24)).into(),
+            deleted_at: None,
         }
     }
 
     /// # Errors
     /// Returns error if db query fails
     pub async fn get_all(pool: &PgPool) -> Result<Vec<Self>, Error> {
-        let query: Query = query!("SELECT * FROM invitations");
+        let query: Query = query!("SELECT * FROM invitations WHERE deleted_at IS NULL");
         let conn = pool.get().await?;
         query.fetch(&conn).await.map_err(Into::into)
     }
@@ -54,7 +56,7 @@ impl Invitation {
     pub async fn get_all_streaming(
         pool: &PgPool,
     ) -> Result<impl Stream<Item = Result<Self, PqError>>, Error> {
-        let query: Query = query!("SELECT * FROM invitations");
+        let query: Query = query!("SELECT * FROM invitations WHERE deleted_at IS NULL");
         let conn = pool.get().await?;
         query.fetch_streaming(&conn).await.map_err(Into::into)
     }
@@ -62,7 +64,7 @@ impl Invitation {
     /// # Errors
     /// Returns error if db query fails
     pub async fn get_number_invitations(pool: &PgPool) -> Result<u64, Error> {
-        let query = query!("SELECT count(*) FROM invitations");
+        let query = query!("SELECT count(*) FROM invitations WHERE deleted_at IS NULL");
         let conn = pool.get().await?;
         let (count,) = query.fetch_one::<(i64,), _>(&conn).await?;
         Ok(count as u64)
@@ -71,7 +73,10 @@ impl Invitation {
     /// # Errors
     /// Returns error if db query fails
     pub async fn get_by_uuid(uuid: Uuid, pool: &PgPool) -> Result<Option<Self>, Error> {
-        let query = query!("SELECT * FROM invitations WHERE id = $id", id = uuid);
+        let query = query!(
+            "SELECT * FROM invitations WHERE id = $id AND deleted_at IS NULL",
+            id = uuid
+        );
         let conn = pool.get().await?;
         query.fetch_opt(&conn).await.map_err(Into::into)
     }
@@ -121,7 +126,10 @@ impl Invitation {
     where
         C: GenericClient + Sync,
     {
-        let query = query!("DELETE FROM invitations WHERE id = $id", id = self.id);
+        let query = query!(
+            "UPDATE invitations SET deleted_at=now() WHERE id = $id",
+            id = self.id
+        );
         query.execute(conn).await?;
         Ok(())
     }

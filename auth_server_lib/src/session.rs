@@ -26,6 +26,7 @@ pub struct Session {
     last_accessed: DateTimeWrapper,
     secret_key: StackString,
     key_hash: Option<StackString>,
+    deleted_at: Option<DateTimeWrapper>,
 }
 
 impl PartialEq for Session {
@@ -126,6 +127,7 @@ impl Session {
             last_accessed: DateTimeWrapper::now(),
             secret_key: get_random_string(16),
             key_hash,
+            deleted_at: None,
         }
     }
 
@@ -155,14 +157,17 @@ impl Session {
     where
         C: GenericClient + Sync,
     {
-        let query = query!("SELECT * FROM sessions WHERE id = $id", id = id);
+        let query = query!(
+            "SELECT * FROM sessions WHERE id = $id AND deleted_at IS NULL",
+            id = id
+        );
         query.fetch_opt(conn).await.map_err(Into::into)
     }
 
     /// # Errors
     /// Returns error if db query fails
     pub async fn get_all_sessions(pool: &PgPool) -> Result<Vec<Self>, Error> {
-        let query = query!("SELECT * FROM sessions");
+        let query = query!("SELECT * FROM sessions WHERE deleted_at IS NULL");
         let conn = pool.get().await?;
         query.fetch(&conn).await.map_err(Into::into)
     }
@@ -177,6 +182,7 @@ impl Session {
                        count(sv) as number_of_data_objects
                 FROM sessions s
                 LEFT JOIN session_values sv ON s.id = sv.session_id
+                WHERE s.deleted_at IS NULL
                 GROUP BY 1,2,3,4
                 ORDER BY created_at
             "
@@ -195,7 +201,10 @@ impl Session {
     /// Returns error if db query fails
     pub async fn get_by_email(pool: &PgPool, email: impl AsRef<str>) -> Result<Vec<Self>, Error> {
         let email = email.as_ref();
-        let query = query!("SELECT * FROM sessions WHERE email = $email", email = email);
+        let query = query!(
+            "SELECT * FROM sessions WHERE email = $email AND deleted_at IS NULL",
+            email = email
+        );
         let conn = pool.get().await?;
         query.fetch(&conn).await.map_err(Into::into)
     }
@@ -203,7 +212,7 @@ impl Session {
     /// # Errors
     /// Returns error if db query fails
     pub async fn get_number_sessions(pool: &PgPool) -> Result<u64, Error> {
-        let query = query!("SELECT count(*) FROM sessions");
+        let query = query!("SELECT count(*) FROM sessions WHERE deleted_at IS NULL");
         let conn = pool.get().await?;
         let (count,) = query.fetch_one::<(i64,), _>(&conn).await?;
         Ok(count as u64)
@@ -269,7 +278,10 @@ impl Session {
     where
         C: GenericClient + Sync,
     {
-        let query = query!("DELETE FROM sessions WHERE id = $id", id = self.id);
+        let query = query!(
+            "UPDATE sessions SET deleted_at=now() WHERE id = $id",
+            id = self.id
+        );
         query.execute(&conn).await?;
         Ok(())
     }
@@ -314,8 +326,8 @@ impl Session {
         );
         result += query.execute(conn).await?;
         let query = query!(
-            "DELETE FROM sessions WHERE last_accessed < $time OR (key_hash IS NOT NULL AND \
-             key_hash != $key_hash)",
+            "UPDATE sessions SET deleted_at=now() WHERE last_accessed < $time OR (key_hash IS NOT \
+             NULL AND key_hash != $key_hash)",
             time = time,
             key_hash = key_hash,
         );
