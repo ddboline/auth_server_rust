@@ -313,8 +313,9 @@ impl Session {
         let time = OffsetDateTime::now_utc() - Duration::seconds(expiration_seconds.into());
         let query = query!(
             "
-                DELETE FROM session_values d
-                WHERE d.session_id IN (
+                UPDATE session_values
+                SET deleted_at=now()
+                WHERE session_id IN (
                     SELECT id
                     FROM sessions
                     WHERE last_accessed < $time
