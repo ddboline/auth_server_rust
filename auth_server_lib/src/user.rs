@@ -4,7 +4,7 @@ use argon2::{
 };
 use futures::Stream;
 use postgres_query::{Error as PqError, FromSqlRow, client::GenericClient, query};
-use rand::{RngCore, rng as thread_rng};
+use rand::{Rng, rng as thread_rng};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::{cmp::PartialEq, sync::LazyLock};
