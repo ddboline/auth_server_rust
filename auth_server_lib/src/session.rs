@@ -366,6 +366,7 @@ impl Session {
                 FROM session_values
                 WHERE session_id=$id
                   AND session_key=$session_key
+                  AND deleted_at IS NULL
             ",
             id = self.id,
             session_key = session_key
