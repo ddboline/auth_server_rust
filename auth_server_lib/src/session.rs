@@ -183,6 +183,7 @@ impl Session {
                 FROM sessions s
                 LEFT JOIN session_values sv ON s.id = sv.session_id
                 WHERE s.deleted_at IS NULL
+                  AND sv.deleted_at IS NULL
                 GROUP BY 1,2,3,4
                 ORDER BY created_at
             "
@@ -346,7 +347,7 @@ impl Session {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
         let conn: &PgTransaction = &tran;
-        let result = self.get_session_data_conn(conn, session_key).await?;
+        let result = self.get_session_data_conn(conn, session_key, false).await?;
         tran.commit().await?;
         Ok(result)
     }
@@ -355,22 +356,36 @@ impl Session {
         &self,
         conn: &C,
         session_key: impl AsRef<str>,
+        include_deleted: bool,
     ) -> Result<Option<SessionData>, Error>
     where
         C: GenericClient + Sync,
     {
         let session_key = session_key.as_ref();
-        let query = query!(
-            "
-                SELECT *
-                FROM session_values
-                WHERE session_id=$id
-                  AND session_key=$session_key
-                  AND deleted_at IS NULL
-            ",
-            id = self.id,
-            session_key = session_key
-        );
+        let query = if include_deleted {
+            query!(
+                "
+                    SELECT *
+                    FROM session_values
+                    WHERE session_id=$id
+                    AND session_key=$session_key
+                ",
+                id = self.id,
+                session_key = session_key
+            )
+        } else {
+            query!(
+                "
+                    SELECT *
+                    FROM session_values
+                    WHERE session_id=$id
+                    AND session_key=$session_key
+                    AND deleted_at IS NULL
+                ",
+                id = self.id,
+                session_key = session_key
+            )
+        };
         query.fetch_opt(&conn).await.map_err(Into::into)
     }
 
@@ -412,13 +427,14 @@ impl Session {
         C: GenericClient + Sync,
     {
         let session_key = session_key.as_ref();
-        let session_data =
-            if let Some(mut session_data) = self.get_session_data_conn(conn, session_key).await? {
-                session_data.set_session_value(session_value);
-                session_data
-            } else {
-                SessionData::new(self.id, session_key, session_value)
-            };
+        let session_data = if let Some(mut session_data) =
+            self.get_session_data_conn(conn, session_key, true).await?
+        {
+            session_data.set_session_value(session_value);
+            session_data
+        } else {
+            SessionData::new(self.id, session_key, session_value)
+        };
         session_data.upsert_conn(conn).await?;
         Ok(session_data)
     }
