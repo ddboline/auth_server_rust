@@ -221,7 +221,9 @@ impl SessionData {
         query!(
             "
                 UPDATE session_values
-                SET session_value=$session_value,modified_at=now()
+                SET session_value=$session_value,
+                    modified_at=now(),
+                    deleted_at=NULL
                 WHERE id=$id
                   AND session_id=$session_id
                   AND session_key=$session_key
