@@ -69,6 +69,7 @@ pub struct User {
     // password here is always the hashed password
     password: StackString,
     created_at: DateTimeWrapper,
+    deleted_at: Option<DateTimeWrapper>,
 }
 
 impl PartialEq for User {
@@ -98,6 +99,7 @@ impl User {
             email: email.into(),
             password,
             created_at: DateTimeWrapper::now(),
+            deleted_at: None,
         })
     }
 
@@ -355,6 +357,7 @@ mod tests {
                        p=1$kCY9hyy6ZE3c71Np$kLz4pb6M5IbBz7jLgwG+xxFudnPPvSAWVC5muM/jh8E"
                 .into(),
             created_at: DateTimeWrapper::now(),
+            deleted_at: None,
         };
         assert!(user.verify_password("password").unwrap());
         Ok(())
