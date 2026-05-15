@@ -109,7 +109,7 @@ impl SessionData {
         let query = query!(
             "
                 SELECT * FROM session_values
-                WHERE id = $id AND deleted_at IS NULL
+                WHERE id = $id
             ",
             id = id,
         );
