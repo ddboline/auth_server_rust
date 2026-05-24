@@ -11,7 +11,7 @@ arc-swap = "1.9"
 auth_server_lib = {path = "../auth_server_lib"}
 authorized_users = {path = "../authorized_users"}
 aws-config = {version="1.8", features=["behavior-version-latest"]}
-aws-sdk-ses = "1.101"
+aws-sdk-ses = "1.102"
 aws-smithy-types = "1.4"
 base64 = "0.22"
 bytes = "1.11"
