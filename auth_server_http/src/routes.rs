@@ -758,7 +758,7 @@ async fn auth_await(
 ) -> AuthResult<ApiAwaitResponse> {
     let Query(AuthAwait { state }) = query;
     if timeout(
-        Duration::from_secs(60),
+        Duration::from_mins(1),
         data.google_client.wait_csrf(&state),
     )
     .await

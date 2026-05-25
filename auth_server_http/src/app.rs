@@ -52,7 +52,7 @@ pub async fn start_app() -> Result<(), Error> {
 
 async fn run_app(config: Config) -> Result<(), Error> {
     async fn update_db(pool: PgPool, client: GoogleClient, expiration_seconds: u32) {
-        let mut i = interval(Duration::from_secs(60));
+        let mut i = interval(Duration::from_mins(1));
         loop {
             fill_auth_from_db(&pool, expiration_seconds)
                 .await
