@@ -1,10 +1,9 @@
 use argon2::{
     Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version,
-    password_hash::{Error as ArgonError, Salt, SaltString},
+    password_hash::{Error as ArgonError},
 };
 use futures::Stream;
 use postgres_query::{Error as PqError, FromSqlRow, client::GenericClient, query};
-use rand::{Rng, rng as thread_rng};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::{cmp::PartialEq, sync::LazyLock};
@@ -43,18 +42,8 @@ impl Argon {
         )))
     }
 
-    fn generate_salt() -> SaltString {
-        let mut bytes = [0u8; Salt::RECOMMENDED_LENGTH];
-        thread_rng().fill_bytes(&mut bytes);
-        SaltString::encode_b64(&bytes).expect("Faled to generate salt")
-    }
-
     fn hash_password(&self, plain: impl AsRef<[u8]>) -> Result<StackString, Error> {
-        let salt = Self::generate_salt();
-        self.0
-            .hash_password(plain.as_ref(), &salt)
-            .map(StackString::from_display)
-            .map_err(Into::into)
+        self.0.hash_password(plain.as_ref()).map(StackString::from_display).map_err(Into::into)
     }
 
     fn verify_password(&self, hashed: &str, password: impl AsRef<[u8]>) -> Result<(), ArgonError> {
@@ -117,7 +106,7 @@ impl User {
             .verify_password(&self.password, password)
             .map(|()| true)
             .or_else(|e| match e {
-                ArgonError::Password => Ok(false),
+                ArgonError::PasswordInvalid => Ok(false),
                 e => Err(e.into()),
             })
     }
@@ -134,7 +123,7 @@ impl User {
             .verify_password(&FAKE_PASSWORD, password)
             .map(|()| unreachable!())
             .or_else(|e| match e {
-                ArgonError::Password => Ok(false),
+                ArgonError::PasswordInvalid => Ok(false),
                 e => Err(e.into()),
             })
     }

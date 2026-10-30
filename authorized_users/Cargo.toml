@@ -8,19 +8,19 @@ edition = "2024"
 
 [dependencies]
 arc-swap = "1.9"
-base64 = "0.22"
+base64 = "0.23"
 biscuit = "0.8"
-bytes = "1.11"
+bytes = "1.12"
 crossbeam = "0.8"
 derive_more = {version="2.1", features=["full"]}
 log = "0.4"
 rand = "0.10"
 reqwest = {version="0.13", features=["cookies", "json", "stream"]}
 serde = { version="1.0", features=["derive"] }
-smallvec = "1.15"
-stack-string = { version="1.1", features=["postgres_types"] }
+smallvec = "1.16"
+stack-string = { version="1.2", features=["postgres_types"] }
 thiserror = "2.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}
-tokio = {version="1.52", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.54", features=["rt", "macros", "rt-multi-thread"]}
 url = "2.5"
-uuid = { version = "1.23", features = ["serde", "v4"] }
+uuid = { version = "1.29", features = ["serde", "v4"] }

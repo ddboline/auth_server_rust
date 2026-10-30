@@ -13,27 +13,27 @@ authorized_users = {path = "../authorized_users"}
 aws-config = {version="1.8", features=["behavior-version-latest"]}
 aws-sdk-ses = "1.102"
 aws-smithy-types = "1.4"
-base64 = "0.22"
+base64 = "0.23"
 bytes = "1.11"
 crossbeam = "0.8"
 derive_more = {version="2.1", features=["full"]}
-dirs = "6.0"
+dirs = "7.0"
 envy = "0.4"
 futures = "0.3"
 log = "0.4"
-openid = {version="0.23", default-features=false, features = ["rustls"]}
-parking_lot = "0.12"
+openid = {version="0.25", default-features=false, features = ["rustls"]}
+parking_lot = "0.13"
 rand = "0.10"
-refinery = {version="0.9", features=["tokio-postgres"]}
+refinery = {version="0.10", features=["tokio-postgres"]}
 serde = { version="1.0", features=["derive"] }
 serde_json="1.0"
 smallvec = "1.15"
 stack-string = { version="1.1", features=["postgres_types"] }
 thiserror = "2.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting", "parsing"]}
-tokio = {version="1.52", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.54", features=["rt", "macros", "rt-multi-thread"]}
 toml = "1.1"
-uuid = { version = "1.23", features = ["serde", "v4"] }
+uuid = { version = "1.29", features = ["serde", "v4"] }
 url = "2.5"
 
 [dev-dependencies]

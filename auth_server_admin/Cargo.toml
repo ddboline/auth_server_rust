@@ -17,14 +17,14 @@ clap = {version="4.6", features=["derive"]}
 crossbeam = "0.8"
 deadqueue = "0.2"
 derive_more = {version="2.1", features=["full"]}
-dirs = "6.0"
+dirs = "7.0"
 envy = "0.4"
 futures = "0.3"
-itertools = "0.14"
+itertools = "0.15"
 log = "0.4"
-parking_lot = "0.12"
+parking_lot = "0.13"
 rand = "0.10"
-refinery = {version="0.9", features=["tokio-postgres"]}
+refinery = {version="0.10", features=["tokio-postgres"]}
 serde = { version="1.0", features=["derive"] }
 serde_json="1.0"
 smallvec = "1.15"
@@ -35,7 +35,7 @@ time = {version="0.3", features=["serde-human-readable", "macros", "formatting",
 tokio = {version="1.52", features=["rt", "macros", "rt-multi-thread"]}
 toml = "1.1"
 url = "2.5"
-uuid = { version = "1.23", features = ["serde", "v4"] }
+uuid = { version = "1.29", features = ["serde", "v4"] }
 
 [dev-dependencies]
 reqwest = {version = "0.13", features=["cookies", "gzip", "json"]}
