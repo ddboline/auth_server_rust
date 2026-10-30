@@ -221,7 +221,7 @@ fn get_token_string() -> StackString {
     let encoded_size = URL_SAFE_NO_PAD
         .encode_slice(random_bytes, &mut buf)
         .expect("Buffer too small");
-    debug_assert!(encoded_size == 22);
+    debug_assert_eq!(encoded_size, 22);
     let buf = str::from_utf8(&buf).expect("Invalid buffer");
     let mut output = StackString::new();
     output.push_str(buf);
