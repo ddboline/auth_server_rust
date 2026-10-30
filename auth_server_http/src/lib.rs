@@ -8,6 +8,8 @@
 #![allow(clippy::similar_names)]
 #![allow(clippy::doc_markdown)]
 #![allow(clippy::needless_for_each)]
+#![allow(clippy::redundant_field_names)]
+#![allow(clippy::unused_async_trait_impl)]
 
 pub mod app;
 pub mod auth;

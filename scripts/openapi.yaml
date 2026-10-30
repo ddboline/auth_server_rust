@@ -8,7 +8,7 @@ info:
   license:
     name: MIT
     identifier: MIT
-  version: 0.13.12
+  version: 0.14.0
 paths:
   /api/auth:
     get:
@@ -33,13 +33,15 @@ paths:
                     format: date-time
                     description: User Created At
                   email:
-                    oneOf:
+                    allOf:
                     - type: string
-                    description: Email Address
+                    - type: object
+                      description: Email Address
                   secret_key:
-                    oneOf:
+                    allOf:
                     - type: string
-                    description: Secret Key
+                    - type: object
+                      description: Secret Key
                   session:
                     type: string
                     format: uuid
@@ -100,13 +102,15 @@ paths:
                     format: date-time
                     description: User Created At
                   email:
-                    oneOf:
+                    allOf:
                     - type: string
-                    description: Email Address
+                    - type: object
+                      description: Email Address
                   secret_key:
-                    oneOf:
+                    allOf:
                     - type: string
-                    description: Secret Key
+                    - type: object
+                      description: Secret Key
                   session:
                     type: string
                     format: uuid
@@ -200,13 +204,15 @@ paths:
                 - csrf_state
                 properties:
                   auth_url:
-                    oneOf:
+                    allOf:
                     - type: string
-                    description: Auth URL
+                    - type: object
+                      description: Auth URL
                   csrf_state:
-                    oneOf:
+                    allOf:
                     - type: string
-                    description: CSRF State
+                    - type: object
+                      description: CSRF State
         '400':
           description: Bad Request
           content:
@@ -357,17 +363,19 @@ paths:
                 - expires_at
                 properties:
                   email:
-                    oneOf:
+                    allOf:
                     - type: string
-                    description: Email Address
+                    - type: object
+                      description: Email Address
                   expires_at:
                     type: string
                     format: date-time
                     description: Expiration Datetime
                   id:
-                    oneOf:
+                    allOf:
                     - type: string
-                    description: Invitation ID
+                    - type: object
+                      description: Invitation ID
         '400':
           description: Bad Request
           content:
@@ -562,13 +570,15 @@ paths:
                     format: date-time
                     description: User Created At
                   email:
-                    oneOf:
+                    allOf:
                     - type: string
-                    description: Email Address
+                    - type: object
+                      description: Email Address
                   secret_key:
-                    oneOf:
+                    allOf:
                     - type: string
-                    description: Secret Key
+                    - type: object
+                      description: Secret Key
                   session:
                     type: string
                     format: uuid
@@ -630,9 +640,10 @@ paths:
                       format: uuid
                       description: Session ID
                     session_key:
-                      oneOf:
+                      allOf:
                       - type: string
-                      description: Session Key
+                      - type: object
+                        description: Session Key
                     session_value:
                       description: Session Data
         '400':
@@ -865,8 +876,8 @@ paths:
         required: false
         schema:
           oneOf:
-          - type: 'null'
           - type: string
+          - type: 'null'
       - name: session
         in: query
         description: Session
@@ -1033,8 +1044,8 @@ paths:
         required: false
         schema:
           oneOf:
-          - type: 'null'
           - type: string
+          - type: 'null'
         example: '"https://example.com"'
       responses:
         '200':
@@ -1082,8 +1093,8 @@ paths:
         required: false
         schema:
           oneOf:
-          - type: 'null'
           - type: string
+          - type: 'null'
         example: '"https://example.com"'
       responses:
         '200':
@@ -1200,13 +1211,15 @@ components:
       - password
       properties:
         email:
-          oneOf:
+          allOf:
           - type: string
-          description: Email Address
+          - type: object
+            description: Email Address
         password:
-          oneOf:
+          allOf:
           - type: string
-          description: Password
+          - type: object
+            description: Password
     CreateInvitation:
       type: object
       description: CreateInvitation
@@ -1214,9 +1227,10 @@ components:
       - email
       properties:
         email:
-          oneOf:
+          allOf:
           - type: string
-          description: Email to send invitation to
+          - type: object
+            description: Email to send invitation to
     EmailStats:
       type: object
       required:
@@ -1258,8 +1272,8 @@ components:
       properties:
         final_url:
           oneOf:
-          - type: 'null'
           - type: string
+          - type: 'null'
           description: Url to redirect to after completion of authorization
     LoggedUser:
       type: object
@@ -1275,13 +1289,15 @@ components:
           format: date-time
           description: User Created At
         email:
-          oneOf:
+          allOf:
           - type: string
-          description: Email Address
+          - type: object
+            description: Email Address
         secret_key:
-          oneOf:
+          allOf:
           - type: string
-          description: Secret Key
+          - type: object
+            description: Secret Key
         session:
           type: string
           format: uuid
@@ -1293,9 +1309,10 @@ components:
       - password
       properties:
         password:
-          oneOf:
+          allOf:
           - type: string
-          description: Password
+          - type: object
+            description: Password
     SesQuotas:
       type: object
       description: SesQuotas
@@ -1331,9 +1348,10 @@ components:
           format: date-time
           description: Create At
         email_address:
-          oneOf:
+          allOf:
           - type: string
-          description: Email Address
+          - type: object
+            description: Email Address
         last_accessed:
           type: string
           format: date-time
